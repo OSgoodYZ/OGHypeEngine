@@ -36,6 +36,11 @@ set(LV_BUILD_VERSION	0 )
 
 add_executable(application ${TOTAL_FILE})
 
+IF(OG_ENGINE_SHARED_LIB)
+	add_definitions("-DOG_API_EXPORT")
+	# set_target_properties(sample PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON )
+ENDIF()
+
 #target_compile_definitions(application PRIVATE "-DIMGUI_INCLUDE_IMCONFIG_H" "-DLV_EDITOR_API_IMPORT" "-DLV_USER_API_IMPORT" "-DLV_EDITOR")
 
 #set_target_properties(application PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})

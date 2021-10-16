@@ -61,6 +61,20 @@ file(INSTALL DESTINATION "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/applica
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Dd][Ee][Bb][Uu][Gg])$")
+    list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
+     "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Debug/dev/include/OgPrecompiled.h")
+    if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
+        message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
+    endif()
+    if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
+        message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
+    endif()
+file(INSTALL DESTINATION "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Debug/dev/include" TYPE FILE FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
+  endif()
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
     list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
      "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Release/dev/lib/render.lib")
@@ -89,6 +103,20 @@ file(INSTALL DESTINATION "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/applica
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee])$")
+    list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
+     "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Release/dev/include/OgPrecompiled.h")
+    if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
+        message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
+    endif()
+    if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
+        message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
+    endif()
+file(INSTALL DESTINATION "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Release/dev/include" TYPE FILE FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
+  endif()
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ww][Ii][Tt][Hh][Dd][Ee][Bb][Ii][Nn][Ff][Oo])$")
     list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
      "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/RelWithDebInfo/dev/lib/render.lib")
@@ -113,6 +141,20 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
 file(INSTALL DESTINATION "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/RelWithDebInfo/dev/include/render" TYPE DIRECTORY FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/." FILES_MATCHING REGEX "/[^/]*\\.h$" REGEX "/private$" EXCLUDE)
+  endif()
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  if("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ww][Ii][Tt][Hh][Dd][Ee][Bb][Ii][Nn][Ff][Oo])$")
+    list(APPEND CMAKE_ABSOLUTE_DESTINATION_FILES
+     "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/RelWithDebInfo/dev/include/OgPrecompiled.h")
+    if(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION)
+        message(WARNING "ABSOLUTE path INSTALL DESTINATION : ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
+    endif()
+    if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
+        message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
+    endif()
+file(INSTALL DESTINATION "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/RelWithDebInfo/dev/include" TYPE FILE FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
   endif()
 endif()
 

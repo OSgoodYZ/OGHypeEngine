@@ -156,11 +156,17 @@ ENDIF()
 
 #MESSAGE(STATUS "Target architecture - ${ARCH}")
 
-OPTION(XCODE_GENERATE_SCHEME "generate scheme" ON)
+#OPTION(XCODE_GENERATE_SCHEME "generate scheme" ON)
+
+OPTION(OG_ENGINE_SHARED_LIB "Build libraries" ON)
+
+#OPTION(OG_LEAK_CHECK "check leak" OFF)
 
 #IF(WIN32)
 #	OPTION(INCLUDE_VSIX "vsix" OFF)
 #ENDIF()
+
+
 
 
 IF(${ARCH} STREQUAL "x86")
