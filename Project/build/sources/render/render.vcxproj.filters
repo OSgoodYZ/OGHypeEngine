@@ -1,16 +1,36 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\main.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\OgRenderDefinitions.cpp">
+      <Filter>private</Filter>
     </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRender_Vulkan.cpp">
+      <Filter>private\vulkan</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderContext.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderDefinitions.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRender_Vulkan.h">
+      <Filter>private\vulkan</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{8A274994-114E-38A2-A070-C6991D6BA0E2}</UniqueIdentifier>
+    <Filter Include="private">
+      <UniqueIdentifier>{A41FDB05-4B4A-3EDC-86B2-708306323F76}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="private\vulkan">
+      <UniqueIdentifier>{1727C28F-5AA0-3F18-9EF4-B7846103507A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="public">
+      <UniqueIdentifier>{5BE45934-E073-390D-B5D2-FB44A6ED57CB}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

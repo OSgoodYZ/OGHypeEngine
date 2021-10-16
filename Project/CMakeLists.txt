@@ -1,8 +1,8 @@
-# HypeClothEngine version 0.1
+# OGHypeEngine version 0.1
 # ref https://www.tuwlab.com/27270
 cmake_minimum_required (VERSION 3.8)
 
-project( HypeClothEngine )
+project( OGHypeEngine )
 
 IF (NOT DEFINED $ENV{VULKAN_SDK})
 	MESSAGE(STATUS "Vulkan SDK is $ENV{VULKAN_SDK}")
@@ -91,9 +91,9 @@ ENDIF()
 
 
 
-set(PROJECT_ROOT ${HypeClothEngine_SOURCE_DIR}/sources)
+set(PROJECT_ROOT ${OGHypeEngine_SOURCE_DIR}/sources)
 
-MESSAGE(STATUS "ROOT ${HypeClothEngine_SOURCE_DIR}")
+MESSAGE(STATUS "ROOT ${OGHypeEngine_SOURCE_DIR}")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
 
@@ -164,34 +164,37 @@ OPTION(XCODE_GENERATE_SCHEME "generate scheme" ON)
 
 
 IF(${ARCH} STREQUAL "x86")
-	MESSAGE(FATAL_ERROR "HypeClothEngine_SOURCE_DIR is only support x64")
+	MESSAGE(FATAL_ERROR "OGHypeEngine is only support x64")
 ENDIF()
 
 IF(APPLE)
     # 빌드 환경 변수 : https://pewpewthespells.com/blog/buildsettings.html
     
-   #SET(LIB_DEBUG_DIR "${HypeClothEngine_SOURCE_DIR}/deps/libs/osx/x86_64/Debug")
-	#SET(DLL_DEBUG_DIR "${HypeClothEngine_SOURCE_DIR}/deps/dll/osx/x86_64/Debug")
+   #SET(LIB_DEBUG_DIR "${OGHypeEngine}/deps/libs/osx/x86_64/Debug")
+	#SET(DLL_DEBUG_DIR "${OGHypeEngine}/deps/dll/osx/x86_64/Debug")
    
-	#SET(LIB_RELEASE_DIR "${HypeClothEngine_SOURCE_DIR}/deps/libs/osx/x86_64/Release")
-	#SET(DLL_RELEASE_DIR "${HypeClothEngine_SOURCE_DIR}/deps/dll/osx/x86_64/Release")
+	#SET(LIB_RELEASE_DIR "${OGHypeEngine}/deps/libs/osx/x86_64/Release")
+	#SET(DLL_RELEASE_DIR "${OGHypeEngine}/deps/dll/osx/x86_64/Release")
    
-   #SET(LIB_DIR "${HypeClothEngine_SOURCE_DIR}/deps/libs/osx/x86_64/$(CONFIGURATION)")
-	#SET(DLL_DIR "${HypeClothEngine_SOURCE_DIR}/deps/dll/osx/x86_64/$(CONFIGURATION)")
+   #SET(LIB_DIR "${OGHypeEngine}/deps/libs/osx/x86_64/$(CONFIGURATION)")
+	#SET(DLL_DIR "${OGHypeEngine}/deps/dll/osx/x86_64/$(CONFIGURATION)")
 ELSEIF(WIN32)
-	SET(LIB_DEBUG_DIR "${HypeClothEngine_SOURCE_DIR}/deps/libs/win/x64/Debug")
-	SET(DLL_DEBUG_DIR "${HypeClothEngine_SOURCE_DIR}/deps/dll/win/x64/Debug")
+	SET(LIB_DEBUG_DIR "${OGHypeEngine}/deps/libs/win/x64/Debug")
+	SET(DLL_DEBUG_DIR "${OGHypeEngine}/deps/dll/win/x64/Debug")
 
-	SET(LIB_RELEASE_DIR "${HypeClothEngine_SOURCE_DIR}/deps/libs/win/x64/Release")
-	SET(DLL_RELEASE_DIR "${HypeClothEngine_SOURCE_DIR}/deps/dll/win/x64/Release")
+	SET(LIB_RELEASE_DIR "${OGHypeEngine}/deps/libs/win/x64/Release")
+	SET(DLL_RELEASE_DIR "${OGHypeEngine}/deps/dll/win/x64/Release")
+
+	SET(LIB_DIR "${OGHypeEngine}/deps/libs/win/x64/${CMAKE_CFG_INTDIR}")
+	SET(DLL_DIR "${OGHypeEngine}/deps/dll/win/x64/${CMAKE_CFG_INTDIR}")
 
 ELSEIF(ANDROID)
 	#IF(${ARCH} STREQUAL "armeabi-v7a")
-	#	SET(LIB_DIR "${HypeClothEngine_SOURCE_DIR}/deps/libs/android/armeabi-v7a")
-	#	SET(DLL_DIR "${HypeClothEngine_SOURCE_DIR}/deps/dll/android/armeabi-v7a")
+	#	SET(LIB_DIR "${OGHypeEngine}/deps/libs/android/armeabi-v7a")
+	#	SET(DLL_DIR "${OGHypeEngine}/deps/dll/android/armeabi-v7a")
 	#ELSEIF(${ARCH} STREQUAL "arm64-v8a")
-	#	SET(LIB_DIR "${HypeClothEngine_SOURCE_DIR}/deps/libs/android/arm64-v8a")
-	#	SET(DLL_DIR "${HypeClothEngine_SOURCE_DIR}/deps/dll/android/arm64-v8a")
+	#	SET(LIB_DIR "${OGHypeEngine}/deps/libs/android/arm64-v8a")
+	#	SET(DLL_DIR "${OGHypeEngine}/deps/dll/android/arm64-v8a")
 	#ENDIF()
 ENDIF()
 
@@ -267,19 +270,15 @@ ENDIF()
 #	set(PATH_LBV_MAIN_WINDOWS "${Lv1Engine_SOURCE_DIR}/tools/LBV/LBV_Main_Windows.py" CACHE STRING "")
 #ENDIF()
 
-IF(NOT ANDROID AND NOT IOS)
-	IF(RELEASE_REAL_INSTALL)
-		SET(INSTALL_FOLDER ".")
-	ELSE()
-		SET(INSTALL_FOLDER "$<TARGET_FILE_DIR:application>")
-	ENDIF()
-ENDIF()
+
+SET(INSTALL_FOLDER "$<TARGET_FILE_DIR:application>")
+
 
 include_directories(sources)
 include_directories(deps/include)
 
 # 모두 설정해주고, Sub Directory를 추가하여 다른 CMake들 실행
-SET(RENDER sources/render)
+set(RENDER sources/render)
 #SET(ENGINE sources/engine)
 #SET(ENTRY sources/entry)
 #SET(TEMPLATE sources/template)
@@ -297,13 +296,10 @@ IF(NOT ANDROID AND NOT IOS)
 	# set(APPLICATION_BUILD_NUMBER		0 )
 	# set(APPLICATION_BUILD_VERSION	"2021.1.0a" )
 
-	#SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+	set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 	#SET(REFLECTION tools/Lv1Reflection)
 	#add_subdirectory(${REFLECTION})
 	
-	#SET(EDITORTESTFRAMEWORK tools/Lv1EditorTestFramework)
-	#add_subdirectory(${EDITORTESTFRAMEWORK})
-	#add_dependencies(LvEditorTestFramework system)
 
 	# only include in desktop
 	#SET(SHADERSYSTEM tools/Lv1ShaderSystem)
@@ -315,10 +311,10 @@ IF(NOT ANDROID AND NOT IOS)
 	#add_dependencies(editor LvShaderSystem)
 	
 	
-	#set(APPLICATION_NAME "application")
-	#set(APPLICATION sources/application)
-	#add_subdirectory(${APPLICATION})
-	#add_dependencies(application render)
+	set(APPLICATION_NAME "application")
+	set(APPLICATION sources/application)
+	add_subdirectory(${APPLICATION})
+	add_dependencies(application render)
 
 	#IF(WIN32)
 	#	IF(INCLUDE_VSIX)

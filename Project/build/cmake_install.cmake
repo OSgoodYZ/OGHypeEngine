@@ -2,7 +2,7 @@
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "C:/Program Files/HypeClothEngine")
+  set(CMAKE_INSTALL_PREFIX "C:/Program Files/OGHypeEngine")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -35,6 +35,7 @@ endif()
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
   include("X:/OSgoodYZ/OGHypeEngine/Project/build/sources/render/cmake_install.cmake")
+  include("X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/cmake_install.cmake")
 
 endif()
 

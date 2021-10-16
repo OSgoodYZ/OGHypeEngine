@@ -199,6 +199,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </ProjectReference>
+    <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\application.vcxproj">
+      <Project>{A22CE024-282D-3ED0-B336-644314445BC6}</Project>
+      <Name>application</Name>
+    </ProjectReference>
     <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\sources\render\render.vcxproj">
       <Project>{98ED1143-9351-363C-B57B-05FA3C334BE7}</Project>
       <Name>render</Name>
