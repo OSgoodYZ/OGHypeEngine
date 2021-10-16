@@ -335,7 +335,9 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   <ItemGroup>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderContext.h" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderDefinitions.h" />
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgSample.h" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\OgRenderDefinitions.cpp" />
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\OgSample.cpp" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRender_Vulkan.h" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRender_Vulkan.cpp" />
   </ItemGroup>

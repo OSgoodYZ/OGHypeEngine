@@ -1,6 +1,7 @@
 ﻿# Reference :
 # https://stackoverflow.com/questions/39807664/how-to-best-tell-cmake-where-to-find-dll
 
+
 set(CMAKE_CXX_STANDARD 11)
 
 set(PUBLIC_COMMON 
@@ -34,7 +35,7 @@ list(APPEND TOTAL_FILE ${PUBLIC_PANEL})
 set(LV_BUILD_NUMBER		"2021.1.0a" )
 set(LV_BUILD_VERSION	0 )
 
-add_executable(application ${TOTAL_FILE})
+add_executable(application ${TOTAL_FILE} )
 
 IF(OG_ENGINE_SHARED_LIB)
 	add_definitions("-DOG_API_EXPORT")
@@ -46,9 +47,9 @@ ENDIF()
 #set_target_properties(application PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 
 link_directories(${LIB_DIR})
+target_link_libraries(application render )#${GLFW3}
+TARGET_LINK_OPTIONS(application PRIVATE  "/WHOLEARCHIVE:render")
 
-
-target_link_libraries(application render)
 
 set_property(TARGET application PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_BINARY_DIR}")
 set_property(TARGET application PROPERTY VS_DEBUGGER_COMMAND_ARGUMENTS "-g VULKAN")
@@ -93,7 +94,7 @@ install(DIRECTORY ${RES_DIR}/BuiltInShaders CONFIGURATIONS RelWithDebInfo DESTIN
 ## Common
 
 # install(FILES ${CLANG_LIBS} DESTINATION "${INSTALL_FOLDER}")
-install(FILES ${RES_DIR}/imgui.ini CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
+# install(FILES ${RES_DIR}/imgui.ini CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
 
 #if(SCRIPT_GENERATOR_PROJECT)
 #	install(FILES $<TARGET_FILE_DIR:application>/Editor-Script-Generator.exe CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")

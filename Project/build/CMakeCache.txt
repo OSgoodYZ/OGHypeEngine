@@ -204,6 +204,8 @@ CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 // Studio IDE projects all commands are done without /nologo.
 CMAKE_VERBOSE_MAKEFILE:BOOL=OFF
 
+GLFW3:PATH=X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/glfw3.lib
+
 //Value Computed by CMake
 OGHypeEngine_BINARY_DIR:STATIC=X:/OSgoodYZ/OGHypeEngine/Project/build
 
@@ -213,10 +215,10 @@ OGHypeEngine_SOURCE_DIR:STATIC=X:/OSgoodYZ/OGHypeEngine/Project
 //Build libraries
 OG_ENGINE_SHARED_LIB:BOOL=ON
 
-VULKAN:PATH=/deps/libs/win/x64/Debug/vulkan-1.lib
+VULKAN:PATH=X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/vulkan-1.lib
 
-//generate scheme
-XCODE_GENERATE_SCHEME:BOOL=ON
+//Dependencies for the target
+render_LIB_DEPENDS:STATIC=general;X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/vulkan-1.lib;general;X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/glfw3.lib;
 
 
 ########################

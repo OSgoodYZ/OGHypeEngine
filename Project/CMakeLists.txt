@@ -176,31 +176,31 @@ ENDIF()
 IF(APPLE)
     # 빌드 환경 변수 : https://pewpewthespells.com/blog/buildsettings.html
     
-   #SET(LIB_DEBUG_DIR "${OGHypeEngine}/deps/libs/osx/x86_64/Debug")
-	#SET(DLL_DEBUG_DIR "${OGHypeEngine}/deps/dll/osx/x86_64/Debug")
+   #SET(LIB_DEBUG_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/osx/x86_64/Debug")
+	#SET(DLL_DEBUG_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/osx/x86_64/Debug")
    
-	#SET(LIB_RELEASE_DIR "${OGHypeEngine}/deps/libs/osx/x86_64/Release")
-	#SET(DLL_RELEASE_DIR "${OGHypeEngine}/deps/dll/osx/x86_64/Release")
+	#SET(LIB_RELEASE_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/osx/x86_64/Release")
+	#SET(DLL_RELEASE_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/osx/x86_64/Release")
    
-   #SET(LIB_DIR "${OGHypeEngine}/deps/libs/osx/x86_64/$(CONFIGURATION)")
-	#SET(DLL_DIR "${OGHypeEngine}/deps/dll/osx/x86_64/$(CONFIGURATION)")
+   #SET(LIB_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/osx/x86_64/$(CONFIGURATION)")
+	#SET(DLL_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/osx/x86_64/$(CONFIGURATION)")
 ELSEIF(WIN32)
-	SET(LIB_DEBUG_DIR "${OGHypeEngine}/deps/libs/win/x64/Debug")
-	SET(DLL_DEBUG_DIR "${OGHypeEngine}/deps/dll/win/x64/Debug")
+	SET(LIB_DEBUG_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/win/x64/Debug")
+	SET(DLL_DEBUG_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/win/x64/Debug")
 
-	SET(LIB_RELEASE_DIR "${OGHypeEngine}/deps/libs/win/x64/Release")
-	SET(DLL_RELEASE_DIR "${OGHypeEngine}/deps/dll/win/x64/Release")
+	SET(LIB_RELEASE_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/win/x64/Release")
+	SET(DLL_RELEASE_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/win/x64/Release")
 
-	SET(LIB_DIR "${OGHypeEngine}/deps/libs/win/x64/${CMAKE_CFG_INTDIR}")
-	SET(DLL_DIR "${OGHypeEngine}/deps/dll/win/x64/${CMAKE_CFG_INTDIR}")
+	SET(LIB_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/win/x64/${CMAKE_CFG_INTDIR}")
+	SET(DLL_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/win/x64/${CMAKE_CFG_INTDIR}")
 
 ELSEIF(ANDROID)
 	#IF(${ARCH} STREQUAL "armeabi-v7a")
-	#	SET(LIB_DIR "${OGHypeEngine}/deps/libs/android/armeabi-v7a")
-	#	SET(DLL_DIR "${OGHypeEngine}/deps/dll/android/armeabi-v7a")
+	#	SET(LIB_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/android/armeabi-v7a")
+	#	SET(DLL_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/android/armeabi-v7a")
 	#ELSEIF(${ARCH} STREQUAL "arm64-v8a")
-	#	SET(LIB_DIR "${OGHypeEngine}/deps/libs/android/arm64-v8a")
-	#	SET(DLL_DIR "${OGHypeEngine}/deps/dll/android/arm64-v8a")
+	#	SET(LIB_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/android/arm64-v8a")
+	#	SET(DLL_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/android/arm64-v8a")
 	#ENDIF()
 ENDIF()
 
@@ -226,13 +226,26 @@ IF(APPLE)
 ELSEIF(WIN32)
 	SET(VULKAN ${LIB_DEBUG_DIR}/vulkan-1.lib CACHE PATH "")
 ENDIF()
-
 IF (VULKAN)
     MESSAGE("Using bundled VULKAN version ${VULKAN}")
 	# 이건 반드시 CACHE INTERNAL. Render CMakeList에서 사용함.
 ELSE()
 	MESSAGE("Cannot Find VULKAN LIB")
 ENDIF()
+
+IF(APPLE)
+	
+
+ELSEIF(WIN32)
+	SET(GLFW3 ${LIB_DEBUG_DIR}/glfw3.lib CACHE PATH "") #TODO delete
+ENDIF()
+IF (GLFW3)
+    MESSAGE("Using bundled GLFW3 version ${GLFW3}")
+	# 이건 반드시 CACHE INTERNAL. Render CMakeList에서 사용함.
+ELSE()
+	MESSAGE("Cannot Find GLFW3 LIB")
+ENDIF()
+
 
 #find_library(FBX NAMES libfbxsdk.a fbxsdk libfbxsdk-md HINTS ${DLL_DIR} ${LIB_DIR} REQUIRED)
 #IF(APPLE)
@@ -289,11 +302,11 @@ set(RENDER sources/render)
 #SET(ENTRY sources/entry)
 #SET(TEMPLATE sources/template)
 
-
 add_subdirectory(${RENDER})
 #add_subdirectory(${ENGINE})
 #add_subdirectory(${ENTRY})
 #add_dependencies(Play-Entry engine)
+
 
 #OPTION(SCRIPT_GENERATOR_PROJECT "Editor-Script project c++ bridge code generator project" OFF)
 

@@ -497,4 +497,7 @@ struct E {																\
 	
 	#endif
 
+	#define EXIT_SUCCESS 0
+	#define EXIT_FAILURE 1
+
 #endif // __OG_PRECOMPILED_H_

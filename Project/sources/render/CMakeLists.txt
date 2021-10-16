@@ -3,6 +3,7 @@
 set(PUBLIC_COMMON 
 	OgRenderContext.h
 	OgRenderDefinitions.h
+	OgSample.h
 	
 	)
 source_group("public" FILES ${PUBLIC_COMMON})
@@ -11,6 +12,7 @@ list(APPEND TOTAL_FILE ${PUBLIC_COMMON})
 
 set(PRIVATE_COMMON 
 	private/OgRenderDefinitions.cpp
+	private/OgSample.cpp
 	)
 source_group("private" FILES ${PRIVATE_COMMON})
 
@@ -32,14 +34,26 @@ list(APPEND TOTAL_FILE ${PRIVATE_VULKAN})
 add_library(render STATIC ${TOTAL_FILE})
 link_directories(${LIB_DIR})
 
+
+target_link_libraries(render PUBLIC ${VULKAN} ${GLFW3})
+
+
+# target_compile_options(render PUBLIC -Wall)
 IF(OG_ENGINE_SHARED_LIB)
 	target_compile_definitions(render PRIVATE "-DOG_API_EXPORT")
 ENDIF()
 
+#GLFW3 link
+# target_link_directories(render PRIVATE ${GLFW3})	
+
 ## DEBUG
-install(TARGETS render CONFIGURATIONS Debug ARCHIVE DESTINATION "${INSTALL_FOLDER}/dev/lib")
+INSTALL(TARGETS render CONFIGURATIONS Debug ARCHIVE DESTINATION "${INSTALL_FOLDER}/dev/lib" LIBRARY DESTINATION "${INSTALL_FOLDER}" RUNTIME DESTINATION "${INSTALL_FOLDER}")
 install(DIRECTORY "." CONFIGURATIONS Debug PUBLIC_HEADER DESTINATION "${INSTALL_FOLDER}/dev/include/render" FILES_MATCHING PATTERN "*.h" PATTERN "private" EXCLUDE)
 install(FILES "../OgPrecompiled.h" CONFIGURATIONS Debug PUBLIC_HEADER DESTINATION "${INSTALL_FOLDER}/dev/include")
+
+
+
+
 
 ## RELEASE
 

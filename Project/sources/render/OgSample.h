@@ -1,0 +1,43 @@
+#pragma once
+#ifndef _OG_SAMPLE_H__
+#define _OG_SAMPLE_H__
+#include "OgPrecompile.h"
+
+//#include <vulkan/vulkan.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
+#include <iostream>
+#include <stdexcept>
+#include <cstdlib>
+
+const uint32_t WIDTH = 800;
+const uint32_t HEIGHT = 600;
+
+OG_NAMESPACE_RENDER_BEGIN
+
+/**
+* @brief 단수 vulkan code를 테스트 하기 위한 sample 코드이다. render쪽이 만들어진 후에 사라질 코드이다.
+*/
+class OG_API OgSample
+{
+public:
+	OgSample() = default;
+	~OgSample() {};
+
+	void Run();
+
+private:
+	void initWindow();
+	void initVulkan();
+	void mainLoop();
+	void cleanup();
+
+	GLFWwindow* _window;
+	const uint32 _width = 800;
+	const uint32 _height = 600;
+};
+
+OG_NAMESPACE_RENDER_END
+
+#endif // _OG_SAMPLE_H__
