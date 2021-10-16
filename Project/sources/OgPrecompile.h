@@ -18,26 +18,28 @@
 
  /* detect x86 32 bit platform */
 #if defined(__i386__) || defined(_M_IX86)
-#if !defined(__X86__)
-#define __X86__
-#define __PLATFORM32__
-#endif
-#if !defined(__X86_32__)
-#define __X86_32_
-#define __PLATFORM32__
-#endif
+	#if !defined(__X86__)
+		#define __X86__
+		#define __PLATFORM32__
+	#endif
+
+	#if !defined(__X86_32__)
+		#define __X86_32_
+		#define __PLATFORM32__
+	#endif
 #endif
 
 /* detect x86 64 bit platform */
 #if defined(__x86_64__) || defined(__ia64__) || defined(_M_X64)
-#if !defined(__X86__)
-#define __X86__
-#define __PLATFORM64__
-#endif
-#if !defined(__X86_64__)
-#define __X86_64__
-#define __PLATFORM64__
-#endif
+	#if !defined(__X86__)
+		#define __X86__
+		#define __PLATFORM64__
+	#endif
+
+	#if !defined(__X86_64__)
+		#define __X86_64__
+		#define __PLATFORM64__
+	#endif
 #endif
 
 /* detect ARM platform */
@@ -106,18 +108,18 @@
 
 /* detect Android platform */
 #if defined(ANDROID) || defined(__ANDROID__)
-#include <android/log.h>
-#if !defined(__ANDROID__)
-#pragma message "[[ Device ]] ANDROID"
-#define __ANDROID__
-#endif
+	#include <android/log.h>
+	#if !defined(__ANDROID__)
+		#pragma message "[[ Device ]] ANDROID"
+		#define __ANDROID__
+	#endif
 #endif
 
 /* try to detect other Unix systems */
 #if defined(__unix__) || defined (unix) || defined(__unix) || defined(_unix)
-#if !defined(__UNIX__)
-#define __UNIX__
-#endif
+	#if !defined(__UNIX__)
+		#define __UNIX__
+	#endif
 #endif
 
 #if defined(__MACOSX__) || defined(__WIN32__) || defined(__LINUX__)
@@ -464,5 +466,35 @@ struct E {																\
 #define OG_DIRECTORY_SEPARATOR_CHAR '/'
 #endif
 #endif
+
+	#if defined(__cplusplus)
+	
+		#define OG_NAMESPACE_BEGIN namespace Og {
+		#define OG_NAMESPACE_END } // Lv namespace End
+		
+		#define OG_NAMESPACE_RENDER_BEGIN namespace OG { namespace Render {
+		#define OG_NAMESPACE_RENDER_END } }  // OG::Render namespace End
+		
+		#define OG_NAMESPACE_ENGINE_BEGIN namespace OG { namespace Engine {
+		#define OG_NAMESPACE_ENGINE_END } }  // OG::Engine namespace End
+		
+		#define OG_NAMESPACE_APPLICATION_BEGIN namespace OG { namespace Application {
+		#define OG_NAMESPACE_APPLICATION_END } } // OG::Application namespace End
+	
+	#else
+	
+		#define OG_NAMESPACE_BEGIN
+		#define OG_NAMESPACE_END
+		
+		#define OG_NAMESPACE_RENDER_BEGIN
+		#define OG_NAMESPACE_RENDER_END
+		
+		#define OG_NAMESPACE_ENGINE_BEGIN
+		#define OG_NAMESPACE_ENGINE_END
+		
+		#define OG_NAMESPACE_APPLICATION_BEGIN
+		#define OG_NAMESPACE_APPLICATION_END
+	
+	#endif
 
 #endif // __OG_PRECOMPILED_H_

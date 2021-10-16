@@ -210,6 +210,9 @@ OGHypeEngine_BINARY_DIR:STATIC=X:/OSgoodYZ/OGHypeEngine/Project/build
 //Value Computed by CMake
 OGHypeEngine_SOURCE_DIR:STATIC=X:/OSgoodYZ/OGHypeEngine/Project
 
+//Build libraries
+OG_ENGINE_SHARED_LIB:BOOL=ON
+
 VULKAN:PATH=/deps/libs/win/x64/Debug/vulkan-1.lib
 
 //generate scheme

@@ -103,11 +103,11 @@
       <UndefinePreprocessorDefinitions>MBCS;MBCS</UndefinePreprocessorDefinitions>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;_DEBUG;CMAKE_INTDIR="Debug";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;_DEBUG;OG_API_EXPORT;CMAKE_INTDIR="Debug";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_UNICODE;UNICODE;CMAKE_INTDIR=\"Debug\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_UNICODE;UNICODE;OG_API_EXPORT;CMAKE_INTDIR=\"Debug\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
@@ -137,13 +137,13 @@
       <UndefinePreprocessorDefinitions>MBCS;MBCS</UndefinePreprocessorDefinitions>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;CMAKE_INTDIR="Release";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;OG_API_EXPORT;CMAKE_INTDIR="Release";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
       </DebugInformationFormat>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;CMAKE_INTDIR=\"Release\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;OG_API_EXPORT;CMAKE_INTDIR=\"Release\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
@@ -172,13 +172,13 @@
       <UndefinePreprocessorDefinitions>MBCS</UndefinePreprocessorDefinitions>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;CMAKE_INTDIR="MinSizeRel";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;OG_API_EXPORT;CMAKE_INTDIR="MinSizeRel";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
       </DebugInformationFormat>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;CMAKE_INTDIR=\"MinSizeRel\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;OG_API_EXPORT;CMAKE_INTDIR=\"MinSizeRel\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
@@ -208,11 +208,11 @@
       <UndefinePreprocessorDefinitions>MBCS</UndefinePreprocessorDefinitions>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE_INFO;CMAKE_INTDIR="RelWithDebInfo";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE_INFO;OG_API_EXPORT;CMAKE_INTDIR="RelWithDebInfo";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE_INFO;CMAKE_INTDIR=\"RelWithDebInfo\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE_INFO;OG_API_EXPORT;CMAKE_INTDIR=\"RelWithDebInfo\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
@@ -244,11 +244,11 @@
       <UndefinePreprocessorDefinitions>MBCS;MBCS</UndefinePreprocessorDefinitions>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;_DEBUG;_DEBUG_CROSS;CMAKE_INTDIR="DebugCross";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;_DEBUG;_DEBUG_CROSS;OG_API_EXPORT;CMAKE_INTDIR="DebugCross";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;_DEBUG;_DEBUG_CROSS;CMAKE_INTDIR=\"DebugCross\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;_DEBUG;_DEBUG_CROSS;OG_API_EXPORT;CMAKE_INTDIR=\"DebugCross\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
