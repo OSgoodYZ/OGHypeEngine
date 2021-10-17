@@ -471,7 +471,12 @@ struct E {																\
 	
 		#define OG_NAMESPACE_BEGIN namespace Og {
 		#define OG_NAMESPACE_END } // Lv namespace End
-		
+	
+	#if defined(OG_SAMPLE_BUILD) 
+		#define OG_NAMESPACE_SAMPLE_BEGIN namespace OG { namespace Sample {
+		#define OG_NAMESPACE_SAMPLE_END } }  // OG::Render namespace End
+	#endif
+
 		#define OG_NAMESPACE_RENDER_BEGIN namespace OG { namespace Render {
 		#define OG_NAMESPACE_RENDER_END } }  // OG::Render namespace End
 		
@@ -481,6 +486,7 @@ struct E {																\
 		#define OG_NAMESPACE_APPLICATION_BEGIN namespace OG { namespace Application {
 		#define OG_NAMESPACE_APPLICATION_END } } // OG::Application namespace End
 	
+
 	#else
 	
 		#define OG_NAMESPACE_BEGIN

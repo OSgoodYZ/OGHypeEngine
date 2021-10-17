@@ -289,24 +289,32 @@ ENDIF()
 #	set(PATH_LBV_MAIN_WINDOWS "${Lv1Engine_SOURCE_DIR}/tools/LBV/LBV_Main_Windows.py" CACHE STRING "")
 #ENDIF()
 
-
-SET(INSTALL_FOLDER "$<TARGET_FILE_DIR:application>")
+OPTION(OG_SAMPLE_ON "sample on" ON)
 
 
 include_directories(sources)
 include_directories(deps/include)
 
 # 모두 설정해주고, Sub Directory를 추가하여 다른 CMake들 실행
+
+
 set(RENDER sources/render)
 #SET(ENGINE sources/engine)
 #SET(ENTRY sources/entry)
 #SET(TEMPLATE sources/template)
+
+
 
 add_subdirectory(${RENDER})
 #add_subdirectory(${ENGINE})
 #add_subdirectory(${ENTRY})
 #add_dependencies(Play-Entry engine)
 
+IF(OG_SAMPLE_ON)
+	add_definitions("-DOG_SAMPLE_BUILD")
+	set(SAMPLE sources/sample)
+	add_subdirectory(${SAMPLE})
+ENDIF()
 
 #OPTION(SCRIPT_GENERATOR_PROJECT "Editor-Script project c++ bridge code generator project" OFF)
 
@@ -328,7 +336,6 @@ IF(NOT ANDROID AND NOT IOS)
 	#SET(EDITOR sources/editor)
 	#add_subdirectory(${EDITOR})
 	#add_dependencies(editor LvShaderSystem)
-	
 	
 	set(APPLICATION_NAME "application")
 	set(APPLICATION sources/application)

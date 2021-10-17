@@ -1,6 +1,6 @@
-#include "render/OgSample.h"
+#include "OgSample.h"
 
-OG_NAMESPACE_RENDER_BEGIN
+OG_NAMESPACE_SAMPLE_BEGIN
 
 void OgSample::Run() {
 	initWindow();
@@ -36,4 +36,4 @@ void OgSample::cleanup()
 	glfwTerminate();
 }
 
-OG_NAMESPACE_RENDER_END
+OG_NAMESPACE_SAMPLE_END

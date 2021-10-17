@@ -4,9 +4,6 @@
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\OgRenderDefinitions.cpp">
       <Filter>private</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\OgSample.cpp">
-      <Filter>private</Filter>
-    </ClCompile>
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRender_Vulkan.cpp">
       <Filter>private\vulkan</Filter>
     </ClCompile>
@@ -16,9 +13,6 @@
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderDefinitions.h">
-      <Filter>public</Filter>
-    </ClInclude>
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgSample.h">
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRender_Vulkan.h">
