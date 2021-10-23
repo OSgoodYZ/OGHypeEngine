@@ -7,6 +7,9 @@
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.cpp">
       <Filter>public</Filter>
     </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\deps\include\glm\detail\glm.cpp">
+      <Filter>thirdparty\glm</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\platform\win\OgPlatformDefinition_win32.h">
@@ -28,6 +31,12 @@
     </Filter>
     <Filter Include="public">
       <UniqueIdentifier>{5BE45934-E073-390D-B5D2-FB44A6ED57CB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty">
+      <UniqueIdentifier>{CEA37CF3-49E7-3BEF-9A19-75523FF70D6E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\glm">
+      <UniqueIdentifier>{7478C739-1E5A-3653-8EE1-9C62A7E149F4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

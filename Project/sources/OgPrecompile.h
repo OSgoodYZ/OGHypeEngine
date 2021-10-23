@@ -16,6 +16,17 @@
  * 																					*
  ************************************************************************************/
 
+#define OG_ID "osgoodProject"
+
+typedef char int8;
+typedef unsigned char uint8;
+typedef short int16;
+typedef int int32;
+typedef unsigned short uint16;
+typedef unsigned int uint32;
+typedef unsigned int uint;
+typedef unsigned long ulong;
+
  /* detect x86 32 bit platform */
 #if defined(__i386__) || defined(_M_IX86)
 	#if !defined(__X86__)
@@ -209,7 +220,7 @@
 what(OG_PASS_PARAMETERS(x))
 
 #define OG_FOR_EACH_2(what, x, ...)\
-what(OG_PASS_PARAMETERS(x)) LV_FOR_EACH_1(what, __VA_ARGS__)
+what(OG_PASS_PARAMETERS(x)) OG_FOR_EACH_1(what, __VA_ARGS__)
 
 #define OG_FOR_EACH_3(what, x, ...)\
 what(OG_PASS_PARAMETERS(x)) OG_FOR_EACH_2(what, __VA_ARGS__)
@@ -243,7 +254,7 @@ what(OG_PASS_PARAMETERS(x)) OG_FOR_EACH_7(what, __VA_ARGS__)
 #define OG_HAS_COMMA(...) OG_EXPAND(__NARGS(__VA_ARGS__, 1, 1, 1, 1, 1, 1, 1, 0, 0))
 
 #define OG_FOR_EACH(what, ...) \
-LV_EXPAND(OG_CONCAT(OG_FOR_EACH_,OG_FOR_EACH_NARG(__VA_ARGS__))(what, __VA_ARGS__)) 
+OG_EXPAND(OG_CONCAT(OG_FOR_EACH_,OG_FOR_EACH_NARG(__VA_ARGS__))(what, __VA_ARGS__)) 
 
 #define OG_COMPILE_VERSION __DATE__ " " __TIME__
 
@@ -333,14 +344,14 @@ __inline__ static void trap_instruction(void)
 #if !defined(_DEBUG)
 #define ASSERT(x) { false ? (void)(x) : (void)0; }
 #else
-#define ASSERT(x) do { const volatile bool lv_assert_b____ = !(x); if(lv_assert_b____) { LV_DEBUG_BREAK(); } } while (false)
+#define ASSERT(x) do { const volatile bool og_assert_b____ = !(x); if(og_assert_b____) { OG_DEBUG_BREAK(); } } while (false)
 #endif
 #endif
 
 #if defined(_DEBUG)
-#define OG_CHECK(x, fmt, ...) do { const volatile bool lv_assert_b____ = !(x); if(lv_assert_b____) { LOGE(LV_ID, fmt, ##__VA_ARGS__); } } while (false)
+#define OG_CHECK(x, fmt, ...) do { const volatile bool og_assert_b____ = !(x); if(og_assert_b____) { LOGE(OG_ID, fmt, ##__VA_ARGS__); } } while (false)
 #elif defined(_RELEASE_INFO)
-#define OG_CHECK(x, fmt, ...) { if(!(x)) LOGE(LV_ID, fmt, ##__VA_ARGS__); }
+#define OG_CHECK(x, fmt, ...) { if(!(x)) LOGE(OG_ID, fmt, ##__VA_ARGS__); }
 #elif !defined(_DEBUG) || defined(_NDEBUG) || defined(_RELEASE)
 #define OG_CHECK(x, fmt, ...) 
 #else
@@ -470,12 +481,15 @@ struct E {																\
 	#if defined(__cplusplus)
 	
 		#define OG_NAMESPACE_BEGIN namespace Og {
-		#define OG_NAMESPACE_END } // Lv namespace End
+		#define OG_NAMESPACE_END } 
 	
 	#if defined(OG_SAMPLE_BUILD) 
 		#define OG_NAMESPACE_SAMPLE_BEGIN namespace OG { namespace Sample {
 		#define OG_NAMESPACE_SAMPLE_END } }  // OG::Render namespace End
 	#endif
+
+		#define OG_NAMESPACE_SYSTEM_BEGIN namespace OG { namespace System {
+		#define OG_NAMESPACE_SYSTEM_END } }  // OG::Render namespace End
 
 		#define OG_NAMESPACE_RENDER_BEGIN namespace OG { namespace Render {
 		#define OG_NAMESPACE_RENDER_END } }  // OG::Render namespace End

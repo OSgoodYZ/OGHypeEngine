@@ -16,6 +16,13 @@ set(PUBLIC_COMMON
 source_group("public" FILES ${PUBLIC_COMMON})
 list(APPEND TOTAL_FILE ${PUBLIC_COMMON})
 
+SET(SOURCE_GLM
+	${PROJECT_SOURCE_DIR}/deps/include/glm/detail/glm.cpp
+)
+SOURCE_GROUP("thirdparty\\glm" FILES ${SOURCE_GLM})
+LIST(APPEND TOTAL_FILE ${SOURCE_GLM})
+
+
 add_library(system STATIC ${TOTAL_FILE})
 link_directories(${LIB_DIR})
 target_link_libraries(system PUBLIC ${GLFW3})
@@ -27,7 +34,7 @@ IF(OG_ENGINE_SHARED_LIB)
 ENDIF()
 
 #GUI framework
-target_link_directories(system PRIVATE ${GLFW3})	
+target_link_directories(system PRIVATE ${GLFW3} ${SOURCE_GLM})	
 
 ## DEBUG
 INSTALL(TARGETS system CONFIGURATIONS Debug ARCHIVE DESTINATION "${INSTALL_FOLDER}/dev/lib" LIBRARY DESTINATION "${INSTALL_FOLDER}" RUNTIME DESTINATION "${INSTALL_FOLDER}")

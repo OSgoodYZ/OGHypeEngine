@@ -4,7 +4,19 @@
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\OgRenderDefinitions.cpp">
       <Filter>private</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRender_Vulkan.cpp">
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgDeviceVulkan.cpp">
+      <Filter>private\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgSwapChainVulkan.cpp">
+      <Filter>private\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgUtilityVulkan.cpp">
+      <Filter>private\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderVulkanHandles.cpp">
+      <Filter>private\vulkan</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.cpp">
       <Filter>private\vulkan</Filter>
     </ClCompile>
   </ItemGroup>
@@ -15,7 +27,19 @@
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderDefinitions.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRender_Vulkan.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgDeviceVulkan.h">
+      <Filter>private\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgSwapChainVulkan.h">
+      <Filter>private\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgUtilityVulkan.h">
+      <Filter>private\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderVulkanHandles.h">
+      <Filter>private\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.h">
       <Filter>private\vulkan</Filter>
     </ClInclude>
   </ItemGroup>

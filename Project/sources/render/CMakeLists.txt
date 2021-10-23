@@ -18,11 +18,19 @@ list(APPEND TOTAL_FILE ${PRIVATE_COMMON})
 
 
 set(PRIVATE_VULKAN
-	private/vulkan/OgRender_Vulkan.h
+	private/vulkan/OgDeviceVulkan.h
+	private/vulkan/OgSwapChainVulkan.h
+	private/vulkan/OgUtilityVulkan.h
+	private/vulkan/OgRenderVulkanHandles.h
+	private/vulkan/OgRenderContext_Vulkan.h
 	)
 
 IF(NOT IOS)
-	list(APPEND PRIVATE_VULKAN private/vulkan/OgRender_Vulkan.cpp)
+	list(APPEND PRIVATE_VULKAN private/vulkan/OgDeviceVulkan.cpp)
+	list(APPEND PRIVATE_VULKAN private/vulkan/OgSwapChainVulkan.cpp)
+	list(APPEND PRIVATE_VULKAN private/vulkan/OgUtilityVulkan.cpp)
+	list(APPEND PRIVATE_VULKAN private/vulkan/OgRenderVulkanHandles.cpp)
+	list(APPEND PRIVATE_VULKAN private/vulkan/OgRenderContext_Vulkan.cpp)
 ENDIF()
 
 source_group("private\\vulkan" FILES ${PRIVATE_VULKAN})
