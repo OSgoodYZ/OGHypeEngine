@@ -1,3 +1,4 @@
+
 #include "OgSample.h"
 
 OG_NAMESPACE_SAMPLE_BEGIN

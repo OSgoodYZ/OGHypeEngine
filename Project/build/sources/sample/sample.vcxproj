@@ -347,6 +347,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Project>{98ED1143-9351-363C-B57B-05FA3C334BE7}</Project>
       <Name>render</Name>
     </ProjectReference>
+    <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\sources\system\system.vcxproj">
+      <Project>{4C71DC2D-5D4F-38FA-A332-87D28407A532}</Project>
+      <Name>system</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

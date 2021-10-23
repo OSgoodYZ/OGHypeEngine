@@ -139,7 +139,7 @@
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <Link>
-      <AdditionalDependencies>..\render\Debug\render.lib;..\sample\Debug\sample.lib;..\render\Debug\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\render\Debug\render.lib;..\sample\Debug\sample.lib;..\render\Debug\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\system\Debug\system.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -185,7 +185,7 @@
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <Link>
-      <AdditionalDependencies>..\render\Release\render.lib;..\sample\Release\sample.lib;..\render\Release\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\render\Release\render.lib;..\sample\Release\sample.lib;..\render\Release\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\system\Release\system.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -230,7 +230,7 @@
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <Link>
-      <AdditionalDependencies>..\render\MinSizeRel\render.lib;..\sample\MinSizeRel\sample.lib;..\render\MinSizeRel\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\render\MinSizeRel\render.lib;..\sample\MinSizeRel\sample.lib;..\render\MinSizeRel\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\system\MinSizeRel\system.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -274,7 +274,7 @@
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <Link>
-      <AdditionalDependencies>..\render\RelWithDebInfo\render.lib;..\sample\RelWithDebInfo\sample.lib;..\render\RelWithDebInfo\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\render\RelWithDebInfo\render.lib;..\sample\RelWithDebInfo\sample.lib;..\render\RelWithDebInfo\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\system\RelWithDebInfo\system.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -320,7 +320,7 @@
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
     <Link>
-      <AdditionalDependencies>..\render\DebugCross\render.lib;..\sample\DebugCross\sample.lib;..\render\DebugCross\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalDependencies>..\render\DebugCross\render.lib;..\sample\DebugCross\sample.lib;..\render\DebugCross\render.lib;..\..\..\deps\libs\win\x64\Debug\vulkan-1.lib;..\system\DebugCross\system.lib;..\..\..\deps\libs\win\x64\Debug\glfw3.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -419,6 +419,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\sources\sample\sample.vcxproj">
       <Project>{8804A486-189D-3CAC-8D7E-E068E1A5A863}</Project>
       <Name>sample</Name>
+    </ProjectReference>
+    <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\sources\system\system.vcxproj">
+      <Project>{4C71DC2D-5D4F-38FA-A332-87D28407A532}</Project>
+      <Name>system</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

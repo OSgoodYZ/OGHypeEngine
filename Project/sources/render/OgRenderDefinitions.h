@@ -9,6 +9,32 @@
 
 OG_NAMESPACE_BEGIN
 
+struct OG_API OgSwapChain
+{
+public:
+	OgSwapChain();
+
+	uint16 bufferCount : 14;
+
+	uint16 useDepthBuffer : 1;
+
+	uint16 useStencilBuffer : 1;				// 2 bytes
+
+	LvPixelFormat colorPixelFormat;				// 1
+
+	LvRenderTextureFormat colorRenderFormat;	// 1
+
+	LvPixelFormat depthPixelFormat;				// 1
+
+	LvRenderTextureFormat depthRenderFormat;	// 1
+
+	LvPixelFormat stencilPixelFormat;			// 1
+
+	LvRenderTextureFormat stencilRenderFormat;	// 1
+
+	
+};
+
 	
 OG_NAMESPACE_END
 

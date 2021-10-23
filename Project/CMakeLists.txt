@@ -297,14 +297,14 @@ include_directories(deps/include)
 
 # 모두 설정해주고, Sub Directory를 추가하여 다른 CMake들 실행
 
-
-set(RENDER sources/render)
+SET(SYSTEM sources/system)
+SET(RENDER sources/render)
 #SET(ENGINE sources/engine)
 #SET(ENTRY sources/entry)
 #SET(TEMPLATE sources/template)
 
 
-
+add_subdirectory(${SYSTEM})
 add_subdirectory(${RENDER})
 #add_subdirectory(${ENGINE})
 #add_subdirectory(${ENTRY})

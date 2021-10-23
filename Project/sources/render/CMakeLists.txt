@@ -31,7 +31,7 @@ list(APPEND TOTAL_FILE ${PRIVATE_VULKAN})
 
 add_library(render STATIC ${TOTAL_FILE})
 link_directories(${LIB_DIR})
-target_link_libraries(render PUBLIC ${VULKAN} ${GLFW3})
+target_link_libraries(render PUBLIC ${VULKAN} system)
 
 
 # target_compile_options(render PUBLIC -Wall)

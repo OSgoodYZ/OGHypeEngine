@@ -221,10 +221,13 @@ OG_SAMPLE_ON:BOOL=ON
 VULKAN:PATH=X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/vulkan-1.lib
 
 //Dependencies for the target
-render_LIB_DEPENDS:STATIC=general;X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/vulkan-1.lib;general;X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/glfw3.lib;
+render_LIB_DEPENDS:STATIC=general;X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/vulkan-1.lib;general;system;
 
 //Dependencies for the target
 sample_LIB_DEPENDS:STATIC=general;render;
+
+//Dependencies for the target
+system_LIB_DEPENDS:STATIC=general;X:/OSgoodYZ/OGHypeEngine/Project/deps/libs/win/x64/Debug/glfw3.lib;
 
 
 ########################
@@ -319,7 +322,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_MT
 CMAKE_MT-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=4
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=5
 //Platform information initialized
 CMAKE_PLATFORM_INFO_INITIALIZED:INTERNAL=1
 //noop for ranlib

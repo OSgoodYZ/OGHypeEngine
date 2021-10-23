@@ -34,6 +34,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
+  include("X:/OSgoodYZ/OGHypeEngine/Project/build/sources/system/cmake_install.cmake")
   include("X:/OSgoodYZ/OGHypeEngine/Project/build/sources/render/cmake_install.cmake")
   include("X:/OSgoodYZ/OGHypeEngine/Project/build/sources/sample/cmake_install.cmake")
   include("X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/cmake_install.cmake")
