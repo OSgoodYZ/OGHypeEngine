@@ -1,247 +1,433 @@
-﻿#pragma once
-#ifndef _OG_RENDERER_VULKAN_H_
-#define _OG_RENDERER_VULKAN_H_
+﻿#include <vector>
+
+#include "OgPrecompile.h"
+#include "render/private/vulkan/OgRenderContext_Vulkan.h"
+
+
+static struct
+{
+	uint32 major;
+	uint32 minor;
+	uint32 build;
+
+} s_sdkVersion;
+
+#ifdef NDEBUG
+static const bool s_enableValidationLayers = false;
+static const bool s_shouldPrintLog = false;
+#else
+static const bool s_enableValidationLayers = true;
+static const bool s_shouldPrintLog = true;
 
 #if defined(__ANDROID__)
-#if (__ANDROID_API__  < 23)
-#include "render/private/android/vulkan_wrapper.h"
-#else
-#include <vulkan/vulkan.h>
+static const Lv::LvFixedList<const char*, 8> s_validationLayers =
+{
+	"VK_LAYER_GOOGLE_threading",
+	"VK_LAYER_LUNARG_parameter_validation",
+	"VK_LAYER_LUNARG_object_tracker",
+	"VK_LAYER_LUNARG_core_validation",
+	"VK_LAYER_GOOGLE_unique_objects",
+#if defined(__MAIL__)
+	"VK_LAYER_ARM_AGA"
 #endif
+};
 #else
-#include <vulkan/vulkan.h>
+static const std::vector<const char*> s_validationLayers =
+{
+	"VK_LAYER_LUNARG_standard_validation",
+	"VK_LAYER_KHRONOS_validation"
+};
+#endif
 #endif
 
-#include <queue>
-#include <unordered_map>
+VKAPI_ATTR VkBool32 VKAPI_CALL report_debug_callback(VkDebugReportFlagsEXT msgFlags, VkDebugReportObjectTypeEXT objType, uint64_t srcObject,
+	size_t location, int32_t msgCode, const char* pLayerPrefix, const char* pMsg,
+	void* pUserData)
+{
+	if (s_shouldPrintLog)
+	{
+		if (msgFlags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+		{
+			LOGE(OG_ID, "ERROR: [%s] Code %i : %s", pLayerPrefix, msgCode, pMsg);
+		}
+		else if (msgFlags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
+		{
+			LOGD(OG_ID, "WARNING: [%s] Code %i : %s", pLayerPrefix, msgCode, pMsg);
+		}
+		else if (msgFlags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
+		{
+			LOGD(OG_ID, "PERFORMANCE WARNING: [%s] Code %i : %s", pLayerPrefix, msgCode, pMsg);
+		}
+		else if (msgFlags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT)
+		{
+			LOGD(OG_ID, "INFO: [%s] Code %i : %s", pLayerPrefix, msgCode, pMsg);
+		}
+		else if (msgFlags & VK_DEBUG_REPORT_DEBUG_BIT_EXT)
+		{
+			LOGD(OG_ID, "DEBUG: [%s] Code %i : %s", pLayerPrefix, msgCode, pMsg);
+		}
+	}
 
-#include "render/OgRenderContext.h"
-#include "render/private/vulkan/OgSwapChainVulkan.h"
-#include "render/private/vulkan/OgRenderVulkanHandles.h"
+	/*
+	* false indicates that layer should not bail-out of an
+	* API call that had validation failures. This may mean that the
+	* app dies inside the driver due to invalid parameter(s).
+	* That's what would happen without validation layers, so we'll
+	* keep that behavior here.
+	*/
+	return VK_FALSE;
+}
+
+VkResult create_debug_report_callback(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback)
+{
+	// VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback
+	PFN_vkCreateDebugReportCallbackEXT func = (PFN_vkCreateDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+	if (func != nullptr) {
+		return func(instance, pCreateInfo, pAllocator, pCallback);
+	}
+	else {
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+}
+
+void destroy_debug_reeport_callback(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator)
+{
+	auto func = (PFN_vkDestroyDebugReportCallbackEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
+	if (func != nullptr) {
+		func(instance, callback, pAllocator);
+	}
+}
+// Debug
+
+bool check_validation_layer_support()
+{
+	uint32_t layerCount;
+	VK_CHECK_RESULT(vkEnumerateInstanceLayerProperties(&layerCount, nullptr));
+
+	if (layerCount > 0)
+	{
+		std::vector<VkLayerProperties> availableLayers(layerCount);
+		vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+		if (s_shouldPrintLog == true)
+		{
+			LOGD(OG_ID, "Vaildation Layer Count = %zu", availableLayers.size());
+
+			for (const VkLayerProperties& layerProperties : availableLayers)
+			{
+				s_sdkVersion.major = ((uint32_t)(layerProperties.specVersion) >> 22);
+				s_sdkVersion.minor = (((uint32_t)(layerProperties.specVersion) >> 12) & 0x3ff);
+				s_sdkVersion.build = (uint32_t)(layerProperties.specVersion) & 0xfff;
+
+				LOGD(OG_ID, "Available Layer = %s", layerProperties.layerName);
+				LOGD(OG_ID, "Description = %s", layerProperties.description);
+				LOGD(OG_ID, "implementation Version = %d", layerProperties.implementationVersion);
+
+				LOGD(OG_ID, "Vulkan Version : %u.%u.%u",
+					s_sdkVersion.major,
+					s_sdkVersion.minor,
+					s_sdkVersion.build
+				);
+			}
+		}
+
+#if defined(_DEBUG)
+		for (const char* layerName : s_validationLayers)
+		{
+			for (const VkLayerProperties& layerProperties : availableLayers)
+			{
+				if (strcmp(layerName, layerProperties.layerName) == 0)
+					return true;
+			}
+		}
+#endif
+	}
+
+	return false;
+}
+//
+//OgRenderContextVulkan::OgRenderContextVulkan(System::OgSystemContext* context) :
+//	_instance(nullptr)
+//{
+//	this->platform = LvRenderPlatform::VULKAN;
+//	this->maxSubmitCount = 2;
+//	this->context = context;
+//}
+//
+//LvRenderContextVulkan::~LvRenderContextVulkan()
+//{
+//	this->isInitialized = false;
+//
+//#if defined(_DEBUG)
+//	if (_livingObjects.Count() > 0)
+//	{
+//		LOGW(LV_ID, "LvRenderContext Undestroy object : %zu", _livingObjects.Count());
+//		for (int i = 0; i < _livingObjects.Count(); ++i)
+//		{
+//			LvHandle* handle = _livingObjects[i];
+//			if (handle != nullptr)
+//				LOGW(LV_ID, "%s %s (%p)", handle->instanceType, handle->name, &handle);
+//		}
+//	}
+//#endif
+//}
+//
+//void LvRenderContextVulkan::initInstance()
+//{
+//	if (s_enableValidationLayers && !check_validation_layer_support())
+//	{
+//		LOGE(LV_ID, "validation layers requested, but not available!");
+//	}
+//
+//	VkApplicationInfo appInfo = {};
+//	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+//	appInfo.pApplicationName = "Lv";
+//	appInfo.pEngineName = "Lv Engine";
+//	appInfo.apiVersion = VK_API_VERSION_1_0;
+//
+//	bool surfaceExtFound = false;
+//	bool platformSurfaceExtFound = false;
+//
+//	uint32 instance_extension_count = 0;
+//
+//	VK_CHECK_RESULT(vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, NULL));
+//
+//	if (instance_extension_count > 0 && _enabledInstanceExtensions.Count() == 0)
+//	{
+//		VkExtensionProperties* instance_extensions = new VkExtensionProperties[instance_extension_count];
+//		VK_CHECK_RESULT(vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, instance_extensions));
+//
+//		for (uint32 i = 0; i < instance_extension_count; i++)
+//		{
+//			if (!strcmp(VK_KHR_SURFACE_EXTENSION_NAME, instance_extensions[i].extensionName))
+//			{
+//				surfaceExtFound = true;
+//				_enabledInstanceExtensions.Add(VK_KHR_SURFACE_EXTENSION_NAME);
+//			}
+//
+//			// Enable surface extensions depending on os
+//#if defined(__WIN32__)
+//			if (!strcmp(instance_extensions[i].extensionName, VK_KHR_WIN32_SURFACE_EXTENSION_NAME))
+//			{
+//				platformSurfaceExtFound = true;
+//				_enabledInstanceExtensions.Add(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+//			}
+//#elif defined(VK_USE_PLATFORM_ANDROID_KHR)
+//			if (!strcmp(instance_extensions[i].extensionName, VK_KHR_ANDROID_SURFACE_EXTENSION_NAME))
+//			{
+//				platformSurfaceExtFound = true;
+//				_enabledInstanceExtensions.Add(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+//			}
+//#elif defined(_DIRECT2DISPLAY)
+//			if (!strcmp(instance_extensions[i].extensionName, VK_KHR_DISPLAY_EXTENSION_NAME))
+//			{
+//				platformSurfaceExtFound = true;
+//				_enabledInstanceExtensions.Add(VK_KHR_DISPLAY_EXTENSION_NAME);
+//			}
+//#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+//			if (!strcmp(instance_extensions[i].extensionName, VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME))
+//			{
+//				platformSurfaceExtFound = true;
+//				_enabledInstanceExtensions.Add(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
+//			}
+//#elif defined(VK_USE_PLATFORM_XCB_KHR)
+//			if (!strcmp(instance_extensions[i].extensionName, VK_KHR_XCB_SURFACE_EXTENSION_NAME))
+//			{
+//				platformSurfaceExtFound = true;
+//				_enabledInstanceExtensions.Add(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+//			}
+//#elif defined(__IOS__)
+//			if (!strcmp(instance_extensions[i].extensionName, VK_MVK_IOS_SURFACE_EXTENSION_NAME))
+//			{
+//				platformSurfaceExtFound = true;
+//				_enabledInstanceExtensions.Add(VK_MVK_IOS_SURFACE_EXTENSION_NAME);
+//			}
+//#elif defined(__MACOSX__)
+//			if (!strcmp(instance_extensions[i].extensionName, VK_MVK_MACOS_SURFACE_EXTENSION_NAME))
+//			{
+//				platformSurfaceExtFound = true;
+//				_enabledInstanceExtensions.Add(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+//			}
+//#endif
+//
+//			if (!strcmp(instance_extensions[i].extensionName, VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
+//			{
+//				if (s_enableValidationLayers)
+//					_enabledInstanceExtensions.Add(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+//			}
+//		}
+//
+//		delete[] instance_extensions;
+//	}
+//
+//	VkInstanceCreateInfo instanceInfo = {};
+//	instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+//	instanceInfo.pNext = NULL;
+//	instanceInfo.pApplicationInfo = &appInfo;
+//	instanceInfo.enabledExtensionCount = static_cast<uint32_t>(_enabledInstanceExtensions.Count());
+//	instanceInfo.ppEnabledExtensionNames = _enabledInstanceExtensions.data();
+//
+//	if (s_enableValidationLayers)
+//	{
+//#if defined(_DEBUG)
+//		if (s_validationLayers.Count() > 0)
+//		{
+//#if defined(__DESKTOP__)
+//
+//			if (s_sdkVersion.major >= 1 && s_sdkVersion.minor >= 2)
+//			{
+//				const Lv::LvFixedList<const char*, 1> validationLayers =
+//				{
+//					"VK_LAYER_KHRONOS_validation"
+//				};
+//				instanceInfo.enabledLayerCount = (uint32_t)validationLayers.Count();
+//				instanceInfo.ppEnabledLayerNames = validationLayers.data();
+//			}
+//			else
+//			{
+//				const Lv::LvFixedList<const char*, 1> validationLayers =
+//				{
+//					"VK_LAYER_LUNARG_standard_validation",
+//				};
+//				instanceInfo.enabledLayerCount = (uint32_t)validationLayers.Count();
+//				instanceInfo.ppEnabledLayerNames = validationLayers.data();
+//			}
+//#else
+//			instanceInfo.enabledLayerCount = static_cast<uint32_t>(s_validationLayers.Count());
+//			instanceInfo.ppEnabledLayerNames = s_validationLayers.data();
+//#endif
+//		}
+//#endif
+//	}
+//	else
+//	{
+//		instanceInfo.enabledLayerCount = 0;
+//	}
+//
+//	VkResult err = vkCreateInstance(&instanceInfo, NULL, &_instance);
+//	if (err == VK_ERROR_INCOMPATIBLE_DRIVER)
+//	{
+//		LOGE(LV_ID,
+//			"Cannot find a compatible Vulkan installable client driver(ICD).\n\nPlease look at the Getting Started guide for additional information.\nvkCreateInstance Failure");
+//	}
+//	else if (err == VK_ERROR_EXTENSION_NOT_PRESENT)
+//	{
+//		LOGE(LV_ID, "Cannot find a specified extension library.\nMake sure your layers path is set appropriately.\nvkCreateInstance Failure");
+//	}
+//	else if (err == VK_ERROR_LAYER_NOT_PRESENT)
+//	{
+//		LOGE(LV_ID, "VK_ERROR_LAYER_NOT_PRESENT A specified layer cannot be found");
+//	}
+//	else if (err)
+//	{
+//		LOGE(LV_ID, "vkCreateInstance failed.\n\nDo you have a compatible Vulkan installable client driver (ICD) installed?\nPlease look at the Getting Started guide for additional information.\n vkCreateInstance Failure");
+//	}
+//}
+//
+//void LvRenderContextVulkan::initDebug()
+//{
+//	if (!s_enableValidationLayers)
+//		return;
+//
+//#if defined(_DEBUG)
+//	VkDebugReportCallbackCreateInfoEXT reportCreateInfo = {};
+//	reportCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
+//	reportCreateInfo.pNext = NULL;
+//	reportCreateInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+//	reportCreateInfo.pfnCallback = report_debug_callback;
+//	reportCreateInfo.pUserData = NULL;
+//
+//	VK_CHECK_RESULT(create_debug_report_callback(_instance, &reportCreateInfo, NULL, &_reportCallbackHandle));
+//#endif
+//	// freeDebugCallback
+//}
+//
+//void LvRenderContextVulkan::initDevice(void)
+//{
+//	uint32 deviceCount = 0;
+//	VkResult result = vkEnumeratePhysicalDevices(_instance, &deviceCount, NULL);
+//
+//	if (result != VK_SUCCESS)
+//	{
+//		LOGE(LV_ID, "Failed to query the number of physical devices present: %s\n", vkErrorString(result));
+//	}
+//
+//	LvFixedList<VkPhysicalDevice, 8> physicalDevices(deviceCount);
+//	result = vkEnumeratePhysicalDevices(_instance, &deviceCount, physicalDevices.data());
+//
+//	if (result != VK_SUCCESS)
+//	{
+//		LOGE(LV_ID, "Could not enumerate physical device %d\n", result);
+//	}
+//
+//	if (s_shouldPrintLog)
+//	{
+//		VkPhysicalDeviceProperties deviceProperties;
+//		for (uint32 i = 0; i < deviceCount; i++)
+//		{
+//			memset(&deviceProperties, 0, sizeof deviceProperties);
+//			vkGetPhysicalDeviceProperties(physicalDevices[i], &deviceProperties);
+//
+//			LOGD(LV_ID, "Driver Version: %d\n", deviceProperties.driverVersion);
+//			LOGD(LV_ID, "Device Name:    %s\n", deviceProperties.deviceName);
+//			LOGD(LV_ID, "Device Type:    %d\n", deviceProperties.deviceType);
+//			LOGD(LV_ID, "API Version:    %d.%d.%d\n",
+//				// See note below regarding this:
+//				(deviceProperties.apiVersion >> 22) & 0x3FF,
+//				(deviceProperties.apiVersion >> 12) & 0x3FF,
+//				(deviceProperties.apiVersion & 0xFFF));
+//		}
+//	}
+//
+//	// TODO : 가장 좋은 physical device를 고르는 로직 필요.
+//	_gpuDeviceVK = physicalDevices[0];
+//
+//	// TODO : Physical Device Extension
+//	uint32 extCount = 0;
+//	vkEnumerateDeviceExtensionProperties(_gpuDeviceVK, nullptr, &extCount, nullptr);
+//
+//	LvList<VkExtensionProperties> available_extensions;
+//
+//	available_extensions.Resize(extCount);
+//	vkEnumerateDeviceExtensionProperties(_gpuDeviceVK, nullptr, &extCount, &available_extensions[0]);
+//
+//#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+//	// TODO : neeed to impl for Android
+//#endif
+//
+//	vkGetPhysicalDeviceFeatures(_gpuDeviceVK, &_deviceFeaturesVK);
+//	vkGetPhysicalDeviceMemoryProperties(_gpuDeviceVK, &_deviceMemoryPropertiesVK);
+//
+//	VkBool32 validDepthFormat = vkGetSupportedDepthFormat(_gpuDeviceVK, &_defaultDepthFormat);
+//	ASSERT(validDepthFormat);
+//
+//	_vulkanDevice = new LvDeviceVulkan(_gpuDeviceVK);
+//
+//	// TODO : 원하는 physical device feature 활용하기
+//	// TODO : 원하는 device extension사용하기. 
+//	// VkPhysicalDeviceFeatures enabledDeviceFeature;
+//	LvList<const char*> enabledDeviceExtensions;
+//
+//	// TODO : QUEUE_COMPUTE/TRANSFER_BIT에 대한 리서치 후, 활용하기
+//	// LvDeviceVulkan을 위한 CommandPool이 안에서 만들어지고 있음.
+//	VK_CHECK_RESULT(_vulkanDevice->CreateLogicalDevice(_deviceFeaturesVK, enabledDeviceExtensions, true, VK_QUEUE_GRAPHICS_BIT));
+//	_logicalDeviceVK = _vulkanDevice->logicalDevice;
+//
+//	vkGetDeviceQueue(_logicalDeviceVK, _vulkanDevice->queueFamilyIndices.graphics, 0, &_graphicsQueueVK);
+//
+//
+//#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+//	// neeed to impl for Android 
+//#endif
+//}
+
 
 
 OG_NAMESPACE_RENDER_BEGIN
 
 
-class OgRenderContextVulkan : public OgRenderContext
-{
-public:
-	OgRenderContextVulkan(System::OgSystemContext* context);
 
-	~OgRenderContextVulkan() override;
 
-	void Load(void) override;
-
-	void Init(void) override;
-
-	OgSwapChain* CreateSwapchain(System::OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo) override;
-
-	void DestroySwapchain(OgSwapChain* swapchain) override;
-
-	//OgSwapChain GetSwapchain(OgNativeWindow* nativeWindow) override;
-
-	OgFrameBufferHandle* GetSwapChainFrameBuffer(OgSwapChain* swapchain, uint32 index) override;
-
-	uint32 AcquireNextImageIndex(OgSwapChain* swapchain) override;
-
-	uint32 GetCurrentImageIndex(OgSwapChain* swapchain) override;
-
-	OgBufferHandle* CreateBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU) override;
-	void DestroyBuffer(OgBufferHandle* buffer) override;
-
-	OgShaderHandle* CreateShader(OgShaderType flag, const char* text, uint32 codeSize, const char* funcName = nullptr);
-	void DestroyShader(OgShaderHandle* shader) override;
-
-	OgProgramHandle* CreateProgram(OgShaderHandle** shaders, uint32 shaderCount) override;
-	void DestroyProgram(OgProgramHandle* handle) override;
-
-	OgTextureHandle* CreateTexture(void* image, OgPixelFormat format, uint32 width, uint32 height, OgSamplerHandle* sampler = nullptr, bool generateMipmaps = false) override;
-	OgTextureHandle* CreateTexture(void** image, OgPixelFormat format, uint32 width, uint32 height, uint32 layerCount, OgSamplerHandle* sampler = nullptr, bool generateMipmaps = false) override;
-	OgTextureHandle* CreateTexture(void** image, const OgTextureInfo& info, OgSamplerHandle* sampler = nullptr) override;
-	void DestroyTexture(OgTextureHandle* texture) override;
-	void UpdateTexture(OgTextureHandle* texture, OgSamplerHandle* sampler, size_t offset, void** data, bool useBarrier);
-
-	OgSamplerHandle* CreateSampler(const OgSamplerInfo& info) override;
-	void DestroySampler(OgSamplerHandle* sampler) override;
-
-	OgFrameBufferHandle* CreateFrameBuffer(OgFrameBufferInfo& info) override;
-	void DestroyFrameBuffer(OgFrameBufferHandle* framebuffer) override;
-
-	OgRenderPassHandle* CreateRenderPass(OgRenderPassInfo& info) override;
-	void DestroyRenderPass(OgRenderPassHandle* renderPass) override;
-
-	OgPipelineHandle* CreatePipeline(OgPipelineDescriptor& descriptor) override;
-	void DestroyPipeline(OgPipelineHandle* pipeline) override;
-
-	OgResourceLayoutHandle* CreateResourceLayout(OgResourceBinding* bindings, uint32 count) override;
-	void DestroyResourceLayout(OgResourceLayoutHandle* layout) override;
-
-	OgResourceSetHandle* CreateResourceSet(OgResourceLayoutHandle* resourceLayout, OgResourceUsage* usages, uint32 usageCount) override;
-	void DestroyResourceSet(OgResourceSetHandle* resourceSet) override;
-
-	OgCommandEncoderHandle* CreateCommandEncoder() override;
-	void DestroyCommandEncoder(OgCommandEncoderHandle* encoder) override;
-
-	void* MapBuffer(OgBufferHandle* buffer, size_t size, size_t offset = 0) override;
-
-	bool UnmapBuffer(OgBufferHandle* buffer) override;
-
-	void UpdateBuffer(OgBufferHandle* buffer, size_t offset, void* data, size_t size, bool useBarrier) override;
-
-	void BlitFramebuffer(uint srcX0, uint srcY0, uint srcX1, uint srcY1, OgFrameBufferHandle* srcBuffer, uint dstX0, uint dstY0, uint dstX1, uint dstY1, OgFrameBufferHandle* dstBuffer) override;
-
-	VkCommandBuffer CreateCommandBuffer(VkCommandBufferLevel level, bool begin);
-
-	void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free);
-
-	OgPixelFormat GetDefaultDepthFormat() override;
-
-	void Submit(OgSwapChain* swapchain, OgCommandEncoderHandle* encoder) override;
-
-	void Present(OgSwapChain* swapchain) override;
-
-	void Suspend(OgSwapChain* swapchain) override;
-
-	void Restore(OgSwapChain* swapchain) override;
-
-	void WaitDeviceIdle() override;
-
-	void Collect() override;
-
-	void Shutdown(void) override;
-
-	bool HasFeature(OgRenderFeature feature) override;
-
-	OgResourceSetPool* CreateResourceSetPool(uint32 maxUniformBufferFromPool, uint32 maxTextureFromPool, uint32 maxSetFromPool) override;
-
-	void DestroyResourceSetPool(OgResourceSetPool* resourceSetPool) override;
-
-private:
-
-	void initInstance();
-	void initDebug();
-	void initDevice();
-	void initCapability();
-	void initCommandPool();
-	void initPipelineCache();	// TODO : implement
-	void initDescriptorPool();
-	void initStagingPool();
-	void initBufferManager();
-
-	// TODO working
-//	OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
-//	void releaseBuffer(OgBufferHandle* buffer);
-//
-//	void buildTexture(OgTextureVK* texture);
-//	void releaseTexture(OgTextureVK* texture);
-//
-//	void buildMipmap(VkCommandBuffer flyCmd, OgTextureVK* tex, VkImageSubresourceRange& subresourceRange);
-//
-//	void buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
-//	void releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
-//
-//	void buildResourceSet(OgResourceSetVK* rSet);
-//	void releaseResourceSet(OgResourceSetVK* resourceSet);
-//
-//	void buildRenderPass(OgRenderPassVK* renderPass);
-//	void releaseRenderPass(OgRenderPassVK* renderPass);
-//
-//private:
-//	VkInstance _instance;
-//
-//	VkDebugReportCallbackEXT _reportCallbackHandle;
-//	list<const char*> _enabledInstanceExtensions;
-//
-//	// Quick Reference for comfort.
-//	OgDeviceVulkan* _vulkanDevice;
-//	VkPhysicalDevice _gpuDeviceVK;
-//	VkPhysicalDeviceFeatures _deviceFeaturesVK;
-//	VkPhysicalDeviceMemoryProperties _deviceMemoryPropertiesVK;
-//	VkDevice _logicalDeviceVK;
-//	VkQueue _graphicsQueueVK;
-//	VkFormat _defaultDepthFormat;
-//	VkCommandPool _cmdPooOgK;
-//
-//	// Manual Managed Descriptor Pool
-//	VkDescriptorPool _descriptorPool;
-//	uint32 _usedUniformBufferFromPool;
-//	uint32 _usedTextureFromPool;
-//	uint32 _usedSetFromPool;
-//	uint32 _maxUniformBufferFromPool;
-//	uint32 _maxTextureFromPool;
-//	uint32 _maxSetFromPool;
-//
-//	// Staging Buffer Pool / Command Buffer for updating buffer
-//	bool _acquireOnceForPresent;
-//
-//	OgBufferManager* _bufferManager;
-//
-//	struct SwapchainWrapper
-//	{
-//		// TODO : 중복되는 정보 제거하기
-//		SwapchainWrapper* next;
-//
-//		// TODO: reconsider
-//		OgNativeWindow* window;
-//
-//		OgSwapChainVulkan swapchainVK;
-//		VkQueue presentQueueVK;
-//
-//		OgQueue<OgCommandEncoderHandle*> encoderQueue;
-//
-//		struct
-//		{
-//			bool isInitialized = false;
-//			bool hasDepthStencilBuffer = false;
-//			bool hasMSAAbuffer = false;
-//
-//			uint32 bufferCount;
-//
-//			OgRenderPassHandle* renderPass;
-//
-//			OgSamplerHandle* depthStencilSampler;
-//			OgTextureHandle* depthStencilTexture;
-//
-//			OgSamplerHandle* multisampleColorSampler;
-//			OgTextureHandle* multisampleColorTexture;
-//
-//			OgFrameBufferHandle** frameBuffers;
-//		} frameBufferObject;
-//
-//		struct
-//		{
-//			bool isInitialized = false;
-//
-//			uint32 submissionIndex;
-//			uint32 swapchainIndex;
-//			VkFence* fences;
-//			VkSemaphore* imageReadys;
-//			VkSemaphore* renderDones;
-//		} syncObject;
-//
-//		// For User Interaction
-//		OgSwapChainInfo settingInfo;
-//		OgSwapChain swapchainResult;
-//	};
-//
-//	// SwapChain
-//	void prepareSwapChain(SwapchainWrapper& sw);
-//	void initSwapChain(SwapchainWrapper& sw);
-//	void initSwapChainSyncObject(SwapchainWrapper& sw);
-//	void destroySwapChainSyncObject(SwapchainWrapper& sw);
-//	void destroySwapChainFramebuffers(SwapchainWrapper& sw);
-//	void destroySwapChain(SwapchainWrapper& sw);
-//
-
-	// Key: PointerHash(OgSwapChain*)
-	//unordered_map<uint32, SwapchainWrapper*> _swapChainTables;
-	//SwapchainWrapper* _rootSwapchainWrapper;
-
-#if defined(_DEBUG)
-	list<OgHandle*> _livingObjects;
-#endif
-};
 
 OG_NAMESPACE_RENDER_END
 
-#endif //_OG_RENDERER_VULKAN_H

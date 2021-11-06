@@ -318,25 +318,24 @@ __inline__ static void trap_instruction(void)
 #endif
 
 #if defined(__ANDROID__)
-#define LOGD(tag, fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, tag, fmt "\n - %s (at %s:%d)", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
-#define LOGW(tag, fmt, ...) __android_log_print(ANDROID_LOG_WARN, tag, fmt "\n - %s (at %s:%d)", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
-#define LOGE(tag, fmt, ...) __android_log_print(ANDROID_LOG_ERROR, tag, fmt "\n - %s (at %s:%d)", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
+	#define LOGD(tag, fmt, ...) __android_log_print(ANDROID_LOG_DEBUG, tag, fmt "\n - %s (at %s:%d)", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
+	#define LOGW(tag, fmt, ...) __android_log_print(ANDROID_LOG_WARN, tag, fmt "\n - %s (at %s:%d)", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
+	#define LOGE(tag, fmt, ...) __android_log_print(ANDROID_LOG_ERROR, tag, fmt "\n - %s (at %s:%d)", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
 #else
-#define LOGD(tag, fmt, ...) printf(ANSI_COLOR_RESET "[D " tag "] " fmt "\n  - %s (at %s:%d)\n" ANSI_COLOR_RESET, ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
-#define LOGW(tag, fmt, ...) printf(ANSI_COLOR_YELLOW "[D " tag "] " fmt "\n  - %s (at %s:%d)\n" ANSI_COLOR_RESET, ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
+	#define LOGD(tag, fmt, ...) fprintf(stdout, ANSI_COLOR_RESET "[D " tag "] " fmt "\n  - %s (at %s:%d)\n" ANSI_COLOR_RESET, ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
 
 #if defined(__cplusplus)
-#if defined(_DEBUG)
-#define LOGE(tag, fmt, ...) fprintf(stderr, ANSI_COLOR_RED "[D " tag "] " fmt "\n  - %s (at %s:%d)\n", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__), OG_DEBUG_BREAK()
+	#if defined(_DEBUG)
+		#define LOGE(tag, fmt, ...) fprintf(stderr, ANSI_COLOR_RED "[D " tag "] " fmt "\n  - %s (at %s:%d)\n", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__), OG_DEBUG_BREAK()
+	#else
+		#define LOGE(tag, fmt, ...) fprintf(stderr, ANSI_COLOR_RED "[D " tag "] " fmt "\n  - %s (at %s:%d)\n", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
+	#endif
 #else
-#define LOGE(tag, fmt, ...) fprintf(stderr, ANSI_COLOR_RED "[D " tag "] " fmt "\n  - %s (at %s:%d)\n", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
-#endif
-#else
-#if defined(_DEBUG)
-#define LOGE(tag, fmt, ...) fprintf(stderr, ANSI_COLOR_RED "[D " tag "] " fmt "\n  - %s (at %s:%d)\n", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__), OG_DEBUG_BREAK()
-#else
-#define LOGE(tag, fmt, ...) fprintf(stderr, ANSI_COLOR_RED "[D " tag "] " fmt "\n  - %s (at %s:%d)\n", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
-#endif
+	#if defined(_DEBUG)
+			#define LOGE(tag, fmt, ...) fprintf(stderr, ANSI_COLOR_RED "[D " tag "] " fmt "\n  - %s (at %s:%d)\n", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__), OG_DEBUG_BREAK()
+	#else
+			#define LOGE(tag, fmt, ...) fprintf(stderr, ANSI_COLOR_RED "[D " tag "] " fmt "\n  - %s (at %s:%d)\n", ##__VA_ARGS__, __FILE__, __FUNCTION__, __LINE__)
+	#endif
 #endif
 #endif
 
@@ -392,9 +391,6 @@ static_assert(sizeof(int8) == 1, "Incorrect Size of i8");
 #endif
 
 #endif
-
-
-
 
 
 #if defined(__WIN32__)

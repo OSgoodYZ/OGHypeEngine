@@ -1,7 +1,4 @@
 #pragma once
-
-
-#pragma once
 #ifndef __OG_RENDER_VULKAN_HANDLES_H__
 #define __OG_RENDER_VULKAN_HANDLES_H__
 
