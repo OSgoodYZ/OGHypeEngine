@@ -7,6 +7,12 @@
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.cpp">
       <Filter>public</Filter>
     </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.cpp">
+      <Filter>public</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.cpp">
+      <Filter>public</Filter>
+    </ClCompile>
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\deps\include\glm\detail\glm.cpp">
       <Filter>thirdparty\glm</Filter>
     </ClCompile>
@@ -19,6 +25,12 @@
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.h">
       <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>

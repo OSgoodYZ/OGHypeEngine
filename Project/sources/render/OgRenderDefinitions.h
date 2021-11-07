@@ -1587,7 +1587,7 @@ private:
 struct OG_API OgBufferHandle : public OgHandle
 {
 	OgBufferHandle();
-	virtual ~OgBufferHandle();
+	~OgBufferHandle();
 
 	uint32 size;
 
@@ -1803,6 +1803,7 @@ struct OG_API OgUniformWriter
 struct OG_API OgSamplerInfo
 {
 	OgSamplerInfo();
+	~OgSamplerInfo() = default;
 
 	// TEX_CUBE Deprecated.
 	OgSamplerType type;								// 1 byte
@@ -1924,21 +1925,6 @@ struct OG_API OgAttachment
 
 };
 
-struct OG_API OgFrameBufferHandle : OgHandle
-{
-	uint16 width;
-
-	uint16 height;
-
-	uint16 colorBufferCount : 15;
-
-	uint16 useDepthStencilBuffer : 1;
-
-	OgFrameBufferHandle();
-
-	~OgFrameBufferHandle();
-};
-
 struct OG_API OgRenderPassInfo
 {
 	OgRenderPassInfo();
@@ -2000,16 +1986,59 @@ struct OG_API OgRenderPassInfo
 	*/
 };
 
+
 struct OG_API OgRenderPassHandle : OgHandle
 {
 	// TODO : SubPass
 	OgRenderPassHandle();
 
+	OgRenderPassHandle(const OgRenderPassInfo& info);
+
 	~OgRenderPassHandle();
 
-	virtual uint32 GetHashCode() const override;
+	uint32 GetHashCode() const override;
 
 	OgRenderPassInfo info;
+};
+
+struct OG_API OgFrameBufferInfo
+{
+	OgFrameBufferInfo();
+
+	OgFrameBufferInfo(const OgFrameBufferInfo& o);
+
+	OgRenderPassHandle* renderPass;
+
+	vector<OgTextureHandle*> colorBuffers;
+
+	OgTextureHandle* resoOgeColorBuffer = nullptr;
+
+	OgTextureHandle* depthStencilBuffer;
+
+	uint16 width = 1, height = 1;
+};
+
+struct OG_API OgFrameBufferHandle : OgHandle
+{
+	uint16 width;
+
+	uint16 height;
+
+	uint16 colorBufferCount : 15;
+
+	uint16 useDepthStencilBuffer : 1;
+
+	bool isSwapchainFrameBuffer;
+
+	OgFrameBufferInfo framebufferInfo;			// Offscreen Framebuffer용 정보
+
+	// TODO: 작업하기 전임 21.11.07
+	OgFrameBufferHandle();
+	OgFrameBufferHandle(uint32 useDepthStencil, uint32  width, uint32 height);
+	OgFrameBufferHandle(const OgFrameBufferInfo& info); // Offscreen FraameBuffer 용 생성자
+
+	~OgFrameBufferHandle();
+
 };
 
 struct OG_API OgSwapChain
@@ -2056,22 +2085,7 @@ struct OG_API OgSwapChainInfo
 
 };
 
-struct OG_API OgFrameBufferInfo
-{
-	OgFrameBufferInfo();
 
-	OgFrameBufferInfo(const OgFrameBufferInfo& o);
-
-	OgRenderPassHandle* renderPass;
-
-	list<OgTextureHandle*> colorBuffers;
-
-	OgTextureHandle* resoOgeColorBuffer = nullptr;
-
-	OgTextureHandle* depthStencilBuffer;
-
-	uint16 width = 1, height = 1;
-};
 
 struct OG_API OgStencilOpState
 {
@@ -2170,6 +2184,8 @@ struct OG_API OgResourceBinding
 
 struct OG_API OgResourceUsage
 {
+	OgResourceUsage();
+
 	OgResourceBinding binding;
 
 	union
@@ -2186,8 +2202,6 @@ struct OG_API OgResourceUsage
 			uint32* range;
 		} buffer;
 	};
-
-	OgResourceUsage();
 };
 
 struct OG_API OgResourceLayoutHandle : OgHandle
@@ -2200,18 +2214,6 @@ struct OG_API OgResourceSetHandle : OgHandle
 	OgResourceSetHandle();
 };
 
-struct OG_API OgShaderDescriptor
-{
-	OgProgramHandle*	program;
-	OgShaderHandle*		shaders[2];	// @Chan : 만약 Vertex/Fragment말고 Geometry/Tesellation등을 쓰게 된다면 이것을 더 늘리면 된다.
-	uint32				shaderCount;
-
-	OgShaderDescriptor();
-
-	~OgShaderDescriptor();
-
-	void CopyFrom(const OgShaderDescriptor& sd);
-};
 
 struct OG_API OgColorBlendDescriptor
 {
@@ -2239,6 +2241,20 @@ struct OG_API OgColorBlendDescriptor
 
 	void CopyFrom(const OgColorBlendDescriptor& cbd);
 };
+
+struct OG_API OgShaderDescriptor
+{
+	OgProgramHandle*	program;
+	OgShaderHandle*		shaders[2];	// @Chan : 만약 Vertex/Fragment말고 Geometry/Tesellation등을 쓰게 된다면 이것을 더 늘리면 된다.
+	uint32				shaderCount;
+
+	OgShaderDescriptor();
+
+	~OgShaderDescriptor();
+
+	void CopyFrom(const OgShaderDescriptor& sd);
+};
+
 
 struct OG_API OgRasterizationDescriptor
 {
@@ -2385,7 +2401,7 @@ struct OG_API OgResourceSetPool
 
 // This class acts as a bridge to connect the inside and outside of the renderer.
 // OgBufferManager is class whis is used in Render.
-struct OgBufferPendingDelete
+struct OG_API OgBufferPendingDelete
 {
 	static bool AdvanceFrame();
 	static void FlushPendingDeleteForFreeBuffer(bool bImmediatly);

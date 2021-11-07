@@ -1,4 +1,4 @@
-#pragma once
+Ôªø#pragma once
 #ifndef _OG_RENDERER_VULKAN_H_
 #define _OG_RENDERER_VULKAN_H_
 
@@ -15,6 +15,7 @@
 #include <queue>
 #include <unordered_map>
 
+#include "system/OgSystemContext.h"
 #include "render/OgRenderContext.h"
 #include "render/private/vulkan/OgSwapChainVulkan.h"
 #include "render/private/vulkan/OgRenderVulkanHandles.h"
@@ -121,13 +122,9 @@ private:
 	void initInstance();
 	void initDebug();
 	void initDevice();
-	void initCapability();
+	
 	void initCommandPool();
-	void initPipelineCache();	// TODO : implement
 	void initDescriptorPool();
-	void initStagingPool();
-	void initBufferManager();
-
 	
 	//OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
 	//void releaseBuffer(OgBufferHandle* buffer);
@@ -160,82 +157,81 @@ private:
 	VkDevice _logicalDeviceVK;
 	VkQueue _graphicsQueueVK;
 	VkFormat _defaultDepthFormat;
-	VkCommandPool _cmdPooOgK;
+	VkCommandPool _cmdPoolVK;
 
-//	// Manual Managed Descriptor Pool
-//	VkDescriptorPool _descriptorPool;
-//	uint32 _usedUniformBufferFromPool;
-//	uint32 _usedTextureFromPool;
-//	uint32 _usedSetFromPool;
-//	uint32 _maxUniformBufferFromPool;
-//	uint32 _maxTextureFromPool;
-//	uint32 _maxSetFromPool;
+	// Manual Managed Descriptor Pool
+	VkDescriptorPool _descriptorPool;
+	uint32 _usedUniformBufferFromPool;
+	uint32 _usedTextureFromPool;
+	uint32 _usedSetFromPool;
+	uint32 _maxUniformBufferFromPool;
+	uint32 _maxTextureFromPool;
+	uint32 _maxSetFromPool;
 //
 //	// Staging Buffer Pool / Command Buffer for updating buffer
 //	bool _acquireOnceForPresent;
 //
-//	OgBufferManager* _bufferManager;
-//
-//	struct SwapchainWrapper
-//	{
-//		// TODO : ¡ﬂ∫πµ«¥¬ ¡§∫∏ ¡¶∞≈«œ±‚
-//		SwapchainWrapper* next;
-//
-//		// TODO: reconsider
-//		OgNativeWindow* window;
-//
-//		OgSwapChainVulkan swapchainVK;
-//		VkQueue presentQueueVK;
-//
-//		OgQueue<OgCommandEncoderHandle*> encoderQueue;
-//
-//		struct
-//		{
-//			bool isInitialized = false;
-//			bool hasDepthStencilBuffer = false;
-//			bool hasMSAAbuffer = false;
-//
-//			uint32 bufferCount;
-//
-//			OgRenderPassHandle* renderPass;
-//
-//			OgSamplerHandle* depthStencilSampler;
-//			OgTextureHandle* depthStencilTexture;
-//
-//			OgSamplerHandle* multisampleColorSampler;
-//			OgTextureHandle* multisampleColorTexture;
-//
-//			OgFrameBufferHandle** frameBuffers;
-//		} frameBufferObject;
-//
-//		struct
-//		{
-//			bool isInitialized = false;
-//
-//			uint32 submissionIndex;
-//			uint32 swapchainIndex;
-//			VkFence* fences;
-//			VkSemaphore* imageReadys;
-//			VkSemaphore* renderDones;
-//		} syncObject;
-//
-//		// For User Interaction
-//		OgSwapChainInfo settingInfo;
-//		OgSwapChain swapchainResult;
-//	};
-//
-//	// SwapChain
-//	void prepareSwapChain(SwapchainWrapper& sw);
-//	void initSwapChain(SwapchainWrapper& sw);
-//	void initSwapChainSyncObject(SwapchainWrapper& sw);
-//	void destroySwapChainSyncObject(SwapchainWrapper& sw);
-//	void destroySwapChainFramebuffers(SwapchainWrapper& sw);
-//	void destroySwapChain(SwapchainWrapper& sw);
-//
+
+
+	struct SwapchainWrapper
+	{
+		// TODO : Ï§ëÎ≥µÎêòÎäî Ï†ïÎ≥¥ Ï†úÍ±∞ÌïòÍ∏∞
+		SwapchainWrapper* next;
+
+		// TODO: reconsider
+		System::OgNativeWindow* window;
+
+		OgSwapChainVulkan swapchainVK;
+		VkQueue presentQueueVK;
+
+		std::queue<OgCommandEncoderHandle*> encoderQueue;
+
+		struct
+		{
+			bool isInitialized = false;
+			bool hasDepthStencilBuffer = false;
+			bool hasMSAAbuffer = false;
+
+			uint32 bufferCount;
+
+			OgRenderPassHandle* renderPass;
+
+			OgSamplerHandle* depthStencilSampler;
+			OgTextureHandle* depthStencilTexture;
+
+			OgSamplerHandle* multisampleColorSampler;
+			OgTextureHandle* multisampleColorTexture;
+
+			OgFrameBufferHandle** frameBuffers;
+		} frameBufferObject;
+
+		struct
+		{
+			bool isInitialized = false;
+
+			uint32 submissionIndex;
+			uint32 swapchainIndex;
+			VkFence* fences;
+			VkSemaphore* imageReadys;
+			VkSemaphore* renderDones;
+		} syncObject;
+
+		// For User Interaction
+		OgSwapChainInfo settingInfo;
+		OgSwapChain swapchainResult;
+	};
+
+	// SwapChain
+	void prepareSwapChain(SwapchainWrapper& sw);
+	void initSwapChain(SwapchainWrapper& sw);
+	void initSwapChainSyncObject(SwapchainWrapper& sw);
+	void destroySwapChainSyncObject(SwapchainWrapper& sw);
+	void destroySwapChainFramebuffers(SwapchainWrapper& sw);
+	void destroySwapChain(SwapchainWrapper& sw);
 
 	// Key: PointerHash(OgSwapChain*)
-	//unordered_map<uint32, SwapchainWrapper*> _swapChainTables;
-	//SwapchainWrapper* _rootSwapchainWrapper;
+	std::unordered_map<uint32, SwapchainWrapper*> _swapChainTables;
+	SwapchainWrapper* _rootSwapchainWrapper;
 
 #if defined(_DEBUG)
 	vector<OgHandle*> _livingObjects;

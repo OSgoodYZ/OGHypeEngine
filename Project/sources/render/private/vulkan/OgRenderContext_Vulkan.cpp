@@ -424,6 +424,371 @@ void OgRenderContextVulkan::initDevice(void)
 #endif
 }
 
+void OgRenderContextVulkan::Load(void)
+{
+#if defined(__MACOSX__) || defined(__IOS__)
+	context->mac.useMetal = true;
+#elif defined(__ANDROID__)
+
+#if (__ANDROID_API__  < 23)
+	int vulkanSupport = InitVulkan();
+	if (vulkanSupport == 0)
+		return;
+#endif
+
+#endif
+	initInstance();
+	initDebug();
+	initDevice();
+}
+
+void OgRenderContextVulkan::initCommandPool()
+{
+	VkCommandPoolCreateInfo cmdPoolInfo = {};
+	cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	cmdPoolInfo.queueFamilyIndex = _vulkanDevice->queueFamilyIndices.graphics;
+	cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	VK_CHECK_RESULT(vkCreateCommandPool(_logicalDeviceVK, &cmdPoolInfo, nullptr, &_cmdPoolVK));
+}
+
+void OgRenderContextVulkan::initDescriptorPool()
+{
+	_usedUniformBufferFromPool = 0;
+	_usedTextureFromPool = 0;
+	_usedSetFromPool = 0;
+	_maxUniformBufferFromPool = 1024;//256;
+	_maxTextureFromPool = 1024;
+	_maxSetFromPool = 512;//256;
+
+	// Manual Initialize for VkDescriptorPool
+	// 나중에 이것을 관리하는 DescriptorPool Manager를 만들어야 함.
+	vector<VkDescriptorPoolSize> poolSizes(2);
+	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSizes[0].descriptorCount = _maxUniformBufferFromPool;
+	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSizes[1].descriptorCount = _maxTextureFromPool;
+
+	VkDescriptorPoolCreateInfo descriptorPoolInfo;
+	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+	descriptorPoolInfo.pPoolSizes = poolSizes.data();
+	descriptorPoolInfo.maxSets = _maxSetFromPool;
+	descriptorPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT; // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkDescriptorPoolCreateFlagBits.html
+	descriptorPoolInfo.pNext = nullptr;
+
+	VK_CHECK_RESULT(vkCreateDescriptorPool(_logicalDeviceVK, &descriptorPoolInfo, nullptr, &_descriptorPool));
+}
+
+void OgRenderContextVulkan::prepareSwapChain(SwapchainWrapper& sw)
+{
+ 
+
+#if defined(_WIN32)
+	sw.swapchainVK.InitSurface(sw.window->win32.instance, sw.window->win32.handle);
+#elif defined(VK_USE_PLATFORM_ANDROID_KHR)	
+	sw.swapchainVK.InitSurface(sw.window->android.handle);
+#elif (defined(__MACOSX__) || defined(__MACOSX__))
+	sw.swapchainVK.InitSurface(sw.window->mac.view);
+#else
+	LOGE(OG_ID, "Not Supported Platform now");
+	/*
+#elif defined(_DIRECT2DISPLAY)
+	sw.swapchainVK..InitSurface(width, height);
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+	sw.swapchainVK..InitSurface(display, surface);
+#elif defined(VK_USE_PLATFORM_XCB_KHR)
+	sw.swapchainVK..InitSurface(connection, window);
+	*/
+#endif
+
+	vkGetDeviceQueue(_logicalDeviceVK, sw.swapchainVK.presentQueueIndex, 0, &sw.presentQueueVK);
+}
+
+
+
+void OgRenderContextVulkan::initSwapChain(SwapchainWrapper& sw)
+{
+	if (sw.frameBufferObject.isInitialized == true)
+		return;
+
+	System::OgNativeWindow* window = sw.window;
+
+	sw.swapchainVK.Create((uint32_t*)(&window->width), (uint32_t*)(&window->height), false);
+	sw.frameBufferObject.bufferCount = sw.swapchainVK.imageCount;
+
+	bool createDepthStencilBuffer = false;
+	OgTextureUsage texUsage;
+	OgPixelFormat texPFormat;
+	OgRenderTextureFormat texRTFormat;
+	if (sw.settingInfo.useDepthBuffer && sw.settingInfo.useStencilBuffer) // Depth and stencil Buffer
+	{
+		bool r1 = OgFormatSupplement::IsDepthStencilFormat(sw.settingInfo.depthBufferFormat);
+		bool r2 = OgFormatSupplement::IsDepthStencilFormat(sw.settingInfo.stencilBufferFormat);
+		if (!(r1 && r2)) LOGE(OG_ID, "Wrong Depth Stencil Format");
+		if (sw.settingInfo.depthBufferFormat != sw.settingInfo.stencilBufferFormat) LOGE(OG_ID, "Depth Stencil Format Should be same");
+
+		if (sw.settingInfo.depthBufferFormat == OgRenderTextureFormat::DEFAULT_DEPTH_STENCIL) // just check one format because it's already guaranteed.
+		{
+			const int DESIRED_FORMAT_NUMB = 3;
+
+			// Find Default Depth_stencil format on this platform
+			// 32_8 -> 24_8 -> 16_8
+			OgRenderTextureFormat desiredFormat[DESIRED_FORMAT_NUMB] =
+			{
+				OgRenderTextureFormat::DEPTH32_STENCIL8,
+				OgRenderTextureFormat::DEPTH24_STENCIL8,
+				OgRenderTextureFormat::DEPTH16_STENCIL8,
+			};
+
+			bool canSupportDefaultDepthStencil = false;
+			for (int i = 0; i < DESIRED_FORMAT_NUMB; ++i)
+			{
+				VkFormat f = (VkFormat)OgFormatSupplement::GetPixelFormat(desiredFormat[i]);
+
+				if (vkIsSupportFormat(_gpuDeviceVK, f))
+				{
+					canSupportDefaultDepthStencil = true;
+					texPFormat = (OgPixelFormat)f;
+					texRTFormat = desiredFormat[i];
+					break;
+				}
+			}
+
+			if (!canSupportDefaultDepthStencil) LOGE(OG_ID, "Can't Support Depth Stencil Format on this platform");
+		}
+		else
+		{
+			texPFormat = OgFormatSupplement::GetPixelFormat(sw.settingInfo.depthBufferFormat);
+			texRTFormat = sw.settingInfo.depthBufferFormat;
+		}
+
+		createDepthStencilBuffer = true;
+		texUsage = OgTextureUsage::DEPTH_STENCIL_ATTACHMENT;
+	}
+	else if (sw.settingInfo.useDepthBuffer)
+	{
+		if (OgFormatSupplement::IsDepthFormat(sw.settingInfo.depthBufferFormat) == false)
+			LOGE(OG_ID, "Wrong Depth Buffer Format");
+
+		if (sw.settingInfo.depthBufferFormat == OgRenderTextureFormat::DEFAULT_DEPTH)
+		{
+			const int DESIRED_FORMAT_NUMB = 3;
+
+			// Find Default Depth 
+			// 32 -> 24 -> 16
+			OgRenderTextureFormat desiredFormat[DESIRED_FORMAT_NUMB] =
+			{
+				OgRenderTextureFormat::DEPTH32,
+				OgRenderTextureFormat::DEPTH24,
+				OgRenderTextureFormat::DEPTH16,
+			};
+
+			bool canSupportDefaultDepth = false;
+			for (int i = 0; i < DESIRED_FORMAT_NUMB; ++i)
+			{
+				VkFormat f = (VkFormat)OgFormatSupplement::GetPixelFormat(desiredFormat[i]);
+
+				if (vkIsSupportFormat(_gpuDeviceVK, f))
+				{
+					canSupportDefaultDepth = true;
+					texPFormat = (OgPixelFormat)f;
+					texRTFormat = desiredFormat[i];
+					break;
+				}
+			}
+
+			if (!canSupportDefaultDepth) LOGE(OG_ID, "Can't Support Depth Format on this platform");
+		}
+		else
+		{
+			texPFormat = OgFormatSupplement::GetPixelFormat(sw.settingInfo.depthBufferFormat);
+			texRTFormat = sw.settingInfo.depthBufferFormat;
+		}
+
+		createDepthStencilBuffer = true;
+		texUsage = OgTextureUsage::DEPTH_ATTACHMENT;
+	}
+	else if (sw.settingInfo.useStencilBuffer)
+	{
+		if (OgFormatSupplement::IsStencilFormat(sw.settingInfo.stencilBufferFormat) == false)
+			LOGE(OG_ID, "Wrong Stencil Buffer Format");
+
+		createDepthStencilBuffer = true;
+		texUsage = OgTextureUsage::STENCIL_ATTACHMENT;
+		texPFormat = OgFormatSupplement::GetPixelFormat(sw.settingInfo.stencilBufferFormat);
+		texRTFormat = sw.settingInfo.stencilBufferFormat;
+	}
+
+	if (vkIsSupportFormat(_gpuDeviceVK, (VkFormat)texPFormat) == false)
+		LOGE(OG_ID, "This hardware does not support the format %d", texRTFormat);
+
+
+	sw.frameBufferObject.hasDepthStencilBuffer = createDepthStencilBuffer;
+	sw.frameBufferObject.hasMSAAbuffer = sw.settingInfo.useMSAA;
+
+	OgAttachment colorAttachment;
+	colorAttachment.isDepthStencilAttachment = false;
+	colorAttachment.format = OgFormatSupplement::GetRenderTextureFormat((OgPixelFormat)sw.swapchainVK.colorFormat);
+
+	// MSAA 를 이용한다면 기존에 colorAttachment로 이용하던 것을 multisample용 attachment로 이용한다.
+	if (sw.settingInfo.useMSAA) colorAttachment.sampleCount = sw.settingInfo.msaaSampleCount;
+
+	OgRenderPassInfo rpInfo;
+	rpInfo.isSwapchainRenderPass = true;
+	rpInfo.outputColorAttachments = &colorAttachment;
+	rpInfo.outputColorAttachmentCount = 1;
+
+	if (createDepthStencilBuffer)
+	{
+		OgSamplerInfo samplerInfo;
+		samplerInfo.type = OgSamplerType::TEX_2D;
+		samplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE;
+		samplerInfo.addressV = OgSamplerAddressMode::REPEAT;
+		OgSamplerHandle* sampler = CreateSampler(samplerInfo);
+		sw.frameBufferObject.depthStencilSampler = sampler;
+
+		texUsage = texUsage | OgTextureUsage::GPU_LOCAL;
+
+		OgTextureInfo texInfo;
+		texInfo.extent.width = window->width;
+		texInfo.extent.height = window->height;
+
+		texInfo.usage = texUsage;
+		texInfo.format = texPFormat;
+
+		// MSAA를 위해서는 depth attachment도 sample 수를 multisampl attachment로 맞춰줘야 한다.
+		if (sw.settingInfo.useMSAA)
+			texInfo.samples = sw.settingInfo.msaaSampleCount;
+
+		OgTextureHandle* depthTex = CreateTexture(nullptr, texInfo, sampler);
+		sw.frameBufferObject.depthStencilTexture = depthTex;
+
+		OgAttachment depthStencilAttachment;
+		depthStencilAttachment.isDepthStencilAttachment = true;
+		depthStencilAttachment.format = texRTFormat;
+		if (sw.settingInfo.useMSAA)
+			depthStencilAttachment.sampleCount = sw.settingInfo.msaaSampleCount;
+
+		rpInfo.useDepthStencilAttacment = true;
+		rpInfo.outputDepthStencilAttachment = depthStencilAttachment;
+	}
+
+	if (sw.settingInfo.useMSAA)
+	{
+		//OgAttachment resolveColorAttachment;
+		//resolveColorAttachment.isDepthStencilAttachment = false;
+		//resolveColorAttachment.format = OgFormatSupplement::GetRenderTextureFormat((OgPixelFormat)sw.swapchainVK.colorFormat);
+
+		//OgSamplerInfo samplerInfo;
+		//samplerInfo.type = OgSamplerType::TEX_2D;
+		//samplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE;
+		//samplerInfo.addressV = OgSamplerAddressMode::CLAMP_TO_EDGE;
+		//OgSamplerHandle* sampler = CreateSampler(samplerInfo);
+		//sw.frameBufferObject.multisampleColorSampler = sampler;
+
+		//texUsage = OgTextureUsage::COLOR_ATTACHMENT | OgTextureUsage::GPU_LOCAL;
+
+		//OgTextureInfo texInfo;
+		//texInfo.extent.width = window->width;
+		//texInfo.extent.height = window->height;
+
+		//texInfo.usage = texUsage;
+
+		//texInfo.format = static_cast<OgPixelFormat>(sw.swapchainVK.colorFormat);
+		//texInfo.samples = sw.settingInfo.msaaSampleCount;
+
+		//OgTextureHandle* multisampleTexture = CreateTexture(nullptr, texInfo, sampler);
+		//sw.frameBufferObject.multisampleColorTexture = multisampleTexture;
+
+		//rpInfo.resolveColorAttachmentCount = 1;
+		//rpInfo.resolveColorAttachment = &resolveColorAttachment;
+	}
+
+	sw.frameBufferObject.renderPass = CreateRenderPass(rpInfo);
+
+	VkImageView depthImageView = createDepthStencilBuffer ? static_cast<OgTextureVK*>(sw.frameBufferObject.depthStencilTexture)->view : NULL;
+	VkImageView multisampleImageView = sw.settingInfo.useMSAA ? static_cast<OgTextureVK*>(sw.frameBufferObject.multisampleColorTexture)->view : NULL;
+
+	VkRenderPass swapchainRenderPass = static_cast<OgRenderPassVK *>(sw.frameBufferObject.renderPass)->renderPassVK;
+
+	OgDefaultFrameBufferVK** framebuffers = new OgDefaultFrameBufferVK *[sw.swapchainVK.imageCount];
+	for (uint32_t i = 0; i < sw.swapchainVK.imageCount; ++i)
+	{
+		// LvDefaultFrameBufferVK의 생성자에서 info.useMSAA flag를 확인하고 MSAA를 사용하지 않는다면 내부적으로 이에 맞춰서 default framebuffer를 구성한다.
+		framebuffers[i] = new OgDefaultFrameBufferVK(_logicalDeviceVK, sw.settingInfo.useMSAA, createDepthStencilBuffer, window->width, window->height, multisampleImageView, sw.swapchainVK.buffers[i].view, depthImageView, swapchainRenderPass);
+		framebuffers[i]->name = "Swapchain_framebuffer";
+
+		OgTextureVK* tex = new OgTextureVK(sw.swapchainVK.buffers[i].image, sw.swapchainVK.buffers[i].view);
+		framebuffers[i]->framebufferInfo.colorBuffers.push_back(tex);
+	}
+
+	sw.frameBufferObject.frameBuffers = (OgFrameBufferHandle**)framebuffers;
+	sw.frameBufferObject.isInitialized = true;
+
+	sw.swapchainResult.bufferCount = sw.swapchainVK.imageCount;
+	sw.swapchainResult.useDepthBuffer = sw.settingInfo.useDepthBuffer;
+	sw.swapchainResult.useStencilBuffer = sw.settingInfo.useStencilBuffer;
+	sw.swapchainResult.colorRenderFormat = colorAttachment.format;
+	sw.swapchainResult.colorPixelFormat = (OgPixelFormat)sw.swapchainVK.colorFormat;
+	sw.swapchainResult.depthRenderFormat = texRTFormat;
+	sw.swapchainResult.depthPixelFormat = texPFormat;
+	sw.swapchainResult.stencilRenderFormat = texRTFormat;
+	sw.swapchainResult.stencilPixelFormat = texPFormat;
+}
+
+void OgRenderContextVulkan::initSwapChainSyncObject(SwapchainWrapper& sw)
+{
+	if (sw.frameBufferObject.isInitialized == false) return;
+	if (sw.syncObject.isInitialized == true) return;
+
+	// https://github.com/krOoze/Hello_Triangle/issues/1
+	// Vulkan의 Presentation 로직은 아직 완벽하지 않다
+	// 그래서 krOoze의 해석을 따라가도록 하는 것이 가장 안전하다.
+	constexpr uint32 MAX_SUBMIT_COUNT_WHICH_MAKES_SENSE = 2;
+	sw.syncObject.fences = new VkFence[MAX_SUBMIT_COUNT_WHICH_MAKES_SENSE];
+	sw.syncObject.imageReadys = new VkSemaphore[MAX_SUBMIT_COUNT_WHICH_MAKES_SENSE];
+
+	// per https://github.com/KhronosGroup/Vulkan-Docs/issues/1150 need upto swapchain-image count
+	sw.syncObject.renderDones = new VkSemaphore[sw.swapchainVK.imageCount];
+
+	VkFenceCreateInfo fCI = {};
+	fCI.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	VkSemaphoreCreateInfo spCI = {};
+	spCI.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	for (uint32 i = 0; i < MAX_SUBMIT_COUNT_WHICH_MAKES_SENSE; ++i)
+	{
+		VkFence* f = &(sw.syncObject.fences[i]);
+		VK_CHECK_RESULT(vkCreateFence(_logicalDeviceVK, &fCI, nullptr, f));
+
+		VkSemaphore* ps = &(sw.syncObject.imageReadys[i]);
+		VK_CHECK_RESULT(vkCreateSemaphore(_logicalDeviceVK, &spCI, nullptr, ps));
+	}
+
+	for (uint32 i = 0; i < sw.swapchainVK.imageCount; ++i)
+	{
+		VkSemaphore* ps = &(sw.syncObject.renderDones[i]);
+		VK_CHECK_RESULT(vkCreateSemaphore(_logicalDeviceVK, &spCI, nullptr, ps));
+	}
+
+	sw.syncObject.submissionIndex = SUBMISSION_INDEX_NONE;
+	sw.syncObject.isInitialized = true;
+}
+
+
+void OgRenderContextVulkan::Init(void)
+{
+	initCommandPool();
+	initDescriptorPool();
+	
+	// Swapchain Wrapper Class setting
+	OgSwapChainVulkan::Connect(_instance, _vulkanDevice);
+	
+	this->_rootSwapchainWrapper = nullptr;
+}
+
+// TODO:
 
 
 OG_NAMESPACE_RENDER_END

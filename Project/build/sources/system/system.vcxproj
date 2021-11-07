@@ -338,6 +338,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgSystemContext.cpp" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.h" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.cpp" />
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.h" />
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.cpp" />
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.h" />
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\deps\include\glm\detail\glm.cpp" />
   </ItemGroup>
   <ItemGroup>

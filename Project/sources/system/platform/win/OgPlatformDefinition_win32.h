@@ -19,10 +19,10 @@ extern "C" {
 
 
 #define _OG_NATIVE_WINDOW 			  window->win32.handle
-#define _OG_PLATFORM_CONTEXT 		  OgContextWIN 		win32;
-#define _OG_PLATFORM_WINDOW 		  OgWindowWIN  		win32;
-#define	_OG_PLATFORM_CURSOR_STATE	  OgCursorWIN		win32;
-#define _OG_PLATFORM_MONITOR_STATE    OgMonitorWIN		win32;
+#define _OG_PLATFORM_CONTEXT 		  OgContextWIN win32;
+#define _OG_PLATFORM_WINDOW 		  OgWindowWIN win32;
+#define	_OG_PLATFORM_CURSOR_STATE	  OgCursorWIN win32;
+#define _OG_PLATFORM_MONITOR_STATE    OgMonitorWIN win32;
 
 	// ntdll.dll function pointer typedefs
 	typedef LONG(WINAPI* PFNrtOgerifyVersionInfo)(OSVERSIONINFOEXW*, ULONG, ULONGLONG);

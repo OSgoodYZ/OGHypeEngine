@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #ifndef __OG_RENDER_VULKAN_HANDLES_H__
 #define __OG_RENDER_VULKAN_HANDLES_H__
 
@@ -69,8 +69,8 @@ struct OgBufferVK : OgBufferHandle
 
 		VkMemoryType type = vulkanDevice.memoryProperties.memoryTypes[memAlloc.memoryTypeIndex];
 
-		// Bifrost(Mali) GPU VK_MEMORY_PROPERTY_HOST_COHERENT_BIT & VK_MEMORY_PROPERTY_HOST_CACHED_BIT ¿É¼ÇÀÌ µÑ´Ù Áö¿øµÇ¾î¾ß 
-		// Hardware Cache Coherent ÀÌ´Ù.
+		// Bifrost(Mali) GPU VK_MEMORY_PROPERTY_HOST_COHERENT_BIT & VK_MEMORY_PROPERTY_HOST_CACHED_BIT ì˜µì…˜ì´ ë‘˜ë‹¤ ì§€ì›ë˜ì–´ì•¼ 
+		// Hardware Cache Coherent ì´ë‹¤.
 		isAutoCoherent = false;
 		if ((type.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
 		{
@@ -143,94 +143,91 @@ struct OgBufferVK : OgBufferHandle
 	}
 };
 
-// TODO:
-//
-//// ´ÙÀÌ³ª¹ÍÀ¸·Î´Â ¾ÆÁ÷ ¾²Áö¸»±â.
-//struct OGUniformBufferVK : OGBufferVK
-//{
-//	OGUniformBufferVK() = delete;
-//	OGUniformBufferVK(OGDeviceVulkan& device, uint32 bufferSize, OGBufferUsage bufUsage, OGMemoryOption memOption)
-//		: OGBufferVK(device, bufferSize, bufUsage, memOption)
-//		, buffer(bufferSize, true)
-//	{}
-//
-//	OGByteBuffer buffer;
-//
-//	void Start(uint32 position = 0) override
-//	{
-//		buffer.Start(position);
-//	}
-//
-//	void Align(uint32 alignment) override
-//	{
-//		buffer.Align(alignment);
-//	}
-//
-//	void Write(const void* data, uint32 amount) override
-//	{
-//		buffer.Write(data, amount);
-//	}
-//
-//	void Read(void* data, uint32 amount) override
-//	{
-//		buffer.Read(data, amount);
-//	}
-//
-//	void Reset() override
-//	{
-//		buffer.Reset();
-//	}
-//
-//	void End() override
-//	{
-//		// Vulkan mapped pointer´Â »ı¼º½Ã¿¡ ÀÌ¸Ş MapÀÌ µÇ¾îÀÖ´Ù.
-//		memcpy(mapped, buffer.pointer, buffer.position);
-//
-//		if (!isAutoCoherent)
-//			Flush();//buffer.position, innerOffset
-//
-//		buffer.End();
-//	}
-//
-//	void Destroy() override
-//	{
-//		OGBufferVK::Destroy();
-//		buffer.Free();
-//	}
-//};
-//
-//struct OGSamplerVK : OGSamplerHandle
-//{
-//	VkSampler samplerVK;
-//};
-//
-//struct OGTextureVK : OGTextureHandle
-//{
-//	VkDeviceMemory memory;
-//	VkImage image;
-//	VkImageView view;
-//
-//	VkImageLayout imageLayout;
-//	VkFormat vkFormat;
-//	void** data;
-//
-//	OGTextureVK() = delete;
-//
-//	// Swapchain only
-//	OGTextureVK(VkImage image, VkImageView view)
-//		: image(image)
-//		, view(view)
-//	{}
-//
-//	OGTextureVK(const OGTextureInfo& info, OGSamplerHandle* sampler, VkFormat format, void** data) :
-//		vkFormat(format), data(data),
-//		memory(VK_NULL_HANDLE), image(VK_NULL_HANDLE), view(VK_NULL_HANDLE)
-//	{
-//		this->info = info;
-//		this->sampler = sampler;
-//	}
-//	~OGTextureVK() {  }
-//};
+struct OgUniformBufferVK : OgBufferVK
+{
+	OgUniformBufferVK() = delete;
+	OgUniformBufferVK(OgDeviceVulkan& device, uint32 bufferSize, OgBufferUsage bufUsage, OgMemoryOption memOption)
+		: OgBufferVK(device, bufferSize, bufUsage, memOption)
+		, buffer(bufferSize, true)
+	{}
+
+	OgByteBuffer buffer;
+
+	void Start(uint32 position = 0) override
+	{
+		buffer.Start(position);
+	}
+
+	void Align(uint32 alignment) override
+	{
+		buffer.Align(alignment);
+	}
+
+	void Write(const void* data, uint32 amount) override
+	{
+		buffer.Write(data, amount);
+	}
+
+	void Read(void* data, uint32 amount) override
+	{
+		buffer.Read(data, amount);
+	}
+
+	void Reset() override
+	{
+		buffer.Reset();
+	}
+
+	void End() override
+	{
+		// Vulkan mapped pointerëŠ” ìƒì„±ì‹œì— ì´ë©” Mapì´ ë˜ì–´ìˆë‹¤.
+		memcpy(mapped, buffer.pointer, buffer.position);
+
+		if (!isAutoCoherent)
+			Flush();//buffer.position, innerOffset
+
+		buffer.End();
+	}
+
+	void Destroy() override
+	{
+		OgBufferVK::Destroy();
+		buffer.Free();
+	}
+};
+
+struct OgSamplerVK : OgSamplerHandle
+{
+	VkSampler samplerVK;
+};
+
+struct OgTextureVK : OgTextureHandle
+{
+	VkDeviceMemory memory;
+	VkImage image;
+	VkImageView view;
+
+	VkImageLayout imageLayout;
+	VkFormat vkFormat;
+	void** data;
+
+	OgTextureVK() = delete;
+
+	// Swapchain only
+	OgTextureVK(VkImage image, VkImageView view)
+		: image(image)
+		, view(view)
+	{}
+
+	OgTextureVK(const OgTextureInfo& info, OgSamplerHandle* sampler, VkFormat format, void** data) :
+		vkFormat(format), data(data),
+		memory(VK_NULL_HANDLE), image(VK_NULL_HANDLE), view(VK_NULL_HANDLE)
+	{
+		this->info = info;
+		this->sampler = sampler;
+	}
+	~OgTextureVK() {  }
+};
 //
 //struct OGShaderVK : OGShaderHandle
 //{
@@ -242,121 +239,122 @@ struct OgBufferVK : OgBufferHandle
 //	VkPipelineShaderStageCreateInfo shaderStageInfo;
 //	VkShaderModule shaderModuleVK;
 //};
-//
-//struct OGRenderPassVK : OGRenderPassPlatform
-//{
-//	OGRenderPassVK() = delete;
-//	OGRenderPassVK(const OGRenderPassInfo& info) : OGRenderPassPlatform(info) { }
-//	~OGRenderPassVK() { }
-//
-//	VkRenderPass renderPassVK;
-//};
-//
-//struct OGDefaultFrameBufferVK : OGFrameBufferPlatform
-//{
-//	OGDefaultFrameBufferVK() = delete;
-//	OGDefaultFrameBufferVK(const OGFrameBufferInfo& info) = delete;
-//
-//	OGDefaultFrameBufferVK(VkDevice device,
-//		bool useMSAA, bool useDepthStencil, uint width, uint height, VkImageView multisample, VkImageView color, VkImageView depth, VkRenderPass renderPass)
-//		: device(device),
-//		OGFrameBufferPlatform(useDepthStencil, width, height)
-//	{
-//		uint attachmentCount = 1;
-//		if (useMSAA && useDepthStencil)
-//		{
-//			attachmentCount = 3;
-//		}
-//		else if (useDepthStencil)
-//		{
-//			attachmentCount = 2;
-//		}
-//
-//		VkImageView imageViews[3];
-//		if (useMSAA)
-//		{
-//			imageViews[0] = multisample, imageViews[1] = color, imageViews[2] = depth;
-//		}
-//		else
-//		{
-//			imageViews[0] = color, imageViews[1] = depth;
-//		}
-//
-//
-//		VkFramebufferCreateInfo fbufCreateInfo{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-//		fbufCreateInfo.renderPass = renderPass;
-//		fbufCreateInfo.width = width;
-//		fbufCreateInfo.height = height;
-//		fbufCreateInfo.layers = 1;
-//		fbufCreateInfo.attachmentCount = attachmentCount;
-//		fbufCreateInfo.pAttachments = imageViews;
-//
-//		VK_CHECK_RESULT(vkCreateFramebuffer(device, &fbufCreateInfo, nullptr, &frameBufferVK));
-//	}
-//
-//	~OGDefaultFrameBufferVK()
-//	{
-//		if (frameBufferVK != NULL)
-//		{
-//			vkDestroyFramebuffer(device, frameBufferVK, nullptr);
-//			frameBufferVK = NULL;
-//		}
-//	}
-//
-//	VkDevice device;
-//	VkFramebuffer frameBufferVK;
-//};
-//
-//struct OGFrameBufferVK : OGFrameBufferPlatform
-//{
-//	OGFrameBufferVK() = delete;
-//	OGFrameBufferVK(bool useDepthStencil, uint width, uint height) = delete;
-//
-//	OGFrameBufferVK(VkDevice device, const OGFrameBufferInfo& fbInfo)
-//		: device(device)
-//		, OGFrameBufferPlatform(fbInfo)
-//	{
-//		uint16 attachmentCount = this->colorBufferCount;
-//		OGFixedList<VkImageView, 8> attachments;
-//		for (uint16 i = 0; i < attachmentCount; ++i)
-//			attachments.Add(static_cast<OGTextureVK*>(fbInfo.colorBuffers[i])->view);
-//
-//		if (fbInfo.renderPass->info.resoOGeColorAttachmentCount > 0)
-//		{
-//			//ÀÏ´Ü resoOGe µÉ¼ö ÀÖ´Â attachment´Â 1°³·Î¸¸ Á¦ÇÑÇÑ´Ù. ÃßÈÄ¿¡ ¸¹Àº resoOGe attachment±¸Çö °¡´É¼ºÀÌ ÀÖÀ½.
-//			attachments.Add(static_cast<OGTextureVK*>(fbInfo.resoOGeColorBuffer)->view);
-//			++attachmentCount;
-//		}
-//
-//		if (this->useDepthStencilBuffer)
-//		{
-//			attachments.Add(static_cast<OGTextureVK*>(fbInfo.depthStencilBuffer)->view);
-//			++attachmentCount;
-//		}
-//
-//		VkFramebufferCreateInfo fbufCreateInfo{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-//		fbufCreateInfo.renderPass = static_cast<OGRenderPassVK*>(fbInfo.renderPass)->renderPassVK;
-//		fbufCreateInfo.width = this->width;
-//		fbufCreateInfo.height = this->height;
-//		fbufCreateInfo.layers = 1;
-//		fbufCreateInfo.attachmentCount = attachmentCount;
-//		fbufCreateInfo.pAttachments = attachments.data();
-//
-//		VK_CHECK_RESULT(vkCreateFramebuffer(device, &fbufCreateInfo, nullptr, &frameBufferVK));
-//	}
-//
-//	~OGFrameBufferVK()
-//	{
-//		if (frameBufferVK != NULL)
-//		{
-//			vkDestroyFramebuffer(device, frameBufferVK, nullptr);
-//			frameBufferVK = NULL;
-//		}
-//	}
-//
-//	VkDevice device;
-//	VkFramebuffer frameBufferVK;
-//};
+
+struct OgRenderPassVK : OgRenderPassHandle
+{
+	OgRenderPassVK() = delete;
+	OgRenderPassVK(const OgRenderPassInfo& info) : OgRenderPassHandle(info) { }
+	~OgRenderPassVK() { }
+
+	VkRenderPass renderPassVK;
+};
+
+struct OgDefaultFrameBufferVK : OgFrameBufferHandle
+{
+	OgDefaultFrameBufferVK() = delete;
+	OgDefaultFrameBufferVK(const OgFrameBufferInfo& info) = delete;
+
+	OgDefaultFrameBufferVK(VkDevice device,
+		bool useMSAA, bool useDepthStencil, uint width, uint height, VkImageView multisample, VkImageView color, VkImageView depth, VkRenderPass renderPass)
+		: device(device),
+		OgFrameBufferHandle(useDepthStencil, width, height)
+	{
+		uint attachmentCount = 1;
+		if (useMSAA && useDepthStencil)
+		{
+			attachmentCount = 3;
+		}
+		else if (useDepthStencil)
+		{
+			attachmentCount = 2;
+		}
+
+		VkImageView imageViews[3];
+		if (useMSAA)
+		{
+			imageViews[0] = multisample, imageViews[1] = color, imageViews[2] = depth;
+		}
+		else
+		{
+			imageViews[0] = color, imageViews[1] = depth;
+		}
+
+
+		VkFramebufferCreateInfo fbufCreateInfo{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+		fbufCreateInfo.renderPass = renderPass;
+		fbufCreateInfo.width = width;
+		fbufCreateInfo.height = height;
+		fbufCreateInfo.layers = 1;
+		fbufCreateInfo.attachmentCount = attachmentCount;
+		fbufCreateInfo.pAttachments = imageViews;
+
+		VK_CHECK_RESULT(vkCreateFramebuffer(device, &fbufCreateInfo, nullptr, &frameBufferVK));
+	}
+
+	~OgDefaultFrameBufferVK()
+	{
+		if (frameBufferVK != NULL)
+		{
+			vkDestroyFramebuffer(device, frameBufferVK, nullptr);
+			frameBufferVK = NULL;
+		}
+	}
+
+	VkDevice device;
+	VkFramebuffer frameBufferVK;
+};
+
+struct OgFrameBufferVK : OgFrameBufferHandle
+{
+	OgFrameBufferVK() = delete;
+	OgFrameBufferVK(bool useDepthStencil, uint width, uint height) = delete;
+
+	OgFrameBufferVK(VkDevice device, const OgFrameBufferInfo& fbInfo)
+		: device(device)
+		, OgFrameBufferHandle(fbInfo)
+	{
+		uint16 attachmentCount = this->colorBufferCount;
+		vector<VkImageView> attachments;
+		for (uint16 i = 0; i < attachmentCount; ++i)
+			attachments.push_back(static_cast<OgTextureVK*>(fbInfo.colorBuffers[i])->view);
+
+		// TODO MSAA
+		//if (fbInfo.renderPass->info.resoOGeColorAttachmentCount > 0)
+		//{
+		//	//ì¼ë‹¨ resoOGe ë ìˆ˜ ìˆëŠ” attachmentëŠ” 1ê°œë¡œë§Œ ì œí•œí•œë‹¤. ì¶”í›„ì— ë§ì€ resoOGe attachmentêµ¬í˜„ ê°€ëŠ¥ì„±ì´ ìˆìŒ.
+		//	attachments.Add(static_cast<OGTextureVK*>(fbInfo.resoOGeColorBuffer)->view);
+		//	++attachmentCount;
+		//}
+
+		if (this->useDepthStencilBuffer)
+		{
+			attachments.push_back(static_cast<OgTextureVK*>(fbInfo.depthStencilBuffer)->view);
+			++attachmentCount;
+		}
+
+		VkFramebufferCreateInfo fbufCreateInfo{ VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
+		fbufCreateInfo.renderPass = static_cast<OgRenderPassVK*>(fbInfo.renderPass)->renderPassVK;
+		fbufCreateInfo.width = this->width;
+		fbufCreateInfo.height = this->height;
+		fbufCreateInfo.layers = 1;
+		fbufCreateInfo.attachmentCount = attachmentCount;
+		fbufCreateInfo.pAttachments = attachments.data();
+
+		VK_CHECK_RESULT(vkCreateFramebuffer(device, &fbufCreateInfo, nullptr, &frameBufferVK));
+	}
+
+	~OgFrameBufferVK()
+	{
+		if (frameBufferVK != NULL)
+		{
+			vkDestroyFramebuffer(device, frameBufferVK, nullptr);
+			frameBufferVK = NULL;
+		}
+	}
+
+	VkDevice device;
+	VkFramebuffer frameBufferVK;
+};
 //
 //struct OGGraphicsPipelineVK : OGGraphicsPipelinePlatform
 //{
@@ -395,7 +393,7 @@ struct OgBufferVK : OgBufferHandle
 //			setLayoutBindings[i].descriptorType = static_cast<VkDescriptorType>(rb.type);
 //			setLayoutBindings[i].descriptorCount = rb.arrayCount == 0 ? 1 : rb.arrayCount;
 //			setLayoutBindings[i].stageFlags = static_cast<VkShaderStageFlagBits>(rb.stage);
-//			setLayoutBindings[i].pImmutableSamplers = nullptr; // ÁÖÀÇ ²À nullptr ³Ö¾î¾ßÇÔ.
+//			setLayoutBindings[i].pImmutableSamplers = nullptr; // ì£¼ì˜ ê¼­ nullptr ë„£ì–´ì•¼í•¨.
 //		}
 //
 //		VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
@@ -481,12 +479,12 @@ struct OgBufferVK : OgBufferHandle
 //	OGBufferSuballocation* AllocateBuffer(uint32 size, OGBufferUsage bufferUsageFlags, OGMemoryOption memoryPropertyFlags, bool isAlignedMemory = true, void* data = nullptr) override;
 //
 //	/**
-//	* TODO memoryPaging ±â¹ı Àû¿ë ÇÊ¿ä
-//	* UE4ÀÇ °æ¿ì bufferAllocator(FResourceHeapManager)¸¦ ±¸¼ºÇÏ°í ÀÖ°í  ÀÌ°ÍÀº ¸Ş¸ğ¸® Á¾·ùº°·Î ÆäÀÌÂ¡ ¹æ½ÄÀ¸·Î ¿î¿µµÇ°í ÀÖ´Ù.
-//	* ¶ÇÇÑ FResourceHeapManager¿¡¼­ memory¸¦ buffer¿¡ ÇÒ´çÇÏ´Â ¹æ½ÄÀ¸·Î vertex buffer, uniform buffer , staging buffer¸¦ ¿î¿µÇÏ°í ÀÖ´Ù.
-//	* ÇöÀç OGEngineÀÇ OGBufferManagerÀº memoryAllocator¸¦ µû·Î ±¸ÇöÇÏÁö ¾Ê¾Ò´Ù.
-//	* µû¶ó¼­, ÇöÀç´Â ¸Ş¸ğ¸®°¡ ÇÊ¿äÇÒ ¶§¸¶´Ù ÆäÀÌÁö¸¦ ¸¸µé¾î¼­ ÇÒ´çÇÏ´Â ¹æ½ÄÀ¸·Î µÇ¾î ÀÖ°í ÀÌ°ÍÀº ÃßÈÄ¿¡ UE4ÀÇ FResourceHeapManager¸¦ µû¶ó¼­ º¯°æµÉ ¿¹Á¤ÀÌ´Ù.
-//	* ¶ÇÇÑ FResourceHeapManager¿Í °°Àº °ÍÀÌ ±¸Çö ‰çÀ» ¶§´Â ÇöÀç OGBufferManager¿¡¼­ vertex, index, staging µîÀÌ ÇÑ¹ø¿¡ °ü¸®µÇ°í ÀÖÁö¸¸ ÀÌ°Í ¶ÇÇÑ UE4Ã³·³ ºĞ¸®ÇØ¼­ °ü¸®ÇÏ´Â °ÍÀÌ ÁÁ¾Æº¸ÀÎ´Ù.
+//	* TODO memoryPaging ê¸°ë²• ì ìš© í•„ìš”
+//	* UE4ì˜ ê²½ìš° bufferAllocator(FResourceHeapManager)ë¥¼ êµ¬ì„±í•˜ê³  ìˆê³   ì´ê²ƒì€ ë©”ëª¨ë¦¬ ì¢…ë¥˜ë³„ë¡œ í˜ì´ì§• ë°©ì‹ìœ¼ë¡œ ìš´ì˜ë˜ê³  ìˆë‹¤.
+//	* ë˜í•œ FResourceHeapManagerì—ì„œ memoryë¥¼ bufferì— í• ë‹¹í•˜ëŠ” ë°©ì‹ìœ¼ë¡œ vertex buffer, uniform buffer , staging bufferë¥¼ ìš´ì˜í•˜ê³  ìˆë‹¤.
+//	* í˜„ì¬ OGEngineì˜ OGBufferManagerì€ memoryAllocatorë¥¼ ë”°ë¡œ êµ¬í˜„í•˜ì§€ ì•Šì•˜ë‹¤.
+//	* ë”°ë¼ì„œ, í˜„ì¬ëŠ” ë©”ëª¨ë¦¬ê°€ í•„ìš”í•  ë•Œë§ˆë‹¤ í˜ì´ì§€ë¥¼ ë§Œë“¤ì–´ì„œ í• ë‹¹í•˜ëŠ” ë°©ì‹ìœ¼ë¡œ ë˜ì–´ ìˆê³  ì´ê²ƒì€ ì¶”í›„ì— UE4ì˜ FResourceHeapManagerë¥¼ ë”°ë¼ì„œ ë³€ê²½ë  ì˜ˆì •ì´ë‹¤.
+//	* ë˜í•œ FResourceHeapManagerì™€ ê°™ì€ ê²ƒì´ êµ¬í˜„ ë¬ì„ ë•ŒëŠ” í˜„ì¬ OGBufferManagerì—ì„œ vertex, index, staging ë“±ì´ í•œë²ˆì— ê´€ë¦¬ë˜ê³  ìˆì§€ë§Œ ì´ê²ƒ ë˜í•œ UE4ì²˜ëŸ¼ ë¶„ë¦¬í•´ì„œ ê´€ë¦¬í•˜ëŠ” ê²ƒì´ ì¢‹ì•„ë³´ì¸ë‹¤.
 //	*/
 //	OGStagingBufferAllocationVK* AllocateStagingBuffer(uint32 size, OGStagingBufferUsage bufferUsageFlags);
 //
@@ -522,17 +520,17 @@ struct OgBufferVK : OgBufferHandle
 //	static OGList<OGFreeStagingEntry> freeStagingBuffers;
 //
 //	/**
-//	* UE4 ÄÚµå¸¦ ºÃÀ» ¶§, VkCommandBuffer ¶ÇÇÑ ÀÌ·±½Ä(OGEngine)À¸·Î °íÁ¤ÇØ³õ°í ¾²´Â °ÍÀÌ ¾Æ´Ñ ¾î¶°ÇÑ ±¸Á¶¸¦ °¡Áö°í Fence¿ÍÀÇ °ü°è¸¦ °¡Áö°í
-//	* FVulkanCommandBufferManager ¶ó´Â °ÍÀ» µÎ°í °ü¸®ÇÏ°í ÀÖ´Ù.
-//	* µû¶ó¼­ ÃßÈÄ¿¡ FVulkanCommandBufferManager¿Í °°Àº °ÍÀÌ ÇÊ¿äÇÑ ÀÌÀ¯¸¦ ÆÄ¾ÇÇÏ°í ±¸ÇöÇÒ ÇÊ¿ä°¡ ÀÖ¾îº¸ÀÎ´Ù.
+//	* UE4 ì½”ë“œë¥¼ ë´¤ì„ ë•Œ, VkCommandBuffer ë˜í•œ ì´ëŸ°ì‹(OGEngine)ìœ¼ë¡œ ê³ ì •í•´ë†“ê³  ì“°ëŠ” ê²ƒì´ ì•„ë‹Œ ì–´ë– í•œ êµ¬ì¡°ë¥¼ ê°€ì§€ê³  Fenceì™€ì˜ ê´€ê³„ë¥¼ ê°€ì§€ê³ 
+//	* FVulkanCommandBufferManager ë¼ëŠ” ê²ƒì„ ë‘ê³  ê´€ë¦¬í•˜ê³  ìˆë‹¤.
+//	* ë”°ë¼ì„œ ì¶”í›„ì— FVulkanCommandBufferManagerì™€ ê°™ì€ ê²ƒì´ í•„ìš”í•œ ì´ìœ ë¥¼ íŒŒì•…í•˜ê³  êµ¬í˜„í•  í•„ìš”ê°€ ìˆì–´ë³´ì¸ë‹¤.
 //	*/
 //	VkCommandBuffer stagingCommandBuffer[3];
 //	uint32 stagingSubmitIndex;
 //
 //	/**
-//	* UE4¿¡¼­´Â stagingBufferÀÇ PendingDeletingÀ» µÎ Á¾·ù·Î ³ª´²¼­ °ü¸®ÇÏ´Â °Í °°´Ù.
-//	* ¿ì¼± ´Ü¼ø FreeStagingBuffers·Î °ü¸®¸¦ ÇÏ°í ¶ÇÇÑ °°Àº commandBuffer¸¦ »ç¿ëÇÏ´Â °Íµé³¢¸® °°ÀÌ Áö¿öÁÖ±â À§ÇØ¼­ ¾Æ·¡¿Í °°Àº ±¸Á¶¸¦ »ç¿ëÇÑ´Ù.
-//	* ÀÌ´Â FVulkanCommandBufferManager °°Àº °ÍÀÌ OGEngine¿¡ ±¸ÇöµÇ¾úÀ» ¶§ °°ÀÌ °íµµÈ­ µÉ ÇÊ¿ä°¡ ÀÖ´Ù.
+//	* UE4ì—ì„œëŠ” stagingBufferì˜ PendingDeletingì„ ë‘ ì¢…ë¥˜ë¡œ ë‚˜ëˆ ì„œ ê´€ë¦¬í•˜ëŠ” ê²ƒ ê°™ë‹¤.
+//	* ìš°ì„  ë‹¨ìˆœ FreeStagingBuffersë¡œ ê´€ë¦¬ë¥¼ í•˜ê³  ë˜í•œ ê°™ì€ commandBufferë¥¼ ì‚¬ìš©í•˜ëŠ” ê²ƒë“¤ë¼ë¦¬ ê°™ì´ ì§€ì›Œì£¼ê¸° ìœ„í•´ì„œ ì•„ë˜ì™€ ê°™ì€ êµ¬ì¡°ë¥¼ ì‚¬ìš©í•œë‹¤.
+//	* ì´ëŠ” FVulkanCommandBufferManager ê°™ì€ ê²ƒì´ OGEngineì— êµ¬í˜„ë˜ì—ˆì„ ë•Œ ê°™ì´ ê³ ë„í™” ë  í•„ìš”ê°€ ìˆë‹¤.
 //	*/
 //	// TODO: UE4 ref
 //	//struct FPendingItemsPerCmdBuffer
@@ -573,7 +571,7 @@ struct OgBufferVK : OgBufferHandle
 //	void* _mapped; // _vkBuffer's mapping pointer
 //};
 //
-//// ÇöÀç OGBufferAllocation¸¦ »ó¼Ó¹Ş´Â ±¸Á¶·Î µÇ¾î ÀÖ´Âµ¥ ÀÌ°ÍÀº ¼öÁ¤µÉ ¿¹Á¤ÀÌ´Ù.
+//// í˜„ì¬ OGBufferAllocationë¥¼ ìƒì†ë°›ëŠ” êµ¬ì¡°ë¡œ ë˜ì–´ ìˆëŠ”ë° ì´ê²ƒì€ ìˆ˜ì •ë  ì˜ˆì •ì´ë‹¤.
 //class OGStagingBufferAllocationVK : public OGBufferAllocation
 //{
 //public:
@@ -597,7 +595,7 @@ struct OgBufferVK : OgBufferHandle
 //	bool _inUseFlag;
 //};
 //
-//// TODO : byte buffer¿¡ ¾²Áö ¾Ê°í, ¹Ù·Î vkCmd¸í·É¾î¸¦ ¾µ ¼ö ÀÖµµ·Ï ¸¸µé±â.
+//// TODO : byte bufferì— ì“°ì§€ ì•Šê³ , ë°”ë¡œ vkCmdëª…ë ¹ì–´ë¥¼ ì“¸ ìˆ˜ ìˆë„ë¡ ë§Œë“¤ê¸°.
 //struct OGCommandEncoderVK : public OGCommandEncoderHandle
 //{
 //	OGDeviceVulkan* vulkanDevice;
@@ -605,7 +603,7 @@ struct OgBufferVK : OgBufferHandle
 //	VkCommandBuffer cmdBufferVK;
 //
 //	OGRenderPassVK* curBindRenderPass;
-//	OGFrameBufferPlatform* curBindFramebuffer;
+//	OgFrameBufferHandle* curBindFramebuffer;
 //	OGGraphicsPipelineVK* curBindPipeline;
 //	VkIndexType curBindIndexBufferType;
 //

@@ -12,6 +12,10 @@ set(PUBLIC_COMMON
 	OgSystemContext.cpp
 	OgInput.h
 	OgInput.cpp
+	OgMemory.h
+	OgMemory.cpp
+	OgHashCode.h
+	OgHashCode.cpp
 	)
 source_group("public" FILES ${PUBLIC_COMMON})
 list(APPEND TOTAL_FILE ${PUBLIC_COMMON})
