@@ -128,40 +128,40 @@ private:
 	void initStagingPool();
 	void initBufferManager();
 
-	// TODO working
-//	OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
-//	void releaseBuffer(OgBufferHandle* buffer);
-//
-//	void buildTexture(OgTextureVK* texture);
-//	void releaseTexture(OgTextureVK* texture);
-//
-//	void buildMipmap(VkCommandBuffer flyCmd, OgTextureVK* tex, VkImageSubresourceRange& subresourceRange);
-//
-//	void buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
-//	void releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
-//
-//	void buildResourceSet(OgResourceSetVK* rSet);
-//	void releaseResourceSet(OgResourceSetVK* resourceSet);
-//
-//	void buildRenderPass(OgRenderPassVK* renderPass);
-//	void releaseRenderPass(OgRenderPassVK* renderPass);
-//
-//private:
-//	VkInstance _instance;
-//
-//	VkDebugReportCallbackEXT _reportCallbackHandle;
-//	list<const char*> _enabledInstanceExtensions;
+	
+	//OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
+	//void releaseBuffer(OgBufferHandle* buffer);
+	//
+	//void buildTexture(OgTextureVK* texture);
+	//void releaseTexture(OgTextureVK* texture);
+	//
+	//void buildMipmap(VkCommandBuffer flyCmd, OgTextureVK* tex, VkImageSubresourceRange& subresourceRange);
+	//
+	//void buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
+	//void releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
+	//
+	//void buildResourceSet(OgResourceSetVK* rSet);
+	//void releaseResourceSet(OgResourceSetVK* resourceSet);
+	//
+	//void buildRenderPass(OgRenderPassVK* renderPass);
+	//void releaseRenderPass(OgRenderPassVK* renderPass);
+
+private:
+	VkInstance _instance;
+
+	VkDebugReportCallbackEXT _reportCallbackHandle;
+	vector<const char*> _enabledInstanceExtensions;
 //
 //	// Quick Reference for comfort.
-//	OgDeviceVulkan* _vulkanDevice;
-//	VkPhysicalDevice _gpuDeviceVK;
-//	VkPhysicalDeviceFeatures _deviceFeaturesVK;
-//	VkPhysicalDeviceMemoryProperties _deviceMemoryPropertiesVK;
-//	VkDevice _logicalDeviceVK;
-//	VkQueue _graphicsQueueVK;
-//	VkFormat _defaultDepthFormat;
-//	VkCommandPool _cmdPooOgK;
-//
+	OgDeviceVulkan* _vulkanDevice;
+	VkPhysicalDevice _gpuDeviceVK;
+	VkPhysicalDeviceFeatures _deviceFeaturesVK;
+	VkPhysicalDeviceMemoryProperties _deviceMemoryPropertiesVK;
+	VkDevice _logicalDeviceVK;
+	VkQueue _graphicsQueueVK;
+	VkFormat _defaultDepthFormat;
+	VkCommandPool _cmdPooOgK;
+
 //	// Manual Managed Descriptor Pool
 //	VkDescriptorPool _descriptorPool;
 //	uint32 _usedUniformBufferFromPool;
@@ -238,7 +238,7 @@ private:
 	//SwapchainWrapper* _rootSwapchainWrapper;
 
 #if defined(_DEBUG)
-	list<OgHandle*> _livingObjects;
+	vector<OgHandle*> _livingObjects;
 #endif
 };
 
