@@ -1,4 +1,3 @@
-[submodule "deps"]
-	path = deps
-	url = X:\\OSgoodYZ\\OGHypeEngine\\Project\\deps
-	branch = master
+[submodule "Project/deps"]
+	path = Project/deps
+	url = https://github.com/OSgoodYZ/deps.git
