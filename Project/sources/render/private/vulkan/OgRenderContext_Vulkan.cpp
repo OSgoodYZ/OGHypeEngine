@@ -1,10 +1,16 @@
 ﻿#include <vector>
+#include <utility>
 
 #include "OgPrecompile.h"
 
 #include "system/OgSystemContext.h"
+#include "system/OgHashCode.h"
 
 #include "render/private/vulkan/OgRenderContext_Vulkan.h"
+
+#if defined(OG_USE_CRT_CHASE_MEMORY_LEAK)
+#define new DBG_NEW
+#endif
 
 OG_NAMESPACE_RENDER_BEGIN
 
@@ -788,12 +794,33 @@ void OgRenderContextVulkan::Init(void)
 	this->_rootSwapchainWrapper = nullptr;
 }
 
-// TODO:
-//====================			working			=========================
 OgSwapChain* OgRenderContextVulkan::CreateSwapchain(System::OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo)
 {
-	// TODO
-	return nullptr;
+	OG_CHECK(nativeWindow != nullptr, "Native Window is nullptr");
+
+	SwapchainWrapper* sw = new SwapchainWrapper();
+	
+	sw->next = nullptr;
+	sw->window = nativeWindow;
+	sw->settingInfo = swapchainInfo;
+
+	SwapchainWrapper** swLink = &_rootSwapchainWrapper;
+	while (*swLink != nullptr)
+	{
+		swLink = &((*swLink)->next);
+	}
+	*swLink = sw;
+
+	prepareSwapChain(*sw);
+	initSwapChain(*sw);
+	initSwapChainSyncObject(*sw);
+
+	
+	uint32 hashKey = System::PointerHash(&sw->swapchainResult);
+	_swapChainTables.insert(std::make_pair(hashKey, sw));
+	
+
+	return &sw->swapchainResult;
 }
 
 void OgRenderContextVulkan::DestroySwapchain(OgSwapChain* swapchain)

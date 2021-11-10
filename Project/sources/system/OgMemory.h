@@ -10,6 +10,8 @@
 //#include "OgDynamicLib.h"
 #include <stdlib.h>
 
+
+
 #if defined(__DESKTOP__) && defined(__WIN32__)
 #if _DEBUG && _MSC_VER >= 1700 // Visual Studio Versio more than 2012
 #define OG_USE_CRT_CHASE_MEMORY_LEAK
@@ -136,8 +138,7 @@ throw()
 }
 
 #if defined(OG_USE_CRT_CHASE_MEMORY_LEAK)
-#define DBG_NEW new (_NORMAL_BLOCK, __FILE__, __LINE__)
-//#define new DBG_NEW
+	#define DBG_NEW new (_NORMAL_BLOCK, __FILE__, __LINE__)
 #endif
 
 #endif

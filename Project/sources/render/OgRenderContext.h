@@ -6,7 +6,13 @@
 #include "system/OgSystemContext.h"
 #include "OgRenderDefinitions.h"
 
+using namespace Og;
+
 OG_NAMESPACE_RENDER_BEGIN
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 class OG_API OgRenderContext
 {
@@ -488,6 +494,8 @@ public:
 private:
 	
 };
-
+#ifdef __cplusplus
+}
+#endif
 OG_NAMESPACE_RENDER_END
 #endif // _OG_RENDER_CONTEXT_H_

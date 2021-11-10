@@ -352,6 +352,21 @@ OgFrameBufferHandle::OgFrameBufferHandle(const OgFrameBufferInfo& info)
 	this->height = info.height;
 }
 
+/// OgSwapChain
+OgSwapChain::OgSwapChain()
+	: bufferCount(0)
+	, colorPixelFormat(OgPixelFormat::NONE)
+	, colorRenderFormat(OgRenderTextureFormat::NONE)
+	, useDepthBuffer(false)
+	, useStencilBuffer(false)
+	, depthPixelFormat(OgPixelFormat::NONE)
+	, depthRenderFormat(OgRenderTextureFormat::NONE)
+	, stencilPixelFormat(OgPixelFormat::NONE)
+	, stencilRenderFormat(OgRenderTextureFormat::NONE)
+{
+
+}
+
 /// OgVertexBufferLayoutDescriptor
 OgVertexBufferLayoutDescriptor::OgVertexBufferLayoutDescriptor()
 	: binding(0)

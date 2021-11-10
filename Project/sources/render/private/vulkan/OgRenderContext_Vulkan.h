@@ -170,8 +170,6 @@ private:
 //
 //	// Staging Buffer Pool / Command Buffer for updating buffer
 //	bool _acquireOnceForPresent;
-//
-
 
 	struct SwapchainWrapper
 	{
