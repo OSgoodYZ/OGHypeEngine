@@ -7,6 +7,8 @@
 
 OG_NAMESPACE_RENDER_BEGIN
 
+std::queue<OgHandle*> OgHandle::_pendingDeleteQueue;
+
 OgHandle::OgHandle(OgHandleType type)
 	: name(nullptr)
 	, _type(type)

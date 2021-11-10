@@ -1,4 +1,4 @@
-# Install script for directory: X:/OSgoodYZ/OGHypeEngine/Project/sources/render
+# Install script for directory: E:/OSgoodYZ/OGHypeEngine/Project/sources/render
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -42,7 +42,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/lib" TYPE STATIC_LIBRARY FILES "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/render/Debug/render.lib")
+file(INSTALL DESTINATION "/dev/lib" TYPE STATIC_LIBRARY FILES "E:/OSgoodYZ/OGHypeEngine/Project/build/sources/render/Debug/render.lib")
   endif()
 endif()
 
@@ -56,7 +56,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/include/render" TYPE DIRECTORY FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/." FILES_MATCHING REGEX "/[^/]*\\.h$" REGEX "/private$" EXCLUDE)
+file(INSTALL DESTINATION "/dev/include/render" TYPE DIRECTORY FILES "E:/OSgoodYZ/OGHypeEngine/Project/sources/render/." FILES_MATCHING REGEX "/[^/]*\\.h$" REGEX "/private$" EXCLUDE)
   endif("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Dd][Ee][Bb][Uu][Gg]|[Pp][Uu][Bb][Ll][Ii][Cc]_[Hh][Ee][Aa][Dd][Ee][Rr])$")
 endif()
 
@@ -70,7 +70,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/include" TYPE FILE FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
+file(INSTALL DESTINATION "/dev/include" TYPE FILE FILES "E:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
   endif("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Dd][Ee][Bb][Uu][Gg]|[Pp][Uu][Bb][Ll][Ii][Cc]_[Hh][Ee][Aa][Dd][Ee][Rr])$")
 endif()
 
@@ -84,7 +84,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/lib" TYPE STATIC_LIBRARY FILES "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/render/Release/render.lib")
+file(INSTALL DESTINATION "/dev/lib" TYPE STATIC_LIBRARY FILES "E:/OSgoodYZ/OGHypeEngine/Project/build/sources/render/Release/render.lib")
   endif()
 endif()
 
@@ -98,7 +98,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/include/render" TYPE DIRECTORY FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/." FILES_MATCHING REGEX "/[^/]*\\.h$" REGEX "/private$" EXCLUDE)
+file(INSTALL DESTINATION "/dev/include/render" TYPE DIRECTORY FILES "E:/OSgoodYZ/OGHypeEngine/Project/sources/render/." FILES_MATCHING REGEX "/[^/]*\\.h$" REGEX "/private$" EXCLUDE)
   endif("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee]|[Pp][Uu][Bb][Ll][Ii][Cc]_[Hh][Ee][Aa][Dd][Ee][Rr])$")
 endif()
 
@@ -112,7 +112,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/include" TYPE FILE FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
+file(INSTALL DESTINATION "/dev/include" TYPE FILE FILES "E:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
   endif("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ee][Aa][Ss][Ee]|[Pp][Uu][Bb][Ll][Ii][Cc]_[Hh][Ee][Aa][Dd][Ee][Rr])$")
 endif()
 
@@ -126,7 +126,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/lib" TYPE STATIC_LIBRARY FILES "X:/OSgoodYZ/OGHypeEngine/Project/build/sources/render/RelWithDebInfo/render.lib")
+file(INSTALL DESTINATION "/dev/lib" TYPE STATIC_LIBRARY FILES "E:/OSgoodYZ/OGHypeEngine/Project/build/sources/render/RelWithDebInfo/render.lib")
   endif()
 endif()
 
@@ -140,7 +140,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/include/render" TYPE DIRECTORY FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/." FILES_MATCHING REGEX "/[^/]*\\.h$" REGEX "/private$" EXCLUDE)
+file(INSTALL DESTINATION "/dev/include/render" TYPE DIRECTORY FILES "E:/OSgoodYZ/OGHypeEngine/Project/sources/render/." FILES_MATCHING REGEX "/[^/]*\\.h$" REGEX "/private$" EXCLUDE)
   endif("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ww][Ii][Tt][Hh][Dd][Ee][Bb][Ii][Nn][Ff][Oo]|[Pp][Uu][Bb][Ll][Ii][Cc]_[Hh][Ee][Aa][Dd][Ee][Rr])$")
 endif()
 
@@ -154,7 +154,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
         message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
     endif()
-file(INSTALL DESTINATION "/dev/include" TYPE FILE FILES "X:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
+file(INSTALL DESTINATION "/dev/include" TYPE FILE FILES "E:/OSgoodYZ/OGHypeEngine/Project/sources/render/../OgPrecompiled.h")
   endif("${CMAKE_INSTALL_CONFIG_NAME}" MATCHES "^([Rr][Ee][Ll][Ww][Ii][Tt][Hh][Dd][Ee][Bb][Ii][Nn][Ff][Oo]|[Pp][Uu][Bb][Ll][Ii][Cc]_[Hh][Ee][Aa][Dd][Ee][Rr])$")
 endif()
 

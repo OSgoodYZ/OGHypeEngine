@@ -1,54 +1,54 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgSystemContext.cpp">
+    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgSystemContext.cpp">
       <Filter>public</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.cpp">
+    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.cpp">
       <Filter>public</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.cpp">
+    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.cpp">
       <Filter>public</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.cpp">
+    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.cpp">
       <Filter>public</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\deps\include\glm\detail\glm.cpp">
+    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\deps\include\glm\detail\glm.cpp">
       <Filter>thirdparty\glm</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\platform\win\OgPlatformDefinition_win32.h">
+    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\platform\win\OgPlatformDefinition_win32.h">
       <Filter>plaform</Filter>
     </ClInclude>
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgSystemContext.h">
+    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgSystemContext.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.h">
+    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.h">
+    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.h">
+    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.h">
       <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\CMakeLists.txt" />
+    <CustomBuild Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\system\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="plaform">
-      <UniqueIdentifier>{C5AFD333-70BA-3F23-873F-D411F92A25D1}</UniqueIdentifier>
+      <UniqueIdentifier>{F0F39ADE-0FAE-325F-AD61-B9991157CABC}</UniqueIdentifier>
     </Filter>
     <Filter Include="public">
-      <UniqueIdentifier>{5BE45934-E073-390D-B5D2-FB44A6ED57CB}</UniqueIdentifier>
+      <UniqueIdentifier>{5FBE2109-5786-3C73-A038-9D3C094886FA}</UniqueIdentifier>
     </Filter>
     <Filter Include="thirdparty">
-      <UniqueIdentifier>{CEA37CF3-49E7-3BEF-9A19-75523FF70D6E}</UniqueIdentifier>
+      <UniqueIdentifier>{E9AB395D-73A3-3F58-9F29-E0AA1709C074}</UniqueIdentifier>
     </Filter>
     <Filter Include="thirdparty\glm">
-      <UniqueIdentifier>{7478C739-1E5A-3653-8EE1-9C62A7E149F4}</UniqueIdentifier>
+      <UniqueIdentifier>{905D6960-9EA1-3C39-BC64-DD3FB738ECD5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

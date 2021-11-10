@@ -789,6 +789,250 @@ void OgRenderContextVulkan::Init(void)
 }
 
 // TODO:
+//====================			working			=========================
+OgSwapChain* OgRenderContextVulkan::CreateSwapchain(System::OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo)
+{
+	// TODO
+	return nullptr;
+}
+
+void OgRenderContextVulkan::DestroySwapchain(OgSwapChain* swapchain)
+{
+	// TODO
+}
+
+OgFrameBufferHandle* OgRenderContextVulkan::GetSwapChainFrameBuffer(OgSwapChain* swapchain, uint32 index)
+{
+	// TODO
+	return nullptr;
+}
+
+uint32 OgRenderContextVulkan::AcquireNextImageIndex(OgSwapChain* swapchain)
+{
+	//TODO
+	return 0;
+}
+
+uint32 OgRenderContextVulkan::GetCurrentImageIndex(OgSwapChain* swapchain)
+{
+	//TODO
+	return 0;
+}
+
+OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option )
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroyBuffer(OgBufferHandle* buffer)
+{
+	//TODO
+}
+
+OgShaderHandle* OgRenderContextVulkan::CreateShader(OgShaderType flag, const char* text, uint32 codeSize, const char* funcName )
+{
+	//TODO
+	return nullptr;
+}
+
+
+void OgRenderContextVulkan::DestroyShader(OgShaderHandle* shader)
+{
+	//TODO
+}
+
+OgProgramHandle* OgRenderContextVulkan::CreateProgram(OgShaderHandle** shaders, uint32 shaderCount)
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroyProgram(OgProgramHandle* handle)
+{
+	//TODO
+}
+
+OgTextureHandle* OgRenderContextVulkan::CreateTexture(void* image, OgPixelFormat format, uint32 width, uint32 height, OgSamplerHandle* sampler , bool generateMipmaps )
+{
+	//TODO
+	return nullptr;
+}
+OgTextureHandle* OgRenderContextVulkan::CreateTexture(void** image, OgPixelFormat format, uint32 width, uint32 height, uint32 layerCount, OgSamplerHandle* sampler, bool generateMipmaps )
+{
+	//TODO
+	return nullptr;
+}
+OgTextureHandle* OgRenderContextVulkan::CreateTexture(void** image, const OgTextureInfo& info, OgSamplerHandle* sampler )
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroyTexture(OgTextureHandle* texture) 
+{
+	//TODO
+}
+void OgRenderContextVulkan::UpdateTexture(OgTextureHandle* texture, OgSamplerHandle* sampler, size_t offset, void** data, bool useBarrier)
+{
+	//TODO
+}
+
+OgSamplerHandle* OgRenderContextVulkan::CreateSampler(const OgSamplerInfo& info)
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroySampler(OgSamplerHandle* sampler)
+{
+	//TODO
+}
+
+OgFrameBufferHandle* OgRenderContextVulkan::CreateFrameBuffer(OgFrameBufferInfo& info)
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroyFrameBuffer(OgFrameBufferHandle* framebuffer)
+{
+	//TODO
+}
+
+OgRenderPassHandle* OgRenderContextVulkan::CreateRenderPass(OgRenderPassInfo& info) 
+{
+	//TODO
+	return nullptr;
+}
+
+void OgRenderContextVulkan::DestroyRenderPass(OgRenderPassHandle* renderPass)
+{
+	//TODO
+}
+
+OgPipelineHandle* OgRenderContextVulkan::CreatePipeline(OgPipelineDescriptor& descriptor)
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroyPipeline(OgPipelineHandle* pipeline)
+{
+	//TODO
+}
+
+OgResourceLayoutHandle* OgRenderContextVulkan::CreateResourceLayout(OgResourceBinding* bindings, uint32 count)
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroyResourceLayout(OgResourceLayoutHandle* layout)
+{
+	//TODO
+}
+
+OgResourceSetHandle* OgRenderContextVulkan::CreateResourceSet(OgResourceLayoutHandle* resourceLayout, OgResourceUsage* usages, uint32 usageCount)
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroyResourceSet(OgResourceSetHandle* resourceSet)
+{
+	//TODO
+}
+
+OgCommandEncoderHandle* OgRenderContextVulkan::CreateCommandEncoder()
+{
+	//TODO
+	return nullptr;
+}
+void OgRenderContextVulkan::DestroyCommandEncoder(OgCommandEncoderHandle* encoder)
+{
+	//TODO
+}
+
+void* OgRenderContextVulkan::MapBuffer(OgBufferHandle* buffer, size_t size, size_t offset)
+{
+	//TODO
+	return nullptr;
+}
+
+bool OgRenderContextVulkan::UnmapBuffer(OgBufferHandle* buffer)
+{
+	//TODO
+	return false;
+}
+
+void OgRenderContextVulkan::UpdateBuffer(OgBufferHandle* buffer, size_t offset, void* data, size_t size, bool useBarrier)
+{
+	//TODO
+}
+
+void OgRenderContextVulkan::BlitFramebuffer(uint srcX0, uint srcY0, uint srcX1, uint srcY1, OgFrameBufferHandle* srcBuffer, uint dstX0, uint dstY0, uint dstX1, uint dstY1, OgFrameBufferHandle* dstBuffer)
+{
+	//TODO
+}
+
+VkCommandBuffer OgRenderContextVulkan::CreateCommandBuffer(VkCommandBufferLevel level, bool begin)
+{
+	//TODO
+	VkCommandBuffer temp;
+	return temp;
+
+}
+
+void OgRenderContextVulkan::FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
+{
+	//TODO
+}
+
+OgPixelFormat OgRenderContextVulkan::GetDefaultDepthFormat()
+{
+	//TODO
+	OgPixelFormat temp;
+	return temp;
+}
+
+void OgRenderContextVulkan::Submit(OgSwapChain* swapchain, OgCommandEncoderHandle* encoder)
+{
+	//TODO
+}
+void OgRenderContextVulkan::Present(OgSwapChain* swapchain)
+{
+	//TODO
+}
+void OgRenderContextVulkan::Suspend(OgSwapChain* swapchain) 
+{
+	//TODO
+}
+void OgRenderContextVulkan::Restore(OgSwapChain* swapchain) 
+{
+	//TODO
+}
+void OgRenderContextVulkan::WaitDeviceIdle()
+{
+	//TODO
+}
+void OgRenderContextVulkan::Collect()
+{
+	//TODO
+}
+void OgRenderContextVulkan::Shutdown(void) 
+{
+	//TODO
+}
+bool OgRenderContextVulkan::HasFeature(OgRenderFeature feature)
+{
+	//TODO
+	return false;
+}
+
+
+OgResourceSetPool* OgRenderContextVulkan::CreateResourceSetPool(uint32 maxUniformBufferFromPool, uint32 maxTextureFromPool, uint32 maxSetFromPool)
+{
+	//TODO
+	return nullptr;
+}
+
+void OgRenderContextVulkan::DestroyResourceSetPool(OgResourceSetPool* resourceSetPool)
+{
+	//TODO
+}
 
 
 OG_NAMESPACE_RENDER_END
