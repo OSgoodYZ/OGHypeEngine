@@ -228,17 +228,17 @@ struct OgTextureVK : OgTextureHandle
 	}
 	~OgTextureVK() {  }
 };
-//
-//struct OGShaderVK : OGShaderHandle
-//{
-//	OGShaderVK()
-//		: OGShaderHandle()
-//		, shaderStageInfo{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO , }
-//	{}
-//
-//	VkPipelineShaderStageCreateInfo shaderStageInfo;
-//	VkShaderModule shaderModuleVK;
-//};
+
+struct OgShaderVK : OgShaderHandle
+{
+	OgShaderVK()
+		: OgShaderHandle()
+		, shaderStageInfo{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO , }
+	{}
+
+	VkPipelineShaderStageCreateInfo shaderStageInfo;
+	VkShaderModule shaderModuleVK;
+};
 
 struct OgRenderPassVK : OgRenderPassHandle
 {

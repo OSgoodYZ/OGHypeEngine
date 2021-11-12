@@ -16,6 +16,9 @@
 #include <unordered_map>
 
 #include "system/OgSystemContext.h"
+#include "system/OgVector.h"
+
+
 #include "render/OgRenderContext.h"
 #include "render/private/vulkan/OgSwapChainVulkan.h"
 #include "render/private/vulkan/OgRenderVulkanHandles.h"
@@ -234,7 +237,7 @@ private:
 	SwapchainWrapper* _rootSwapchainWrapper;
 
 #if defined(_DEBUG)
-	vector<OgHandle*> _livingObjects;
+	System::OgVector<OgHandle*> _livingObjects;
 #endif
 };
 

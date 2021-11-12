@@ -8,7 +8,7 @@ int main()
 
 	// sample test를 위한 코드
 #ifdef OG_SAMPLE_BUILD
-	OG::Sample::OgSample sample;
+	Og::Sample::OgSample sample;
 	try {
 		sample.Run();
 	}

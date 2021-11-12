@@ -16,6 +16,9 @@ set(PUBLIC_COMMON
 	OgMemory.cpp
 	OgHashCode.h
 	OgHashCode.cpp
+	#---------------------- 
+	OgVector.h
+	OgVector.cpp
 	)
 source_group("public" FILES ${PUBLIC_COMMON})
 list(APPEND TOTAL_FILE ${PUBLIC_COMMON})

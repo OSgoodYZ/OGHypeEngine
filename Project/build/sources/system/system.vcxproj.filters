@@ -13,6 +13,9 @@
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.cpp">
       <Filter>public</Filter>
     </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgVector.cpp">
+      <Filter>public</Filter>
+    </ClCompile>
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\deps\include\glm\detail\glm.cpp">
       <Filter>thirdparty\glm</Filter>
     </ClCompile>
@@ -31,6 +34,9 @@
       <Filter>public</Filter>
     </ClInclude>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgVector.h">
       <Filter>public</Filter>
     </ClInclude>
   </ItemGroup>

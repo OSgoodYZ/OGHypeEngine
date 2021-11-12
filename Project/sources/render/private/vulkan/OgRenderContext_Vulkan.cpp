@@ -5,12 +5,15 @@
 
 #include "system/OgSystemContext.h"
 #include "system/OgHashCode.h"
+#include "system/OgVector.h"
 
 #include "render/private/vulkan/OgRenderContext_Vulkan.h"
 
 #if defined(OG_USE_CRT_CHASE_MEMORY_LEAK)
 #define new DBG_NEW
 #endif
+
+using namespace Og::System;
 
 OG_NAMESPACE_RENDER_BEGIN
 
@@ -168,10 +171,10 @@ OgRenderContextVulkan::~OgRenderContextVulkan()
 {
 
 #if defined(_DEBUG)
-	if (_livingObjects.size() > 0)
+	if (_livingObjects.Size() > 0)
 	{
-		LOGD(OG_ID, "LvRenderContext Undestroy object : %zu", _livingObjects.size());
-		for (int i = 0; i < _livingObjects.size(); ++i)
+		LOGD(OG_ID, "LvRenderContext Undestroy object : %zu", _livingObjects.Size());
+		for (int i = 0; i < _livingObjects.Size(); ++i)
 		{
 			OgHandle* handle = _livingObjects[i];
 			if (handle != nullptr)
@@ -1001,8 +1004,20 @@ uint32 OgRenderContextVulkan::AcquireNextImageIndex(OgSwapChain* swapchain)
 
 uint32 OgRenderContextVulkan::GetCurrentImageIndex(OgSwapChain* swapchain)
 {
-	//TODO
-	return 0;
+	OG_CHECK(swapchain != nullptr, "LvSwapChain is nullptr");
+
+	uint32 swapchainHash = System::PointerHash(swapchain);
+	OG_CHECK(_swapChainTables.find(swapchainHash) != _swapChainTables.end(), "This Native Window is not used");
+
+	SwapchainWrapper& sw = *(_swapChainTables[swapchainHash]);
+
+	// To Error handling at host code.
+	if (sw.syncObject.submissionIndex == SUBMISSION_INDEX_NONE)
+	{
+		LOGD(OG_ID, "You must call AcquireNextImageIndex() before using GetCurrentImageIndex()");
+		return SUBMISSION_INDEX_NONE;
+	}
+	return sw.syncObject.swapchainIndex;
 }
 
 OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option )
@@ -1017,14 +1032,44 @@ void OgRenderContextVulkan::DestroyBuffer(OgBufferHandle* buffer)
 
 OgShaderHandle* OgRenderContextVulkan::CreateShader(OgShaderType flag, const char* text, uint32 codeSize, const char* funcName )
 {
-	//TODO
-	return nullptr;
+	OgShaderVK* shader = new OgShaderVK();
+	{
+		VkShaderModuleCreateInfo moduleCreateInfo{};
+		moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		moduleCreateInfo.codeSize = codeSize;
+		moduleCreateInfo.pCode = (uint32_t*)text;
+		VK_CHECK_RESULT(vkCreateShaderModule(_logicalDeviceVK, &moduleCreateInfo, NULL, &shader->shaderModuleVK));
+	}
+
+	shader->shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shader->shaderStageInfo.stage = static_cast<VkShaderStageFlagBits>(flag);
+
+	if (funcName == nullptr)
+		shader->shaderStageInfo.pName = "main";
+	else
+		shader->shaderStageInfo.pName = funcName;
+
+	shader->shaderStageInfo.module = shader->shaderModuleVK;
+
+#if defined(_DEBUG)
+	shader->instanceType = "Shader";
+	_livingObjects.Add(shader);
+#endif
+
+	return shader;
 }
 
 
 void OgRenderContextVulkan::DestroyShader(OgShaderHandle* shader)
 {
-	//TODO
+	OgShaderVK* s = static_cast<OgShaderVK*>(shader);
+	vkDestroyShaderModule(_logicalDeviceVK, s->shaderModuleVK, nullptr);
+
+	
+#if defined(_DEBUG)
+	_livingObjects.Remove(s);
+#endif
+	delete s;
 }
 
 OgProgramHandle* OgRenderContextVulkan::CreateProgram(OgShaderHandle** shaders, uint32 shaderCount)
