@@ -134,8 +134,8 @@ private:
 	//OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
 	//void releaseBuffer(OgBufferHandle* buffer);
 	//
-	//void buildTexture(OgTextureVK* texture);
-	//void releaseTexture(OgTextureVK* texture);
+	void buildTexture(OgTextureVK* texture);
+	void releaseTexture(OgTextureVK* texture);
 	//
 	//void buildMipmap(VkCommandBuffer flyCmd, OgTextureVK* tex, VkImageSubresourceRange& subresourceRange);
 	//
@@ -145,8 +145,8 @@ private:
 	//void buildResourceSet(OgResourceSetVK* rSet);
 	//void releaseResourceSet(OgResourceSetVK* resourceSet);
 	//
-	//void buildRenderPass(OgRenderPassVK* renderPass);
-	//void releaseRenderPass(OgRenderPassVK* renderPass);
+	void buildRenderPass(OgRenderPassVK* renderPass);
+	void releaseRenderPass(OgRenderPassVK* renderPass);
 
 private:
 	VkInstance _instance;

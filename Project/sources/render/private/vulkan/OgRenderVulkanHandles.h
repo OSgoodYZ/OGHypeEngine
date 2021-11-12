@@ -371,12 +371,12 @@ struct OgFrameBufferVK : OgFrameBufferHandle
 //	VkPipelineLayout pipelineLayout;
 //	VkPipeline pipeline;
 //};
-//
-//struct OGResourceLayoutVK : OGResourceLayoutPlatform
+
+//struct OgResourceLayoutVK : OgResourceLayoutPlatform
 //{
-//	OGResourceLayoutVK() = delete;
+//	OgResourceLayoutVK() = delete;
 //
-//	OGResourceLayoutVK(VkDevice device, OGResourceBinding* bindings, uint count)
+//	OgResourceLayoutVK(VkDevice device, OGResourceBinding* bindings, uint count)
 //		: OGResourceLayoutPlatform(bindings, count)
 //		, device(device)
 //		, descriptorSetLayoutVK(VK_NULL_HANDLE)
@@ -402,7 +402,7 @@ struct OgFrameBufferVK : OgFrameBufferHandle
 //		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayoutCI, nullptr, &descriptorSetLayoutVK));
 //	}
 //
-//	~OGResourceLayoutVK()
+//	~OgResourceLayoutVK()
 //	{
 //		vkDestroyDescriptorSetLayout(device, descriptorSetLayoutVK, nullptr);
 //	}
@@ -410,7 +410,7 @@ struct OgFrameBufferVK : OgFrameBufferHandle
 //	VkDevice device;
 //	VkDescriptorSetLayout descriptorSetLayoutVK;
 //};
-//
+
 //struct OGResourceSetVK : OGResourceSetPlatform
 //{
 //	OGResourceSetVK() = delete;

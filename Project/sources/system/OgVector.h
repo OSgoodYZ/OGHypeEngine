@@ -7,10 +7,10 @@
 #include <vector>
 
 OG_NAMESPACE_SYSTEM_BEGIN
+
 /**
 * @brief: It is a simple vector wrapping class for convenience.
 */
-
 template< typename T, class A = std::allocator< T >>
 class OgVector
 {
@@ -50,6 +50,20 @@ public:
 		return _data.size();
 	}
 
+	void Resize(size_t size)
+	{
+		_data.resize(size);
+	}
+
+	void Reserve(size_t size)
+	{
+		_data.reserve(size);
+	}
+
+	T* Data()
+	{
+		return &_data[0];
+	}
 
 	//=============		operator		==================
 
@@ -84,7 +98,7 @@ public:
 
 
 private:
-	std::vector< T, A > _data;
+	std::vector<T, A> _data;
 
 
 

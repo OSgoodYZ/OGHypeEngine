@@ -8,6 +8,7 @@
 #include "system/OgVector.h"
 
 #include "render/private/vulkan/OgRenderContext_Vulkan.h"
+#include "render/private/vulkan/OgVulkanHelper.h"
 
 #if defined(OG_USE_CRT_CHASE_MEMORY_LEAK)
 #define new DBG_NEW
@@ -1074,32 +1075,82 @@ void OgRenderContextVulkan::DestroyShader(OgShaderHandle* shader)
 
 OgProgramHandle* OgRenderContextVulkan::CreateProgram(OgShaderHandle** shaders, uint32 shaderCount)
 {
-	//TODO
-	return nullptr;
+	return new OgProgramHandle();
 }
 void OgRenderContextVulkan::DestroyProgram(OgProgramHandle* handle)
 {
+	delete handle;
+}
+
+
+void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
+{
 	//TODO
+}
+void OgRenderContextVulkan::releaseTexture(OgTextureVK* texture)
+{
+	// TODO
 }
 
 OgTextureHandle* OgRenderContextVulkan::CreateTexture(void* image, OgPixelFormat format, uint32 width, uint32 height, OgSamplerHandle* sampler , bool generateMipmaps )
 {
-	//TODO
-	return nullptr;
+	OgTextureInfo info;
+	info.usage = OgTextureUsage::SAMPLED | OgTextureUsage::STAGING;
+	info.viewType = OgTextureViewType::TEX_2D;
+	info.format = format;
+	info.extent.width = width;
+	info.extent.height = height;
+	info.extent.depth = 1;
+	info.byteSize = width * height * OgFormatSupplement::GetSizeInBytes(format);
+	info.isGenerateMipmaps = generateMipmaps;
+
+	return CreateTexture((void**)&image, info, sampler);
 }
 OgTextureHandle* OgRenderContextVulkan::CreateTexture(void** image, OgPixelFormat format, uint32 width, uint32 height, uint32 layerCount, OgSamplerHandle* sampler, bool generateMipmaps )
 {
-	//TODO
-	return nullptr;
+	OgTextureInfo info;
+	info.usage = OgTextureUsage::SAMPLED | OgTextureUsage::STAGING;
+	info.viewType = OgTextureViewType::TEX_2D_ARRAY;
+	info.format = format;
+	info.extent.width = width;
+	info.extent.height = height;
+	info.arrayLayers = layerCount;
+	info.byteSize = width * height * layerCount * OgFormatSupplement::GetSizeInBytes(format);
+	info.isGenerateMipmaps = generateMipmaps;
+
+	return CreateTexture(image, info, sampler);
 }
 OgTextureHandle* OgRenderContextVulkan::CreateTexture(void** image, const OgTextureInfo& info, OgSamplerHandle* sampler )
 {
-	//TODO
-	return nullptr;
+	VkFormat format = static_cast<VkFormat>(info.format);
+	if (vkIsSupportFormat(_gpuDeviceVK, format) == false)
+		LOGE(OG_ID, "This hardware does not support this format %d", info.format);
+
+	OgTextureVK* texture = new OgTextureVK(info, sampler, format, image);
+
+	buildTexture(texture);
+
+#if defined(_DEBUG)
+	texture->instanceType = "Texture";
+	_livingObjects.Add(texture);
+#endif
+	return texture;
 }
 void OgRenderContextVulkan::DestroyTexture(OgTextureHandle* texture) 
 {
-	//TODO
+	if (texture == nullptr) LOGE(OG_ID, "LvTextureHandle is nullptr");
+
+	OgTextureVK* t = static_cast<OgTextureVK*>(texture);
+
+	// TODO
+	// 현재 LvTextureUsage::STAGING 을 LvTextureUsage::GPU_PRIVATE의 의미로 사용하고 있는데 이것은 수정되어야한다.
+	releaseTexture(t);
+
+#if defined(_DEBUG)
+	_livingObjects.Remove(texture);
+#endif
+
+	delete t;
 }
 void OgRenderContextVulkan::UpdateTexture(OgTextureHandle* texture, OgSamplerHandle* sampler, size_t offset, void** data, bool useBarrier)
 {
@@ -1108,30 +1159,229 @@ void OgRenderContextVulkan::UpdateTexture(OgTextureHandle* texture, OgSamplerHan
 
 OgSamplerHandle* OgRenderContextVulkan::CreateSampler(const OgSamplerInfo& info)
 {
-	//TODO
-	return nullptr;
+	// Create a texture sampler
+	// In Vulkan textures are accessed by samplers
+	// This separates all the sampling information from the texture data. This means you could have multiple sampler objects for the same texture with different settings
+	// Note: Similar to the samplers available with OpenGL 3.3
+
+	VkSamplerCreateInfo sampler{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	sampler.maxAnisotropy = info.maxAnisotropy;
+	sampler.magFilter = static_cast<VkFilter>(info.magFilter);
+	sampler.minFilter = static_cast<VkFilter>(info.minFilter);
+	sampler.mipmapMode = static_cast<VkSamplerMipmapMode>(info.mipmapMode);
+	sampler.unnormalizedCoordinates = info.coordinate != OgSamplerCoord::NORMALIZED;
+	sampler.addressModeU = static_cast<VkSamplerAddressMode>(info.addressU);
+	sampler.addressModeV = static_cast<VkSamplerAddressMode>(info.addressV);
+	sampler.addressModeW = static_cast<VkSamplerAddressMode>(info.addressW);
+	sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
+	sampler.mipLodBias = 0.0f;
+	sampler.minLod = 0.0f;
+	if (sampler.unnormalizedCoordinates)
+		sampler.maxLod = 0.0;
+	else
+		sampler.maxLod = 1000.0f; // http://devgit.com2us.com/TS/TPact/issues/72#note_2889
+	sampler.compareEnable = info.isCompareEnable;
+	sampler.compareOp = static_cast<VkCompareOp>(info.compareOp);
+
+	/*
+	// Enable anisotropic filtering
+	// This feature is optional, so we must check if it's supported on the device
+	if (vulkanDevice->features.samplerAnisotropy) {
+	// Use max. level of anisotropy for this example
+	sampler.maxAnisotropy = vulkanDevice->properties.limits.maxSamplerAnisotropy;
+	sampler.anisotropyEnable = VK_TRUE;
+	}
+	else {
+	// The device does not support anisotropic filtering
+	sampler.maxAnisotropy = 1.0;
+	sampler.anisotropyEnable = VK_FALSE;
+	}
+	*/
+	sampler.anisotropyEnable = info.isAnisotropyEnable;
+
+	OgSamplerVK* r = new OgSamplerVK();
+	VK_CHECK_RESULT(vkCreateSampler(_logicalDeviceVK, &sampler, nullptr, &r->samplerVK));
+	r->info = info;
+
+#if defined(_DEBUG)
+	r->instanceType = "Sampler";
+	_livingObjects.Add(r);
+#endif
+	return r;
 }
 void OgRenderContextVulkan::DestroySampler(OgSamplerHandle* sampler)
 {
-	//TODO
+	OG_CHECK(sampler != nullptr, "sampler pointer is nullptr");
+
+	OgSamplerVK* s = (OgSamplerVK*)sampler;
+
+	vkDestroySampler(_logicalDeviceVK, s->samplerVK, nullptr);
+
+#if defined(_DEBUG)
+	_livingObjects.Remove(sampler);
+#endif
+
+	delete s;
+	sampler = nullptr;
 }
 
 OgFrameBufferHandle* OgRenderContextVulkan::CreateFrameBuffer(OgFrameBufferInfo& info)
 {
-	//TODO
-	return nullptr;
+	OgFrameBufferVK* r = new OgFrameBufferVK(_logicalDeviceVK, info);
+
+#if defined(_DEBUG)
+	r->instanceType = "Framebuffer";
+	_livingObjects.Add(r);
+#endif
+
+	return r;
 }
 void OgRenderContextVulkan::DestroyFrameBuffer(OgFrameBufferHandle* framebuffer)
 {
-	//TODO
+	if (framebuffer == nullptr) LOGE(OG_ID, "LvFrameBufferHandle is null");
+
+	OgFrameBufferVK* f = static_cast<OgFrameBufferVK*>(framebuffer);
+
+#if defined(_DEBUG)
+	_livingObjects.Remove(f);
+#endif
+
+	delete f;
+}
+
+void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
+{
+	OgRenderContextVulkan* renderContext = this;
+	const OgRenderPassInfo& rInfo = r->info;
+
+	VkImageLayout colorFinalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	if (rInfo.isSwapchainRenderPass)
+	{
+		colorFinalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;// VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	}
+
+	int outputColorAttachmentCount = rInfo.outputColorAttachmentCount;
+	
+	int totalAttachmentCount = outputColorAttachmentCount;
+	if (rInfo.useDepthStencilAttacment == true)  totalAttachmentCount++;
+
+	// https://developer.android.com/ndk/guides/graphics/design-notes?hl=ko
+	OgVector<VkAttachmentDescription> attachmentDescriptors;
+	attachmentDescriptors.Resize(totalAttachmentCount);
+	// MSAA 를 이용할 때, multisampleAttach -> resolveAttach -> depthAttach 순서로 구현되어 있다.
+	for (int i = 0; i < outputColorAttachmentCount; ++i)
+	{
+		auto& each = rInfo.outputColorAttachments[i];
+		vk_convert_format(renderContext->_gpuDeviceVK, attachmentDescriptors[i], each);
+		attachmentDescriptors[i].samples = static_cast<VkSampleCountFlagBits>(each.sampleCount);
+		attachmentDescriptors[i].loadOp = (VkAttachmentLoadOp)rInfo.outputColorAttachments[i].load;
+		attachmentDescriptors[i].storeOp = (VkAttachmentStoreOp)rInfo.outputColorAttachments[i].store;
+		attachmentDescriptors[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachmentDescriptors[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachmentDescriptors[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		if (rInfo.outputColorAttachments[0].load == OgRenderBufferLoadAction::LOAD)
+		{
+			// NOTE: load시에는 무조건 layout이 맞아야 제대로 load 할 수 있다.
+			attachmentDescriptors[i].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
+		attachmentDescriptors[i].finalLayout = colorFinalLayout;
+	}
+
+	if (rInfo.useDepthStencilAttacment == true)
+	{
+		auto& depthDescriptor = attachmentDescriptors[totalAttachmentCount - 1];
+		vk_convert_format(renderContext->_gpuDeviceVK, depthDescriptor, rInfo.outputDepthStencilAttachment);
+		depthDescriptor.samples = static_cast<VkSampleCountFlagBits>(rInfo.outputDepthStencilAttachment.sampleCount);
+		depthDescriptor.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		depthDescriptor.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		depthDescriptor.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		if (rInfo.outputDepthStencilAttachment.load == OgRenderBufferLoadAction::LOAD)
+			depthDescriptor.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		// TODO !!!: depth output을 sample하고 싶다면 VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+		// 그냥 그대로 쓸거면  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+		// 여튼 이걸 옵션을 주거나 그냥 READ로 통일하거나 해야 한다.
+		// 나중에 고려해서 수정할 것.
+		depthDescriptor.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+	}
+
+	OgVector<VkAttachmentReference> colorReference;
+	colorReference.Resize(8);
+	for (int i = 0; i < colorReference.Size(); ++i)
+	{
+		auto& each = colorReference[i];
+		each.attachment = i;
+		each.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // VK_IMAGE_LAYOUT_GENERAL 
+	}
+
+	VkAttachmentReference depthReference;
+	depthReference.attachment = totalAttachmentCount - 1;
+	depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	// TO DO : VkSubpassDescription 를 여러 개 이용함으로써 resolveAttachment를 여러 개로 이용할 수 있도록 구현하는 것이 필요하다.
+	// 현재는 마지막 colorAttachment가 resolveAttachment로 resolve 되게 구현되어 있다.(즉 1개 attachment만 resolve 가능)
+	VkSubpassDescription subpassDescription = {};
+	subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpassDescription.inputAttachmentCount = 0;
+	subpassDescription.pInputAttachments = nullptr;
+	subpassDescription.colorAttachmentCount = outputColorAttachmentCount;
+	subpassDescription.pColorAttachments = (outputColorAttachmentCount > 0) ? &colorReference[colorReference.Size() - 1] : nullptr;
+	subpassDescription.pResolveAttachments = nullptr;
+	subpassDescription.pDepthStencilAttachment = rInfo.useDepthStencilAttacment ? &depthReference : nullptr;
+	subpassDescription.preserveAttachmentCount = 0;
+	subpassDescription.pPreserveAttachments = nullptr;
+
+	OgVector<VkSubpassDependency> dependencies;
+	dependencies.Resize(2);
+	// srcSubpass and dstSubpass are the subpass indices of the producer and consumer subpasses
+	dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[0].dstSubpass = 0;
+	dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	dependencies[0].srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+	dependencies[1].srcSubpass = 0;
+	dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+	// Create the actual renderpass
+	VkRenderPassCreateInfo renderPassInfo = {};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachmentDescriptors.Size());
+	renderPassInfo.pAttachments = attachmentDescriptors.Data();
+	renderPassInfo.subpassCount = 1;
+	renderPassInfo.pSubpasses = &subpassDescription;
+	renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.Size());
+	renderPassInfo.pDependencies = dependencies.Data();
+
+	vkCreateRenderPass(renderContext->_logicalDeviceVK, &renderPassInfo, nullptr, &r->renderPassVK);
 }
 
 OgRenderPassHandle* OgRenderContextVulkan::CreateRenderPass(OgRenderPassInfo& info) 
 {
-	//TODO
-	return nullptr;
+	OgRenderPassVK* r = new OgRenderPassVK(info);
+
+	buildRenderPass(r);
+
+#if defined(_DEBUG)
+	r->instanceType = "RenderPass";
+	_livingObjects.Add(r);
+#endif
+
+	return r;
 }
 
+void OgRenderContextVulkan::releaseRenderPass(OgRenderPassVK* renderPass)
+{
+	//TODO
+}
 void OgRenderContextVulkan::DestroyRenderPass(OgRenderPassHandle* renderPass)
 {
 	//TODO

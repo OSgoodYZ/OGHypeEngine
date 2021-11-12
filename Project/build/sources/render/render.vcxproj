@@ -341,11 +341,13 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgUtilityVulkan.h" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderVulkanHandles.h" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.h" />
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgVulkanHelper.h" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgDeviceVulkan.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgSwapChainVulkan.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgUtilityVulkan.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderVulkanHandles.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.cpp" />
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgVulkanHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\ZERO_CHECK.vcxproj">

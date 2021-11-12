@@ -19,6 +19,9 @@
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.cpp">
       <Filter>private\vulkan</Filter>
     </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgVulkanHelper.cpp">
+      <Filter>private\vulkan</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderContext.h">
@@ -40,6 +43,9 @@
       <Filter>private\vulkan</Filter>
     </ClInclude>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.h">
+      <Filter>private\vulkan</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgVulkanHelper.h">
       <Filter>private\vulkan</Filter>
     </ClInclude>
   </ItemGroup>
