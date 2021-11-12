@@ -1,13 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CustomBuild Include="E:\OSgoodYZ\OGHypeEngine\Project\build\CMakeFiles\b3524f6971046524d9520abb345db778\INSTALL_force.rule">
+    <CustomBuild Include="X:\OSgoodYZ\OGHypeEngine\Project\build\CMakeFiles\b16c14fce7190c903bc8b91ff9ceb49e\INSTALL_force.rule">
       <Filter>CMake Rules</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="CMake Rules">
-      <UniqueIdentifier>{D3F3A287-45AD-3201-AAE4-283BF4E8FB30}</UniqueIdentifier>
+      <UniqueIdentifier>{48AEE6AF-B84D-34F8-8BE9-1FB467E65E47}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

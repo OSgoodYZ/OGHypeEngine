@@ -1,4 +1,4 @@
-# Install script for directory: E:/OSgoodYZ/OGHypeEngine/Project/sources/render
+# Install script for directory: X:/OSgoodYZ/OGHypeEngine/Project/sources/render
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

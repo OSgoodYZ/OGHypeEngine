@@ -823,21 +823,180 @@ OgSwapChain* OgRenderContextVulkan::CreateSwapchain(System::OgNativeWindow* nati
 	return &sw->swapchainResult;
 }
 
+
+void OgRenderContextVulkan::destroySwapChainFramebuffers(SwapchainWrapper& sw)
+{
+	if (sw.frameBufferObject.isInitialized)
+	{
+		OgDefaultFrameBufferVK** fbs = (OgDefaultFrameBufferVK**)sw.frameBufferObject.frameBuffers;
+
+		for (size_t i = 0; i < sw.frameBufferObject.bufferCount; ++i)
+		{
+			OgDefaultFrameBufferVK* fb = fbs[i];
+
+			for (size_t i = 0; i < fb->framebufferInfo.colorBuffers.size(); ++i)
+			{
+				delete fb->framebufferInfo.colorBuffers[i];
+			}
+
+			delete fb;
+		}
+
+		delete[] fbs;
+
+		DestroyRenderPass(sw.frameBufferObject.renderPass);
+
+		if (sw.frameBufferObject.hasDepthStencilBuffer)
+		{
+			DestroyTexture(sw.frameBufferObject.depthStencilTexture);
+			DestroySampler(sw.frameBufferObject.depthStencilSampler);
+		}
+
+		if (sw.frameBufferObject.hasMSAAbuffer)
+		{
+			DestroyTexture(sw.frameBufferObject.multisampleColorTexture);
+			DestroySampler(sw.frameBufferObject.multisampleColorSampler);
+		}
+
+		sw.frameBufferObject.isInitialized = false;
+
+#if defined(__ANDROID__)
+		sw.swapchainVK.Cleanup();
+#endif
+	}
+}
+
+void OgRenderContextVulkan::destroySwapChainSyncObject(SwapchainWrapper& sw)
+{
+	if (sw.syncObject.isInitialized)
+	{
+		for (uint32 i = 0; i < sw.swapchainVK.imageCount; ++i)
+		{
+			vkDestroySemaphore(_logicalDeviceVK, sw.syncObject.renderDones[i], nullptr);
+		}
+
+		for (uint32 i = 0; i < this->maxSubmitCount; ++i)
+		{
+			vkDestroySemaphore(_logicalDeviceVK, sw.syncObject.imageReadys[i], nullptr);
+			vkDestroyFence(_logicalDeviceVK, sw.syncObject.fences[i], nullptr);
+		}
+
+		delete[] sw.syncObject.fences;
+		delete[] sw.syncObject.imageReadys;
+		delete[] sw.syncObject.renderDones;
+
+		sw.syncObject.isInitialized = false;
+	}
+}
+
+void OgRenderContextVulkan::destroySwapChain(SwapchainWrapper& sw)
+{
+	OG_CHECK(sw.frameBufferObject.isInitialized == false, "SwapchainWrapper does not clear framebuffer object");
+	OG_CHECK(sw.syncObject.isInitialized == false, "SwapchainWrapper does not clear sync object");
+
+	while (!sw.encoderQueue.empty()) sw.encoderQueue.pop();
+	sw.swapchainVK.Cleanup();
+
+	SwapchainWrapper** prevSW = &_rootSwapchainWrapper;
+	while (*prevSW != &sw)
+	{
+		prevSW = &((*prevSW)->next);
+	}
+	*prevSW = sw.next;
+
+	uint32 swapchainHash = System::PointerHash(&sw.swapchainResult);
+	_swapChainTables.erase(swapchainHash);
+	delete &sw;
+}
+
+
 void OgRenderContextVulkan::DestroySwapchain(OgSwapChain* swapchain)
 {
-	// TODO
+	OG_CHECK(swapchain != nullptr, "LvSwapChain is nullptr");
+
+	
+	uint32 swapchainHash = System::PointerHash(swapchain);
+
+	SwapchainWrapper& sw = *(_swapChainTables[swapchainHash]);
+
+	vkDeviceWaitIdle(_logicalDeviceVK);
+	destroySwapChainSyncObject(sw);
+	destroySwapChainFramebuffers(sw);
+	destroySwapChain(sw);
 }
 
 OgFrameBufferHandle* OgRenderContextVulkan::GetSwapChainFrameBuffer(OgSwapChain* swapchain, uint32 index)
 {
-	// TODO
-	return nullptr;
+	OG_CHECK(swapchain != nullptr, "LvSwapChain is nullptr");
+
+	uint32 swapchainHash = System::PointerHash(swapchain);
+
+	OG_CHECK(_swapChainTables.find(swapchainHash) != _swapChainTables.end(), "This Native Window is not used");
+
+	SwapchainWrapper& sw = *(_swapChainTables[swapchainHash]);
+
+	if (index == SUBMISSION_INDEX_NONE) LOGE(OG_ID, "AcquireNextImageIndex() is not called");
+	if (sw.frameBufferObject.isInitialized == false) LOGE(OG_ID, "Swapchain Framebuffers are not initialized");
+	if (index < 0 || index >= sw.frameBufferObject.bufferCount) LOGE(OG_ID, "Framebuffer Array : Out of Range");
+
+	// Notice on the internal class LvDefaultFrameBufferVK
+	OgDefaultFrameBufferVK** fbs = (OgDefaultFrameBufferVK**)sw.frameBufferObject.frameBuffers;
+	return (OgFrameBufferHandle*)fbs[index];
 }
+
+// Reference
+// http://kylehalladay.com/blog/tutorial/2017/12/13/Custom-Allocators-Vulkan.html
+// https://www.fasterthan.life/blog/2017/7/13/i-am-graphics-and-so-can-you-part-4-
+// https://developer.arm.com/graphics/developer-guides/mali-gpu-best-practices?_ga=2.214472286.839459796.1551965165-452978138.1534305239
+// https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
+// https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
+// https://hps.ece.utexas.edu/people/ebrahimi/pub/agarwal_hpca16.pdf
+
 
 uint32 OgRenderContextVulkan::AcquireNextImageIndex(OgSwapChain* swapchain)
 {
-	//TODO
-	return 0;
+	OG_CHECK(swapchain != nullptr, "LvSwapChain is nullptr");
+
+	// for the case of minimization
+	_acquireOnceForPresent = true;
+
+	uint32 swapchainHash = System::PointerHash(swapchain);
+	OG_CHECK(_swapChainTables.find(swapchainHash) != _swapChainTables.end(), "There is no SwapchainWrapper matching LvSwapChain.");
+
+	SwapchainWrapper& sw = *(_swapChainTables[swapchainHash]);
+
+	sw.syncObject.submissionIndex = (sw.syncObject.submissionIndex + 1) % this->maxSubmitCount;
+
+	VK_CHECK_RESULT(vkWaitForFences(_logicalDeviceVK, 1, &sw.syncObject.fences[sw.syncObject.submissionIndex], VK_TRUE, UINT64_MAX));
+	VK_CHECK_RESULT(vkResetFences(_logicalDeviceVK, 1, &sw.syncObject.fences[sw.syncObject.submissionIndex]));
+
+	VkResult err = sw.swapchainVK.AcquireNextImage(sw.syncObject.imageReadys[sw.syncObject.submissionIndex], &sw.syncObject.swapchainIndex);
+
+	if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
+	{
+		// Recreate Swapchain Only.
+		sw.syncObject.submissionIndex = SUBMISSION_INDEX_NONE;
+		while (!sw.encoderQueue.empty())
+			sw.encoderQueue.pop();
+		
+		return SUBMISSION_INDEX_NONE;
+	}
+	else if (err == VK_ERROR_SURFACE_LOST_KHR)
+	{
+		sw.syncObject.submissionIndex = SUBMISSION_INDEX_NONE;
+		while (!sw.encoderQueue.empty())
+			sw.encoderQueue.pop();
+		return SUBMISSION_INDEX_NONE;
+	}
+	else if (err != VK_SUCCESS)
+	{
+		sw.syncObject.submissionIndex = SUBMISSION_INDEX_NONE;
+		while (!sw.encoderQueue.empty())
+			sw.encoderQueue.pop();
+		LOGE(OG_ID, "failed to acquire swap chain image");
+	}
+
+	return sw.syncObject.swapchainIndex;
 }
 
 uint32 OgRenderContextVulkan::GetCurrentImageIndex(OgSwapChain* swapchain)

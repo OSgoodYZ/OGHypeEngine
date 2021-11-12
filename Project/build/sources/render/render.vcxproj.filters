@@ -1,60 +1,60 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\OgRenderDefinitions.cpp">
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\OgRenderDefinitions.cpp">
       <Filter>private</Filter>
     </ClCompile>
-    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgDeviceVulkan.cpp">
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgDeviceVulkan.cpp">
       <Filter>private\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgSwapChainVulkan.cpp">
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgSwapChainVulkan.cpp">
       <Filter>private\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgUtilityVulkan.cpp">
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgUtilityVulkan.cpp">
       <Filter>private\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderVulkanHandles.cpp">
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderVulkanHandles.cpp">
       <Filter>private\vulkan</Filter>
     </ClCompile>
-    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.cpp">
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.cpp">
       <Filter>private\vulkan</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderContext.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderContext.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderDefinitions.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\OgRenderDefinitions.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgDeviceVulkan.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgDeviceVulkan.h">
       <Filter>private\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgSwapChainVulkan.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgSwapChainVulkan.h">
       <Filter>private\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgUtilityVulkan.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgUtilityVulkan.h">
       <Filter>private\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderVulkanHandles.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderVulkanHandles.h">
       <Filter>private\vulkan</Filter>
     </ClInclude>
-    <ClInclude Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\private\vulkan\OgRenderContext_Vulkan.h">
       <Filter>private\vulkan</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\render\CMakeLists.txt" />
+    <CustomBuild Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\render\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="private">
-      <UniqueIdentifier>{B0DB5AAB-76DB-3235-A42F-1379179421BE}</UniqueIdentifier>
+      <UniqueIdentifier>{A41FDB05-4B4A-3EDC-86B2-708306323F76}</UniqueIdentifier>
     </Filter>
     <Filter Include="private\vulkan">
-      <UniqueIdentifier>{5853D402-3E08-3E44-B470-58B87E03DBC3}</UniqueIdentifier>
+      <UniqueIdentifier>{1727C28F-5AA0-3F18-9EF4-B7846103507A}</UniqueIdentifier>
     </Filter>
     <Filter Include="public">
-      <UniqueIdentifier>{5FBE2109-5786-3C73-A038-9D3C094886FA}</UniqueIdentifier>
+      <UniqueIdentifier>{5BE45934-E073-390D-B5D2-FB44A6ED57CB}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

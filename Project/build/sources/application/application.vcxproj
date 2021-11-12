@@ -23,8 +23,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{62ED7198-9510-3F18-B4E4-CCE8CC3AC13D}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <ProjectGuid>{A22CE024-282D-3ED0-B336-644314445BC6}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
     <Keyword>Win32Proj</Keyword>
     <Platform>x64</Platform>
     <ProjectName>application</ProjectName>
@@ -65,41 +65,41 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
-    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">E:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">X:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommandArguments Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">-g VULKAN</LocalDebuggerCommandArguments>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\Debug\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\Debug\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">application.dir\Debug\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">application</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
-    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Release|x64'">E:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='Release|x64'">X:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommandArguments Condition="'$(Configuration)|$(Platform)'=='Release|x64'">-g VULKAN</LocalDebuggerCommandArguments>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\Release\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\Release\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">application.dir\Release\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">application</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
-    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">E:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">X:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommandArguments Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">-g VULKAN</LocalDebuggerCommandArguments>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\MinSizeRel\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\MinSizeRel\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">application.dir\MinSizeRel\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">application</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
-    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">E:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">X:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommandArguments Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">-g VULKAN</LocalDebuggerCommandArguments>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\RelWithDebInfo\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\RelWithDebInfo\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">application.dir\RelWithDebInfo\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">application</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
-    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">E:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">X:/OSgoodYZ/OGHypeEngine/Project/build</LocalDebuggerWorkingDirectory>
     <LocalDebuggerCommandArguments Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">-g VULKAN</LocalDebuggerCommandArguments>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\DebugCross\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\DebugCross\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">application.dir\DebugCross\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">application</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">.exe</TargetExt>
@@ -108,11 +108,10 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <CallingConvention>StdCall</CallingConvention>
-      <CompileAs>CompileAsCpp</CompileAs>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4819</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -129,10 +128,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_UNICODE;UNICODE;OG_SAMPLE_BUILD;OG_API_EXPORT;CMAKE_INTDIR=\"Debug\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -145,8 +144,8 @@
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImportLibrary>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Debug/application.lib</ImportLibrary>
-      <ProgramDataBaseFile>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Debug/application.pdb</ProgramDataBaseFile>
+      <ImportLibrary>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Debug/application.lib</ImportLibrary>
+      <ProgramDataBaseFile>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Debug/application.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
     <ProjectReference>
@@ -155,10 +154,9 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <CallingConvention>StdCall</CallingConvention>
-      <CompileAs>CompileAsCpp</CompileAs>
       <DisableSpecificWarnings>4819</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
@@ -176,10 +174,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;OG_SAMPLE_BUILD;OG_API_EXPORT;CMAKE_INTDIR=\"Release\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -192,8 +190,8 @@
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImportLibrary>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Release/application.lib</ImportLibrary>
-      <ProgramDataBaseFile>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Release/application.pdb</ProgramDataBaseFile>
+      <ImportLibrary>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Release/application.lib</ImportLibrary>
+      <ProgramDataBaseFile>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/Release/application.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
     <ProjectReference>
@@ -202,10 +200,9 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <CallingConvention>StdCall</CallingConvention>
-      <CompileAs>CompileAsCpp</CompileAs>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <Optimization>MinSpace</Optimization>
@@ -222,10 +219,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE;OG_SAMPLE_BUILD;OG_API_EXPORT;CMAKE_INTDIR=\"MinSizeRel\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -238,8 +235,8 @@
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImportLibrary>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/MinSizeRel/application.lib</ImportLibrary>
-      <ProgramDataBaseFile>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/MinSizeRel/application.pdb</ProgramDataBaseFile>
+      <ImportLibrary>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/MinSizeRel/application.lib</ImportLibrary>
+      <ProgramDataBaseFile>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/MinSizeRel/application.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
     <ProjectReference>
@@ -248,10 +245,9 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <CallingConvention>StdCall</CallingConvention>
-      <CompileAs>CompileAsCpp</CompileAs>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ExceptionHandling>Sync</ExceptionHandling>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
@@ -267,10 +263,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;NDEBUG;_RELEASE_INFO;OG_SAMPLE_BUILD;OG_API_EXPORT;CMAKE_INTDIR=\"RelWithDebInfo\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -283,8 +279,8 @@
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImportLibrary>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/RelWithDebInfo/application.lib</ImportLibrary>
-      <ProgramDataBaseFile>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/RelWithDebInfo/application.pdb</ProgramDataBaseFile>
+      <ImportLibrary>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/RelWithDebInfo/application.lib</ImportLibrary>
+      <ProgramDataBaseFile>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/RelWithDebInfo/application.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
     <ProjectReference>
@@ -293,11 +289,10 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <CallingConvention>StdCall</CallingConvention>
-      <CompileAs>CompileAsCpp</CompileAs>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4819</DisableSpecificWarnings>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -314,10 +309,10 @@
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_UNICODE;UNICODE;_DEBUG;_DEBUG_CROSS;OG_SAMPLE_BUILD;OG_API_EXPORT;CMAKE_INTDIR=\"DebugCross\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>E:\OSgoodYZ\OGHypeEngine\Project\sources;E:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>X:\OSgoodYZ\OGHypeEngine\Project\sources;X:\OSgoodYZ\OGHypeEngine\Project\deps\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
@@ -330,8 +325,8 @@
       <AdditionalOptions>%(AdditionalOptions) /machine:x64 /WHOLEARCHIVE:render</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImportLibrary>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/DebugCross/application.lib</ImportLibrary>
-      <ProgramDataBaseFile>E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/DebugCross/application.pdb</ProgramDataBaseFile>
+      <ImportLibrary>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/DebugCross/application.lib</ImportLibrary>
+      <ProgramDataBaseFile>X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/DebugCross/application.pdb</ProgramDataBaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
     <ProjectReference>
@@ -339,10 +334,10 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\application\CMakeLists.txt">
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule E:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
+    <CustomBuild Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\application\CMakeLists.txt">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule X:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SE:/OSgoodYZ/OGHypeEngine/Project -BE:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
+"C:\Program Files\CMake\bin\cmake.exe" -SX:/OSgoodYZ/OGHypeEngine/Project -BX:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -351,11 +346,11 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule E:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule X:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SE:/OSgoodYZ/OGHypeEngine/Project -BE:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
+"C:\Program Files\CMake\bin\cmake.exe" -SX:/OSgoodYZ/OGHypeEngine/Project -BX:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -364,11 +359,11 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule E:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule X:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SE:/OSgoodYZ/OGHypeEngine/Project -BE:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
+"C:\Program Files\CMake\bin\cmake.exe" -SX:/OSgoodYZ/OGHypeEngine/Project -BX:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -377,11 +372,11 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule E:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule X:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SE:/OSgoodYZ/OGHypeEngine/Project -BE:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
+"C:\Program Files\CMake\bin\cmake.exe" -SX:/OSgoodYZ/OGHypeEngine/Project -BX:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -390,11 +385,11 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
-      <Message Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">Building Custom Rule E:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">Building Custom Rule X:/OSgoodYZ/OGHypeEngine/Project/sources/application/CMakeLists.txt</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">setlocal
-"C:\Program Files\CMake\bin\cmake.exe" -SE:/OSgoodYZ/OGHypeEngine/Project -BE:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file E:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
+"C:\Program Files\CMake\bin\cmake.exe" -SX:/OSgoodYZ/OGHypeEngine/Project -BX:/OSgoodYZ/OGHypeEngine/Project/build --check-stamp-file X:/OSgoodYZ/OGHypeEngine/Project/build/sources/application/CMakeFiles/generate.stamp
 if %errorlevel% neq 0 goto :cmEnd
 :cmEnd
 endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
@@ -403,30 +398,30 @@ exit /b %1
 :cmDone
 if %errorlevel% neq 0 goto :VCEnd</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">%(AdditionalInputs)</AdditionalInputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">E:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">X:\OSgoodYZ\OGHypeEngine\Project\build\sources\application\CMakeFiles\generate.stamp</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='DebugCross|x64'">false</LinkObjects>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="E:\OSgoodYZ\OGHypeEngine\Project\sources\application\private\OgMain.cpp" />
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\application\private\OgMain.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="E:\OSgoodYZ\OGHypeEngine\Project\build\ZERO_CHECK.vcxproj">
-      <Project>{532A18AE-E177-35E7-99B7-A95A825A59C5}</Project>
+    <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\ZERO_CHECK.vcxproj">
+      <Project>{3639AC24-4649-3233-90E1-897C039C6533}</Project>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </ProjectReference>
-    <ProjectReference Include="E:\OSgoodYZ\OGHypeEngine\Project\build\sources\render\render.vcxproj">
-      <Project>{CE7E340D-68EC-3014-BAB2-4671171B134C}</Project>
+    <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\sources\render\render.vcxproj">
+      <Project>{98ED1143-9351-363C-B57B-05FA3C334BE7}</Project>
       <Name>render</Name>
     </ProjectReference>
-    <ProjectReference Include="E:\OSgoodYZ\OGHypeEngine\Project\build\sources\sample\sample.vcxproj">
-      <Project>{D963A5B2-F91A-302B-B0AA-1C4BF5ECB7C3}</Project>
+    <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\sources\sample\sample.vcxproj">
+      <Project>{8804A486-189D-3CAC-8D7E-E068E1A5A863}</Project>
       <Name>sample</Name>
     </ProjectReference>
-    <ProjectReference Include="E:\OSgoodYZ\OGHypeEngine\Project\build\sources\system\system.vcxproj">
-      <Project>{5BC2F190-F688-38F0-B5E5-D05CB690BF89}</Project>
+    <ProjectReference Include="X:\OSgoodYZ\OGHypeEngine\Project\build\sources\system\system.vcxproj">
+      <Project>{4C71DC2D-5D4F-38FA-A332-87D28407A532}</Project>
       <Name>system</Name>
     </ProjectReference>
   </ItemGroup>

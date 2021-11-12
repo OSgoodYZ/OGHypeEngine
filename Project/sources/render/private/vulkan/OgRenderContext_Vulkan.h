@@ -126,6 +126,8 @@ private:
 	void initCommandPool();
 	void initDescriptorPool();
 	
+	// TODO list
+
 	//OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
 	//void releaseBuffer(OgBufferHandle* buffer);
 	//
@@ -169,7 +171,7 @@ private:
 	uint32 _maxSetFromPool;
 //
 //	// Staging Buffer Pool / Command Buffer for updating buffer
-//	bool _acquireOnceForPresent;
+	bool _acquireOnceForPresent;
 
 	struct SwapchainWrapper
 	{
