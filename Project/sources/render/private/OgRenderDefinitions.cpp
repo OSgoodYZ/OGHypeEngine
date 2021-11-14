@@ -471,7 +471,98 @@ OgResourceUsage::OgResourceUsage()
 	: buffer{ nullptr, nullptr, nullptr }
 {}
 
-OgResourceLayoutHandle::OgResourceLayoutHandle() : OgHandle(OgHandleType::RESOURCE_LAYOUT) { }
+OgResourceLayoutHandle::OgResourceLayoutHandle() 
+	: OgHandle(OgHandleType::RESOURCE_LAYOUT)
+{
+}
+
+OgResourceLayoutHandle::OgResourceLayoutHandle(OgResourceBinding* bindings, uint8 count)
+	: OgHandle(OgHandleType::RESOURCE_LAYOUT)
+	, bindings(nullptr)
+	, bindingCount(count)
+	, bufferUsageCount(0)
+	, textureUsageCount(0)
+	, bufferCount(0)
+	, textureCount(0)
+{
+	if (count > 0)
+	{
+		bindings = new OgResourceBinding[count];
+		memcpy(bindings, bindings, sizeof(OgResourceBinding) * count);
+
+		for (uint8 i = 0; i < count; ++i)
+		{
+			switch (bindings[i].type)
+			{
+			case OgResourceType::UNIFORM_BUFFER:
+			{
+				++bufferUsageCount;
+
+				bufferCount += bindings[i].arrayCount == 0 ? 1 : bindings[i].arrayCount;
+
+				break;
+			}
+			case OgResourceType::COMBINED_IMAGE_SAMPLER:
+			{
+				++textureUsageCount;
+
+				textureCount += bindings[i].arrayCount == 0 ? 1 : bindings[i].arrayCount;
+
+				break;
+			}
+			default:
+				LOGE(OG_ID, "Not Supported Yet");
+				break;
+			}
+		}
+	}
+}
+
+OgResourceLayoutHandle::~OgResourceLayoutHandle()
+{
+	if (this->bindingCount > 0)
+	{
+		delete[] this->bindings;
+		this->bindings = nullptr;
+		this->bindingCount = 0;
+	}
+}
+
+bool IsCompatible(const OgResourceBinding* a, const OgResourceBinding* b)
+{
+	ASSERT(a != nullptr && b != nullptr);
+
+	if (a->type != b->type) return false;
+	if (a->stage != b->stage) return false;
+	if (a->binding != b->binding) return false;
+
+	return true;
+}
+
+bool OgResourceLayoutHandle::IsCompatibleLayoutWithSet(OgResourceUsage* usages, uint32 usageCount) const
+{
+	if (this->bindingCount != usageCount) return false;
+	for (uint32 bindingIndex = 0; bindingIndex < this->bindingCount; ++bindingIndex)
+	{
+		const uint16 layoutbinding = this->bindings[bindingIndex].binding;
+
+		int8 matchedBindingIndex = -1;
+		for (uint32 usageIndex = 0; usageIndex < usageCount; ++usageIndex)
+		{
+			if (layoutbinding == usages[usageIndex].binding.binding)
+			{
+				matchedBindingIndex = usageIndex;
+				break;
+			}
+		}
+		// No Matched Binding Index
+		if (matchedBindingIndex == -1) return false;
+		// If Binding Index can matched, we should check LvResourceBinding.		
+		if (!IsCompatible(&(usages[matchedBindingIndex].binding), &(this->bindings[bindingIndex]))) return false;
+
+	}
+	return true;
+}
 
 OgResourceSetHandle::OgResourceSetHandle() : OgHandle(OgHandleType::RESOURCE_SET) { }
 
@@ -520,5 +611,35 @@ void OgShaderDescriptor::CopyFrom(const OgShaderDescriptor& sd)
 	this->shaderCount = sd.shaderCount;
 }
 
+OgPipelineHandle::OgPipelineHandle()
+	: OgHandle(OgHandleType::PIPELINE)
+	, renderPass(nullptr)
+{
+	
+}
+OgPipelineHandle::OgPipelineHandle(const OgPipelineDescriptor& descriptor)
+	: OgHandle(OgHandleType::PIPELINE)
+	, renderPass(nullptr)
+{
+	this->type = descriptor.type;
+	this->name = descriptor.name;
+	this->renderPass = descriptor.renderPass;
+	this->resourceLayout = descriptor.resourceLayout;
+
+	this->vertexInputDescriptor.CopyFrom(descriptor.vertexInput);
+
+	this->shaderDescriptor.CopyFrom(descriptor.shader);
+
+	this->colorBlendDescriptor.CopyFrom(descriptor.colorBlend);
+
+	memcpy(&(this->rasterizationDescriptor), &(descriptor.rasterize), sizeof(OgRasterizationDescriptor));
+
+	memcpy(&(this->depthStencilDescriptor), &(descriptor.depthStencil), sizeof(OgDepthStencilDescriptor));
+}
+
+OgPipelineHandle::~OgPipelineHandle()
+{
+	this->vertexInputDescriptor.Release();
+}
 
 OG_NAMESPACE_RENDER_END

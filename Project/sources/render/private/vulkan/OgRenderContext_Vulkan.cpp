@@ -1380,18 +1380,244 @@ OgRenderPassHandle* OgRenderContextVulkan::CreateRenderPass(OgRenderPassInfo& in
 
 void OgRenderContextVulkan::releaseRenderPass(OgRenderPassVK* renderPass)
 {
-	//TODO
+	if (renderPass->renderPassVK != NULL)
+	{
+		vkDestroyRenderPass(this->_logicalDeviceVK, renderPass->renderPassVK, nullptr);
+	}
 }
 void OgRenderContextVulkan::DestroyRenderPass(OgRenderPassHandle* renderPass)
+{
+	if (renderPass == nullptr) LOGE(OG_ID, "LvRenderPassHandle is nullptr");
+
+	OgRenderPassVK* r = static_cast<OgRenderPassVK*>(renderPass);
+
+	releaseRenderPass(r);
+
+#if defined(_DEBUG)
+	_livingObjects.Remove(r);
+#endif
+
+	delete r;
+}
+
+void OgRenderContextVulkan::buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline)
+{
+	OgRenderContextVulkan* renderContext = this;
+	VkPhysicalDevice physicalDevice = renderContext->_gpuDeviceVK;
+	VkDevice logicalDevice = renderContext->_logicalDeviceVK;
+
+	OgRasterizationDescriptor& raster = pipeline->rasterizationDescriptor;
+	OgColorBlendDescriptor& colorBlend = pipeline->colorBlendDescriptor;
+	OgDepthStencilDescriptor& depthStencil = pipeline->depthStencilDescriptor;
+	OgVertexInputDescriptor& vertexInput = pipeline->vertexInputDescriptor;
+	OgShaderDescriptor& shader = pipeline->shaderDescriptor;
+
+	OgResourceLayoutVK* res = reinterpret_cast<OgResourceLayoutVK*>(pipeline->resourceLayout);
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	pipelineLayoutCreateInfo.setLayoutCount = 1;
+	pipelineLayoutCreateInfo.pSetLayouts = &res->descriptorSetLayoutVK;
+	pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+	VK_CHECK_RESULT(vkCreatePipelineLayout(logicalDevice, &pipelineLayoutCreateInfo, nullptr, &pipeline->pipelineLayout));
+
+	// Rasterize
+
+	VkPipelineCacheCreateInfo pipelineCacheCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO };
+	VK_CHECK_RESULT(vkCreatePipelineCache(logicalDevice, &pipelineCacheCreateInfo, nullptr, &pipeline->pipelineCache));
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssemblyState{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
+	inputAssemblyState.topology = static_cast<VkPrimitiveTopology>(raster.primitiveType);
+	inputAssemblyState.flags = 0;
+	inputAssemblyState.primitiveRestartEnable = VK_FALSE;
+
+	VkPipelineRasterizationStateCreateInfo rasterizationState{ VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+	rasterizationState.polygonMode = static_cast<VkPolygonMode>(raster.polygonMode);
+	rasterizationState.cullMode = static_cast<VkCullModeFlags>(raster.cullMode);
+	rasterizationState.frontFace = static_cast<VkFrontFace>(raster.frontFace);
+	rasterizationState.flags = 0;
+	rasterizationState.depthClampEnable = VK_FALSE;
+	rasterizationState.lineWidth = 1.0f;
+
+	// Color Blend
+	OgVector<VkPipelineColorBlendAttachmentState> attachmentDescriptor;
+
+	attachmentDescriptor.Resize(colorBlend.attachmentCount);
+
+	for (uint32 i = 0; i < colorBlend.attachmentCount; ++i)
+	{
+		attachmentDescriptor[i].colorWriteMask = static_cast<VkColorComponentFlags>(colorBlend.attachments[i].writeMask);
+		attachmentDescriptor[i].blendEnable = colorBlend.attachments[i].blendEnable;
+		attachmentDescriptor[i].srcColorBlendFactor = static_cast<VkBlendFactor>(colorBlend.attachments[i].srcColor);
+		attachmentDescriptor[i].dstColorBlendFactor = static_cast<VkBlendFactor>(colorBlend.attachments[i].dstColor);
+		attachmentDescriptor[i].colorBlendOp = static_cast<VkBlendOp>(colorBlend.attachments[i].colorOp);
+		attachmentDescriptor[i].srcAlphaBlendFactor = static_cast<VkBlendFactor>(colorBlend.attachments[i].srcAlpha);
+		attachmentDescriptor[i].dstAlphaBlendFactor = static_cast<VkBlendFactor>(colorBlend.attachments[i].dstAlpha);
+		attachmentDescriptor[i].alphaBlendOp = static_cast<VkBlendOp>(colorBlend.attachments[i].alphaOp);
+	}
+
+	// ??
+	VkPipelineColorBlendStateCreateInfo colorBlendState{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+	colorBlendState.attachmentCount = static_cast<uint32_t>(attachmentDescriptor.Size());
+	colorBlendState.pAttachments = attachmentDescriptor.Data();
+	//colorBlendState.logicOpEnable = VK_FALSE;
+	//colorBlendState.logicOp = VK_LOGIC_OP_CLEAR;
+	//colorBlendState.blendConstants[0] = 0.0f;
+	//colorBlendState.blendConstants[1] = 0.0f;
+	//colorBlendState.blendConstants[2] = 0.0f;
+	//colorBlendState.blendConstants[3] = 0.0f;
+
+	// Depth Stencil
+	VkPipelineDepthStencilStateCreateInfo depthStencilState{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+	depthStencilState.depthTestEnable = (depthStencil.depthTest) ? VK_TRUE : VK_FALSE;
+	depthStencilState.depthWriteEnable = (depthStencil.depthWrite) ? VK_TRUE : VK_FALSE;
+	depthStencilState.depthCompareOp = static_cast<VkCompareOp>(depthStencil.depthCompareOp);
+
+	depthStencilState.front.compareMask = depthStencil.front.compareMask;
+	depthStencilState.front.compareOp = static_cast<VkCompareOp>(depthStencil.front.compareOp);
+	depthStencilState.front.depthFailOp = static_cast<VkStencilOp>(depthStencil.front.depthFailOp);
+	depthStencilState.front.failOp = static_cast<VkStencilOp>(depthStencil.front.failOp);
+	depthStencilState.front.passOp = static_cast<VkStencilOp>(depthStencil.front.passOp);
+	depthStencilState.front.reference = depthStencil.front.reference;
+
+	depthStencilState.back.compareMask = depthStencil.back.compareMask;
+	depthStencilState.back.compareOp = static_cast<VkCompareOp>(depthStencil.back.compareOp);
+	depthStencilState.back.depthFailOp = static_cast<VkStencilOp>(depthStencil.back.depthFailOp);
+	depthStencilState.back.failOp = static_cast<VkStencilOp>(depthStencil.back.failOp);
+	depthStencilState.back.passOp = static_cast<VkStencilOp>(depthStencil.back.passOp);
+	depthStencilState.back.reference = depthStencil.back.reference;
+
+	VkPipelineMultisampleStateCreateInfo multisampleState{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+	// TO DO: sample shading
+	// https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#primsrast-sampleshading
+	// https://vulkan-tutorial.com/Multisampling
+	multisampleState.sampleShadingEnable = VK_FALSE;
+	if (pipeline->renderPass->info.outputColorAttachmentCount > 0)
+		multisampleState.rasterizationSamples = static_cast<VkSampleCountFlagBits>(pipeline->renderPass->info.outputColorAttachments->sampleCount);
+	else
+		multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampleState.flags = 0;
+
+	// Vertex Input
+	OgVector<VkVertexInputBindingDescription> vertexInputBindDescriptions;
+	vertexInputBindDescriptions.Resize(vertexInput.layoutCount);
+	for (size_t i = 0; i < vertexInput.layoutCount; ++i)
+	{
+		vertexInputBindDescriptions[i].binding = vertexInput.layouts[i].binding;
+		vertexInputBindDescriptions[i].stride = vertexInput.layouts[i].stride;
+		vertexInputBindDescriptions[i].inputRate = vertexInput.layouts[i].useInstancing ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
+	}
+
+	uint32 attributeCount = vertexInput.attributeCount;
+
+	// Vertex Input State
+	OgVector<VkVertexInputAttributeDescription> attributeDescriptions;
+	attributeDescriptions.Resize(attributeCount);
+
+	for (uint32 i = 0; i < attributeCount; ++i)
+	{
+		const OgVertexAttributeDescriptor& desc = vertexInput.attributes[i];
+		VkVertexInputAttributeDescription vInputAttribDescription{};
+		vInputAttribDescription.location = desc.location;
+		vInputAttribDescription.binding = desc.binding;
+
+		VkFormat format = vk_convert_vertex_format(desc.format);
+		VkFormatProperties formatProps;
+		vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &formatProps);
+
+		vInputAttribDescription.format = format;
+		/*
+		if ((formatProps.bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) != 0)
+		{
+		vInputAttribDescription.format = format;
+		}
+		else
+		{
+		// TODO : impl
+		// LOGE(LV_ID, "Vertex VkFormat %s is not supported.", format);
+		}
+		*/
+		vInputAttribDescription.offset = desc.offset;
+		attributeDescriptions[i] = vInputAttribDescription;
+	}
+
+	VkPipelineVertexInputStateCreateInfo inputState{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+
+	inputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.Size());
+	inputState.pVertexAttributeDescriptions = attributeDescriptions.Data();
+	inputState.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindDescriptions.Size());
+	inputState.pVertexBindingDescriptions = vertexInputBindDescriptions.Data();
+
+	VkPipelineViewportStateCreateInfo viewportState{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
+	viewportState.flags = 0;
+
+	// Dynamic State.
+	OgVector<VkDynamicState> dynamicStateEnables;
+
+	dynamicStateEnables.Add(VK_DYNAMIC_STATE_VIEWPORT);
+	dynamicStateEnables.Add(VK_DYNAMIC_STATE_SCISSOR);
+
+
+	VkPipelineDynamicStateCreateInfo dynamicState{ VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO };
+	dynamicState.pDynamicStates = dynamicStateEnables.Data();
+	dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.Size());
+	dynamicState.flags = 0;
+
+	OgRenderPassVK* renderPassVK = reinterpret_cast<OgRenderPassVK*>(pipeline->renderPass);
+	VkRenderPass* rp = &renderPassVK->renderPassVK;
+
+	VkGraphicsPipelineCreateInfo pipelineCreateInfo{ VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO };
+
+	pipelineCreateInfo.layout = pipeline->pipelineLayout;
+	pipelineCreateInfo.renderPass = *rp;
+	pipelineCreateInfo.flags = 0;
+	pipelineCreateInfo.basePipelineIndex = -1;
+	pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+	pipelineCreateInfo.pVertexInputState = &inputState;
+	pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
+	pipelineCreateInfo.pRasterizationState = &rasterizationState;
+	pipelineCreateInfo.pColorBlendState = &colorBlendState;
+	pipelineCreateInfo.pMultisampleState = &multisampleState;
+	pipelineCreateInfo.pViewportState = &viewportState;
+	pipelineCreateInfo.pDepthStencilState = &depthStencilState;
+	pipelineCreateInfo.pDynamicState = &dynamicState;
+
+	OgVector<VkPipelineShaderStageCreateInfo> shaderStages;
+	shaderStages.Resize(shader.shaderCount);
+
+	for (size_t i = 0; i < shader.shaderCount; ++i)
+	{
+		OgShaderVK* shaderVK = reinterpret_cast<OgShaderVK*>(shader.shaders[i]);
+		shaderStages[i] = shaderVK->shaderStageInfo;
+	}
+
+	pipelineCreateInfo.stageCount = shader.shaderCount;
+	pipelineCreateInfo.pStages = shaderStages.Data();
+
+	VK_CHECK_RESULT(vkCreateGraphicsPipelines(logicalDevice, pipeline->pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline->pipeline));
+}
+
+
+OgPipelineHandle* OgRenderContextVulkan::CreatePipeline(OgPipelineDescriptor& descriptor)
+{
+	OgGraphicsPipelineVK* p = new OgGraphicsPipelineVK(descriptor);
+
+	buildGraphicsPipeline(p);
+
+#if defined(_DEBUG)
+	p->instanceType = "Pipeline";
+	_livingObjects.Add(p);
+#endif
+
+	return p;
+}
+
+void OgRenderContextVulkan::releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline)
 {
 	//TODO
 }
 
-OgPipelineHandle* OgRenderContextVulkan::CreatePipeline(OgPipelineDescriptor& descriptor)
-{
-	//TODO
-	return nullptr;
-}
 void OgRenderContextVulkan::DestroyPipeline(OgPipelineHandle* pipeline)
 {
 	//TODO

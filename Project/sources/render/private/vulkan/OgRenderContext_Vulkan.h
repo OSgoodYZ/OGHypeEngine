@@ -139,8 +139,8 @@ private:
 	//
 	//void buildMipmap(VkCommandBuffer flyCmd, OgTextureVK* tex, VkImageSubresourceRange& subresourceRange);
 	//
-	//void buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
-	//void releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
+	void buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
+	void releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
 	//
 	//void buildResourceSet(OgResourceSetVK* rSet);
 	//void releaseResourceSet(OgResourceSetVK* resourceSet);

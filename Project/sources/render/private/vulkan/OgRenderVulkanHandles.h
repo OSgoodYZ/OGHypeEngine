@@ -4,9 +4,13 @@
 
 #include <vulkan/vulkan.h>
 
+#include "system/OgVector.h"
+
 #include "render/OgRenderDefinitions.h"
 #include "render/private/vulkan/OgDeviceVulkan.h"
 #include "render/private/vulkan/OgUtilityVulkan.h"
+
+using namespace Og::System;
 
 OG_NAMESPACE_RENDER_BEGIN
 
@@ -355,61 +359,62 @@ struct OgFrameBufferVK : OgFrameBufferHandle
 	VkDevice device;
 	VkFramebuffer frameBufferVK;
 };
-//
-//struct OGGraphicsPipelineVK : OGGraphicsPipelinePlatform
-//{
-//	OGGraphicsPipelineVK() = delete;
-//
-//	OGGraphicsPipelineVK(const OGPipelineDescriptor& descriptor)
-//		: OGGraphicsPipelinePlatform(descriptor),
-//		pipelineCache(VK_NULL_HANDLE), pipelineLayout(VK_NULL_HANDLE), pipeline(VK_NULL_HANDLE)
-//	{ }
-//
-//	~OGGraphicsPipelineVK() { }
-//
-//	VkPipelineCache pipelineCache;
-//	VkPipelineLayout pipelineLayout;
-//	VkPipeline pipeline;
-//};
 
-//struct OgResourceLayoutVK : OgResourceLayoutPlatform
-//{
-//	OgResourceLayoutVK() = delete;
-//
-//	OgResourceLayoutVK(VkDevice device, OGResourceBinding* bindings, uint count)
-//		: OGResourceLayoutPlatform(bindings, count)
-//		, device(device)
-//		, descriptorSetLayoutVK(VK_NULL_HANDLE)
-//	{
-//		OG_CHECK(bufferUsageCount + textureUsageCount == count, "Wrong ResourceBinding Count");
-//
-//		OGFixedList<VkDescriptorSetLayoutBinding, 16> setLayoutBindings(count);
-//
-//		for (uint i = 0; i < count; ++i)
-//		{
-//			const OGResourceBinding& rb = bindings[i];
-//
-//			setLayoutBindings[i].binding = rb.binding;
-//			setLayoutBindings[i].descriptorType = static_cast<VkDescriptorType>(rb.type);
-//			setLayoutBindings[i].descriptorCount = rb.arrayCount == 0 ? 1 : rb.arrayCount;
-//			setLayoutBindings[i].stageFlags = static_cast<VkShaderStageFlagBits>(rb.stage);
-//			setLayoutBindings[i].pImmutableSamplers = nullptr; // 주의 꼭 nullptr 넣어야함.
-//		}
-//
-//		VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-//		descriptorLayoutCI.bindingCount = static_cast<uint32_t>(setLayoutBindings.Count());
-//		descriptorLayoutCI.pBindings = setLayoutBindings.data();
-//		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayoutCI, nullptr, &descriptorSetLayoutVK));
-//	}
-//
-//	~OgResourceLayoutVK()
-//	{
-//		vkDestroyDescriptorSetLayout(device, descriptorSetLayoutVK, nullptr);
-//	}
-//
-//	VkDevice device;
-//	VkDescriptorSetLayout descriptorSetLayoutVK;
-//};
+struct OgGraphicsPipelineVK : OgPipelineHandle
+{
+	OgGraphicsPipelineVK() = delete;
+
+	OgGraphicsPipelineVK(const OgPipelineDescriptor& descriptor)
+		: OgPipelineHandle(descriptor),
+		pipelineCache(VK_NULL_HANDLE), pipelineLayout(VK_NULL_HANDLE), pipeline(VK_NULL_HANDLE)
+	{ }
+
+	~OgGraphicsPipelineVK() { }
+
+	VkPipelineCache pipelineCache;
+	VkPipelineLayout pipelineLayout;
+	VkPipeline pipeline;
+};
+
+struct OgResourceLayoutVK : OgResourceLayoutHandle
+{
+	OgResourceLayoutVK() = delete;
+
+	OgResourceLayoutVK(VkDevice device, OgResourceBinding* bindings, uint count)
+		: OgResourceLayoutHandle(bindings, count)
+		, device(device)
+		, descriptorSetLayoutVK(VK_NULL_HANDLE)
+	{
+		OG_CHECK(bufferUsageCount + textureUsageCount == count, "Wrong ResourceBinding Count");
+
+		OgVector<VkDescriptorSetLayoutBinding> setLayoutBindings;
+		setLayoutBindings.Resize(count);
+
+		for (uint i = 0; i < count; ++i)
+		{
+			const OgResourceBinding& rb = bindings[i];
+
+			setLayoutBindings[i].binding = rb.binding;
+			setLayoutBindings[i].descriptorType = static_cast<VkDescriptorType>(rb.type);
+			setLayoutBindings[i].descriptorCount = rb.arrayCount == 0 ? 1 : rb.arrayCount;
+			setLayoutBindings[i].stageFlags = static_cast<VkShaderStageFlagBits>(rb.stage);
+			setLayoutBindings[i].pImmutableSamplers = nullptr; // 주의 꼭 nullptr 넣어야함.
+		}
+
+		VkDescriptorSetLayoutCreateInfo descriptorLayoutCI{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+		descriptorLayoutCI.bindingCount = static_cast<uint32_t>(setLayoutBindings.Size());
+		descriptorLayoutCI.pBindings = setLayoutBindings.Data();
+		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayoutCI, nullptr, &descriptorSetLayoutVK));
+	}
+
+	~OgResourceLayoutVK()
+	{
+		vkDestroyDescriptorSetLayout(device, descriptorSetLayoutVK, nullptr);
+	}
+
+	VkDevice device;
+	VkDescriptorSetLayout descriptorSetLayoutVK;
+};
 
 //struct OGResourceSetVK : OGResourceSetPlatform
 //{

@@ -2207,6 +2207,20 @@ struct OG_API OgResourceUsage
 struct OG_API OgResourceLayoutHandle : OgHandle
 {
 	OgResourceLayoutHandle();
+	OgResourceLayoutHandle(OgResourceBinding* bindings, uint8 count);
+	~OgResourceLayoutHandle();
+
+
+	OgResourceBinding* bindings;
+	uint8 bindingCount;
+
+	uint32 bufferUsageCount;
+	uint32 textureUsageCount;
+
+	uint32 bufferCount;
+	uint32 textureCount;
+
+	bool IsCompatibleLayoutWithSet(OgResourceUsage* usages, uint32 usageCount) const;
 };
 
 struct OG_API OgResourceSetHandle : OgHandle
@@ -2299,13 +2313,28 @@ struct OG_API OgPipelineDescriptor
 
 struct OG_API OgPipelineHandle : OgHandle
 {
+	OgPipelineHandle();
+	OgPipelineHandle(const OgPipelineDescriptor& descriptor);
+
+	~OgPipelineHandle();
 	OgPipelineType type;
 
 	OgRenderPassHandle* renderPass;
 
 	OgResourceLayoutHandle* resourceLayout;
 
-	OgPipelineHandle();
+	OgVertexInputDescriptor vertexInputDescriptor;
+
+	OgShaderDescriptor shaderDescriptor;
+
+	OgColorBlendDescriptor colorBlendDescriptor;
+
+	OgRasterizationDescriptor rasterizationDescriptor;
+
+	OgDepthStencilDescriptor depthStencilDescriptor;
+
+
+	
 };
 
 // TODO : change OgDrawDataEncoder
