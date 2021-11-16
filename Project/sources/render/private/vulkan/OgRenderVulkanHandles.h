@@ -416,28 +416,30 @@ struct OgResourceLayoutVK : OgResourceLayoutHandle
 	VkDescriptorSetLayout descriptorSetLayoutVK;
 };
 
-//struct OGResourceSetVK : OGResourceSetPlatform
-//{
-//	OGResourceSetVK() = delete;
-//
-//	OGResourceSetVK(OGResourceLayoutVK* layout, OGResourceUsage* usages, uint32 usageCount)
-//		: OGResourceSetPlatform(usages, usageCount)
-//		, resourceLayoutVK(layout)
-//		, descriptorSetVK(VK_NULL_HANDLE)
-//	{ }
-//
-//	~OGResourceSetVK()
-//	{
-//		resourceLayoutVK = nullptr;
-//	}
-//
-//	OGResourceLayoutVK* resourceLayoutVK;
-//
-//	VkDescriptorSet descriptorSetVK;
-//
-//	uint32 indexInPool;
-//};
-//
+struct OgResourceSetVK : public OgResourceSetHandle
+{
+	OgResourceSetVK() = delete;
+
+	OgResourceSetVK(OgResourceLayoutVK* layout, OgResourceUsage* usages, uint32 usageCount)
+		: OgResourceSetHandle(usages, usageCount)
+		, resourceLayoutVK(layout)
+		, descriptorSetVK(VK_NULL_HANDLE)
+	{ }
+
+	~OgResourceSetVK()
+	{
+		resourceLayoutVK = nullptr;
+	}
+
+	OgResourceLayoutVK* resourceLayoutVK;
+
+	VkDescriptorSet descriptorSetVK;
+
+	uint32 indexInPool;
+
+
+};
+
 //struct OGResourceSetPooOGK : OGResourceSetPool
 //{
 //	VkDevice device;
@@ -599,66 +601,66 @@ struct OgResourceLayoutVK : OgResourceLayoutHandle
 //
 //	bool _inUseFlag;
 //};
-//
-//// TODO : byte buffer에 쓰지 않고, 바로 vkCmd명령어를 쓸 수 있도록 만들기.
-//struct OGCommandEncoderVK : public OGCommandEncoderHandle
-//{
-//	OGDeviceVulkan* vulkanDevice;
-//	VkCommandPool cmdPooOGK;
-//	VkCommandBuffer cmdBufferVK;
-//
-//	OGRenderPassVK* curBindRenderPass;
-//	OgFrameBufferHandle* curBindFramebuffer;
-//	OGGraphicsPipelineVK* curBindPipeline;
-//	VkIndexType curBindIndexBufferType;
-//
-//	OGCommandEncoderVK(OGDeviceVulkan* device, VkCommandPool cmdPool);
-//
-//	~OGCommandEncoderVK();
-//
-//	void Begin() override;
-//
-//	void BeginRenderPass
-//	(
-//		const OGRenderPassHandle* renderPass,
-//		const OGFrameBufferHandle* frameBuffer,
-//		const Area area,
-//		const uint8 colorAttachClearCount,
-//		const ClearValue* colorAttachmentClear,
-//		const uint8 resoOGeAttachClearCount,
-//		const ClearValue* resoOGeAttachmentClear,
-//		const ClearValue* depthAttachmentClear
-//	) override;
-//
-//	void SetViewport
-//	(
-//		const float x, const float y,
-//		const float width, const float height,
-//		const float minDepth = 0.0f, const float maxDepth = 1.0f
-//	) override;
-//
-//	virtual void SetScissor(const int32 x, const int32 y, const uint32 width, const uint32 height) override;
-//
-//	void BindPipeline(const OGPipelineHandle* pipeline) override;
-//
-//	void BindResourceSet(const OGResourceSetHandle* rSet) override;
-//
-//	void BindVertexBuffers(const OGBufferHandle* const * vertexBuffers, const  uint32* offsets, const  uint8 bufferCount) override;
-//
-//	void BindIndexBuffer(const OGBufferHandle* indexBuffer, const OGIndexType indexType = OGIndexType::UInt16) override;
-//
-//	void DrawIndexed(const uint32 firstIndex, const uint32 indexCount, const uint32 instanceCount, const uint32 vertexOffset) override;
-//
-//	void DrawArrays(const uint32 firstVertex, const uint32 vertexCount, const uint32 instanceCount) override;
-//
-//	void EndRenderPass() override;
-//
-//	void BeginDebugMarker(const char* label, float color[4]) override;
-//
-//	void EndDebugMarker() override;
-//
-//	void End() override;
-//};
+
+// TODO : byte buffer에 쓰지 않고, 바로 vkCmd명령어를 쓸 수 있도록 만들기.
+struct OgCommandEncoderVK : public OgCommandEncoderHandle
+{
+	OgDeviceVulkan* vulkanDevice;
+	VkCommandPool cmdPoolVK;
+	VkCommandBuffer cmdBufferVK;
+
+	OgRenderPassVK* curBindRenderPass;
+	OgFrameBufferHandle* curBindFramebuffer;
+	OgGraphicsPipelineVK* curBindPipeline;
+	VkIndexType curBindIndexBufferType;
+
+	OgCommandEncoderVK(OgDeviceVulkan* device, VkCommandPool cmdPool);
+
+	~OgCommandEncoderVK();
+
+	void Begin() override;
+
+	void BeginRenderPass
+	(
+		const OgRenderPassHandle* renderPass,
+		const OgFrameBufferHandle* frameBuffer,
+		const Area area,
+		const uint8 colorAttachClearCount,
+		const ClearValue* colorAttachmentClear,
+		const uint8 resoOGeAttachClearCount,
+		const ClearValue* resoOGeAttachmentClear,
+		const ClearValue* depthAttachmentClear
+	) override;
+
+	void SetViewport
+	(
+		const float x, const float y,
+		const float width, const float height,
+		const float minDepth = 0.0f, const float maxDepth = 1.0f
+	) override;
+
+	virtual void SetScissor(const int32 x, const int32 y, const uint32 width, const uint32 height) override;
+
+	void BindPipeline(const OgPipelineHandle* pipeline) override;
+
+	void BindResourceSet(const OgResourceSetHandle* rSet) override;
+
+	void BindVertexBuffers(const OgBufferHandle* const * vertexBuffers, const  uint32* offsets, const  uint8 bufferCount) override;
+
+	void BindIndexBuffer(const OgBufferHandle* indexBuffer, const OgIndexType indexType = OgIndexType::UInt16) override;
+
+	void DrawIndexed(const uint32 firstIndex, const uint32 indexCount, const uint32 instanceCount, const uint32 vertexOffset) override;
+
+	void DrawArrays(const uint32 firstVertex, const uint32 vertexCount, const uint32 instanceCount) override;
+
+	void EndRenderPass() override;
+
+	void BeginDebugMarker(const char* label, float color[4]) override;
+
+	void EndDebugMarker() override;
+
+	void End() override;
+};
 
 OG_NAMESPACE_RENDER_END
 

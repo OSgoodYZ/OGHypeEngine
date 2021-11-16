@@ -564,7 +564,79 @@ bool OgResourceLayoutHandle::IsCompatibleLayoutWithSet(OgResourceUsage* usages, 
 	return true;
 }
 
-OgResourceSetHandle::OgResourceSetHandle() : OgHandle(OgHandleType::RESOURCE_SET) { }
+OgResourceSetHandle::OgResourceSetHandle() 
+	: OgHandle(OgHandleType::RESOURCE_SET) 
+{
+}
+
+OgResourceSetHandle::OgResourceSetHandle(OgResourceUsage* usages, uint32 usageCount)
+	: OgHandle(OgHandleType::RESOURCE_SET)
+	, resourceUsages(nullptr), 
+	resourceUsageCount(usageCount)
+{
+	// No Deep copy on LvResourceBinding on LvResourceBufferUsage
+	// Becuase LvResourceLayoutHandle does have the information.
+	if (resourceUsageCount > 0)
+	{
+		this->resourceUsages = new OgResourceUsage[resourceUsageCount];
+		memcpy(this->resourceUsages, usages, sizeof(OgResourceUsage) * resourceUsageCount);
+
+		for (uint32 i = 0; i < usageCount; ++i)
+		{
+			const OgResourceUsage& srcUsage = usages[i];
+			OgResourceUsage& destUsage = resourceUsages[i];
+
+			uint32 count = srcUsage.binding.arrayCount == 0 ? 1 : srcUsage.binding.arrayCount;
+			switch (srcUsage.binding.type)
+			{
+			case OgResourceType::UNIFORM_BUFFER:
+			{
+				destUsage.buffer.handle = (OgBufferHandle**)og_malloc((sizeof(OgBufferHandle*) + sizeof(uint32) + sizeof(uint32)) * count);
+				destUsage.buffer.offset = (uint32*)(((uint8*)destUsage.buffer.handle) + sizeof(OgBufferHandle*) * count);
+				destUsage.buffer.range = (uint32*)(((uint8*)destUsage.buffer.offset) + sizeof(uint32) * count);
+				memcpy(destUsage.buffer.handle, srcUsage.buffer.handle, sizeof(OgBufferHandle*) * count);
+				memcpy(destUsage.buffer.offset, srcUsage.buffer.offset, sizeof(uint32) * count);
+				memcpy(destUsage.buffer.range, srcUsage.buffer.range, sizeof(uint32) * count);
+				break;
+			}
+			case OgResourceType::COMBINED_IMAGE_SAMPLER:
+			{
+				destUsage.texture.handle = (OgTextureHandle**)og_malloc(sizeof(OgTextureHandle*) * count);
+				memcpy(destUsage.texture.handle, srcUsage.texture.handle, sizeof(OgTextureHandle*) * count);
+				break;
+			}
+			}
+		}
+	}
+}
+OgResourceSetHandle::~OgResourceSetHandle()
+{
+	if (this->resourceUsageCount > 0)
+	{
+		for (uint32 i = 0; i < this->resourceUsageCount; ++i)
+		{
+			OgResourceUsage& u = this->resourceUsages[i];
+
+			switch (u.binding.type)
+			{
+			case OgResourceType::UNIFORM_BUFFER:
+			{
+				og_free(u.buffer.handle);
+				break;
+			}
+			case OgResourceType::COMBINED_IMAGE_SAMPLER:
+			{
+				og_free(u.texture.handle);
+				break;
+			}
+			}
+		}
+
+		delete[] this->resourceUsages;
+		this->resourceUsages = nullptr;
+		this->resourceUsageCount = 0;
+	}
+}
 
 /// LvColorBlendDescriptor
 OgColorBlendDescriptor::OgColorBlendDescriptor() : attachmentCount(0)
@@ -641,5 +713,12 @@ OgPipelineHandle::~OgPipelineHandle()
 {
 	this->vertexInputDescriptor.Release();
 }
+
+OgCommandEncoderHandle::OgCommandEncoderHandle()
+	: OgHandle(OgHandleType::COMMAND_ENCODER)
+{
+
+}
+
 
 OG_NAMESPACE_RENDER_END

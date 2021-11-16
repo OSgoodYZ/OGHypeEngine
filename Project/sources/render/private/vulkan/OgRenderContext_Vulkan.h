@@ -141,10 +141,10 @@ private:
 	//
 	void buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
 	void releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
-	//
-	//void buildResourceSet(OgResourceSetVK* rSet);
-	//void releaseResourceSet(OgResourceSetVK* resourceSet);
-	//
+	
+	void buildResourceSet(OgResourceSetVK* rSet);
+	void releaseResourceSet(OgResourceSetVK* resourceSet);
+	
 	void buildRenderPass(OgRenderPassVK* renderPass);
 	void releaseRenderPass(OgRenderPassVK* renderPass);
 

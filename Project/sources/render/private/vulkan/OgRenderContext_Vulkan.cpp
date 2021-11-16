@@ -1615,38 +1615,230 @@ OgPipelineHandle* OgRenderContextVulkan::CreatePipeline(OgPipelineDescriptor& de
 
 void OgRenderContextVulkan::releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline)
 {
-	//TODO
+	if (pipeline->pipelineCache != NULL) vkDestroyPipelineCache(this->_logicalDeviceVK, pipeline->pipelineCache, nullptr);
+	if (pipeline->pipelineLayout != NULL) vkDestroyPipelineLayout(this->_logicalDeviceVK, pipeline->pipelineLayout, nullptr);
+	if (pipeline->pipeline != NULL) vkDestroyPipeline(this->_logicalDeviceVK, pipeline->pipeline, nullptr);
 }
 
 void OgRenderContextVulkan::DestroyPipeline(OgPipelineHandle* pipeline)
 {
-	//TODO
+	OG_CHECK(pipeline != nullptr, "OgPipelineHandle is nullptr");
+
+	OgGraphicsPipelineVK* p = static_cast<OgGraphicsPipelineVK*>(pipeline);
+
+	releaseGraphicsPipeline(p);
+
+#if defined(_DEBUG)
+	_livingObjects.Remove(p);
+#endif
+
+	delete p;
 }
 
 OgResourceLayoutHandle* OgRenderContextVulkan::CreateResourceLayout(OgResourceBinding* bindings, uint32 count)
 {
-	//TODO
-	return nullptr;
+	// VK Resource Binding : https://developer.nvidia.com/vulkan-shader-resource-binding
+	//						 https://vulkan-tutorial.com/Uniform_buffers/Descriptor_layout_and_buffer
+	// DX12 Resource Binding : https://software.intel.com/en-us/articles/introduction-to-resource-binding-in-microsoft-directx-12
+	// METAL Resource Binding : https://developer.apple.com/documentation/metal/resource_objects/about_argument_buffers
+	//							https://developer.apple.com/documentation/metal/buffers/argument_buffers_with_arrays_and_resource_heaps?language=objc
+	
+	// glsl : https://github.com/KhronosGroup/GLSL/blob/master/extensions/khr/GL_KHR_vulkan_glsl.txt
+	
+	// Descriptor 는 glsl이나 hlsl 에 선언된 변수의 설명.
+	// DescriptorLayoutBinding 선언된 구조체 변수에 자료형을 설명. (binding)
+	// WriteDescriptorSet 버퍼로 쓰여지는 리소스에 대한 정보
+	OG_CHECK(count > 0, "Wrong Binding Count");
+	
+	// LvResourceLayoutVK has mem alloc on the constructor.
+	OgResourceLayoutVK* rLayout = new OgResourceLayoutVK(_logicalDeviceVK, bindings, count);
+	
+	#if defined(_DEBUG)
+		rLayout->instanceType = "ResourceLayout";
+		_livingObjects.Add(rLayout);
+	#endif
+
+	return rLayout;
 }
 void OgRenderContextVulkan::DestroyResourceLayout(OgResourceLayoutHandle* layout)
 {
-	//TODO
+	OG_CHECK(layout != nullptr, "OgResourceLayoutHandle is nullptr");
+
+	OgResourceLayoutVK* l = static_cast<OgResourceLayoutVK*>(layout);
+
+#if defined(_DEBUG)
+	_livingObjects.Remove(l);
+#endif
+
+	delete l;
 }
+
+void OgRenderContextVulkan::buildResourceSet(OgResourceSetVK* rSet)
+{
+	OgRenderContextVulkan* renderContext = this;
+	VkDescriptorSetAllocateInfo descriptorSetAllocateInfo{ VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO };
+	descriptorSetAllocateInfo.descriptorPool = renderContext->_descriptorPool;
+	descriptorSetAllocateInfo.pSetLayouts = &rSet->resourceLayoutVK->descriptorSetLayoutVK;
+	descriptorSetAllocateInfo.descriptorSetCount = 1;
+	VK_CHECK_RESULT(vkAllocateDescriptorSets(renderContext->_logicalDeviceVK, &descriptorSetAllocateInfo, &rSet->descriptorSetVK));
+
+	OgVector<VkWriteDescriptorSet> writeDescriptorSets;
+	writeDescriptorSets.Resize(rSet->resourceLayoutVK->bufferUsageCount + rSet->resourceLayoutVK->textureUsageCount);
+	OgVector<OgVector<VkDescriptorBufferInfo>> bufferInfos;
+	bufferInfos.Resize(rSet->resourceLayoutVK->bufferUsageCount);
+	OgVector<OgVector<VkDescriptorImageInfo>> texInfos;
+	texInfos.Resize(rSet->resourceLayoutVK->textureUsageCount);
+
+	uint32 bufferIndex = 0;
+	uint32 textureIndex = 0;
+	for (uint32 i = 0; i < rSet->resourceUsageCount; ++i)
+	{
+		const OgResourceUsage& rUsage = rSet->resourceUsages[i];
+
+		uint32 count = rUsage.binding.arrayCount == 0 ? 1 : rUsage.binding.arrayCount;
+
+		switch (rUsage.binding.type)
+		{
+		case OgResourceType::UNIFORM_BUFFER:
+		{
+			OgVector<VkDescriptorBufferInfo>& bufferInfoArray = bufferInfos[bufferIndex];
+
+			bufferInfoArray.Resize(count);
+			for (uint16 infoArrayIndex = 0; infoArrayIndex < count; ++infoArrayIndex)
+			{
+				OgBufferVK* ref = reinterpret_cast<OgBufferVK*>(rUsage.buffer.handle[infoArrayIndex]);
+				bufferInfoArray[infoArrayIndex].buffer = ref->bufferVK;
+				bufferInfoArray[infoArrayIndex].offset = rUsage.buffer.offset[infoArrayIndex] + ref->innerOffset;
+				bufferInfoArray[infoArrayIndex].range = rUsage.buffer.range[infoArrayIndex];
+			}
+
+			writeDescriptorSets[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			VkWriteDescriptorSet& writeDescriptorSet = writeDescriptorSets[i];
+			writeDescriptorSet.pNext = nullptr;
+			writeDescriptorSet.dstSet = rSet->descriptorSetVK;
+			writeDescriptorSet.dstBinding = rUsage.binding.binding;
+			writeDescriptorSet.dstArrayElement = 0;
+			writeDescriptorSet.descriptorCount = count;
+			writeDescriptorSet.descriptorType = static_cast<VkDescriptorType>(rUsage.binding.type);
+			writeDescriptorSet.pImageInfo = nullptr;
+			writeDescriptorSet.pBufferInfo = bufferInfoArray.Data();
+			writeDescriptorSet.pTexelBufferView = nullptr;
+
+			++bufferIndex;
+			break;
+		}
+		case OgResourceType::COMBINED_IMAGE_SAMPLER:
+		{
+			OgVector<VkDescriptorImageInfo>& imageInfoArray = texInfos[textureIndex];
+			imageInfoArray.Resize(count);
+			for (uint16 infoArrayIndex = 0; infoArrayIndex < count; ++infoArrayIndex)
+			{
+				const OgTextureVK* textureVK = reinterpret_cast<OgTextureVK*>(rUsage.texture.handle[infoArrayIndex]);
+
+				if (textureVK != nullptr && textureVK->sampler != nullptr)
+				{
+					imageInfoArray[infoArrayIndex].sampler = reinterpret_cast<OgSamplerVK*>(textureVK->sampler)->samplerVK;
+				}
+				else
+				{
+					imageInfoArray[infoArrayIndex].sampler = NULL;
+				}
+				imageInfoArray[infoArrayIndex].imageView = textureVK->view;
+				imageInfoArray[infoArrayIndex].imageLayout = textureVK->imageLayout;
+			}
+
+
+			// Shader uses descriptor slot 0.1 slot set = 0, binding = 1
+			writeDescriptorSets[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			VkWriteDescriptorSet& writeDescriptorSet = writeDescriptorSets[i];
+			writeDescriptorSet.pNext = nullptr;
+			writeDescriptorSet.dstSet = rSet->descriptorSetVK;
+			writeDescriptorSet.dstBinding = rUsage.binding.binding;
+			writeDescriptorSet.dstArrayElement = 0;
+			writeDescriptorSet.descriptorCount = count;
+			writeDescriptorSet.descriptorType = static_cast<VkDescriptorType>(rUsage.binding.type);
+			writeDescriptorSet.pImageInfo = imageInfoArray.Data();
+			writeDescriptorSet.pBufferInfo = nullptr;
+			writeDescriptorSet.pTexelBufferView = nullptr;
+
+			++textureIndex;
+			break;
+		}
+		default:
+		{
+			LOGE(OG_ID, "Not Supported Yet");
+			break;
+		}
+		}
+	}
+
+	vkUpdateDescriptorSets(renderContext->_logicalDeviceVK, static_cast<uint32_t>(writeDescriptorSets.Size()), writeDescriptorSets.Data(), 0, NULL);
+}
+
 
 OgResourceSetHandle* OgRenderContextVulkan::CreateResourceSet(OgResourceLayoutHandle* resourceLayout, OgResourceUsage* usages, uint32 usageCount)
 {
-	//TODO
-	return nullptr;
+	OgResourceLayoutVK* rLayout = reinterpret_cast<OgResourceLayoutVK*>(resourceLayout);
+	OG_CHECK(rLayout->IsCompatibleLayoutWithSet(usages, usageCount), "Wrong Usages for Resource Layout");
+
+	if (rLayout->bufferCount + _usedUniformBufferFromPool > _maxUniformBufferFromPool ||
+		rLayout->textureCount + _usedTextureFromPool > _maxTextureFromPool ||
+		_usedSetFromPool >= _maxSetFromPool)
+	{
+		// 이 경우엔 현재 Manual하게 max개수를 늘려줘야 함
+		ASSERT(VK_FALSE);
+		return nullptr;
+
+	}
+
+	OgResourceSetVK* rSet = new OgResourceSetVK(rLayout, usages, usageCount);
+
+	buildResourceSet(rSet);
+
+	// Pool Count Update
+	_usedUniformBufferFromPool += rLayout->bufferCount;
+	_usedTextureFromPool += rLayout->textureCount;
+	_usedSetFromPool += 1;
+
+#if defined(_DEBUG)
+	rSet->instanceType = "ResourceSet";
+	_livingObjects.Add(rSet);
+#endif
+
+	return rSet;
 }
+
+void OgRenderContextVulkan::releaseResourceSet(OgResourceSetVK* resourceSet)
+{
+	vkFreeDescriptorSets(this->_logicalDeviceVK, this->_descriptorPool, 1, &(resourceSet->descriptorSetVK));
+}
+
+
 void OgRenderContextVulkan::DestroyResourceSet(OgResourceSetHandle* resourceSet)
 {
-	//TODO
+	OG_CHECK(resourceSet != nullptr, "OgResourceSetHandle is nullptr");
+	OgResourceSetVK* r = static_cast<OgResourceSetVK*>(resourceSet);
+	OG_CHECK(r->resourceLayoutVK != nullptr, "LvResourceLayout is nullptr");
+
+	// Pool Count Update
+	_usedUniformBufferFromPool -= r->resourceLayoutVK->bufferCount;
+	_usedTextureFromPool -= r->resourceLayoutVK->textureCount;
+	_usedSetFromPool -= 1;
+
+	releaseResourceSet(r);
+
+#if defined(_DEBUG)
+	_livingObjects.Remove(r);
+#endif
+
+	delete r;
 }
+
 
 OgCommandEncoderHandle* OgRenderContextVulkan::CreateCommandEncoder()
 {
-	//TODO
-	return nullptr;
+	OgCommandEncoderVK* r = new OgCommandEncoderVK(_vulkanDevice, _cmdPoolVK);
+	return r;
 }
 void OgRenderContextVulkan::DestroyCommandEncoder(OgCommandEncoderHandle* encoder)
 {

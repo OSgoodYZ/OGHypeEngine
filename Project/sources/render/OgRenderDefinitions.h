@@ -2226,6 +2226,12 @@ struct OG_API OgResourceLayoutHandle : OgHandle
 struct OG_API OgResourceSetHandle : OgHandle
 {
 	OgResourceSetHandle();
+	OgResourceSetHandle(OgResourceUsage* usages, uint32 usageCount);
+	virtual  ~OgResourceSetHandle();
+
+
+	OgResourceUsage* resourceUsages;
+	uint32 resourceUsageCount;
 };
 
 
@@ -2337,7 +2343,6 @@ struct OG_API OgPipelineHandle : OgHandle
 	
 };
 
-// TODO : change OgDrawDataEncoder
 struct OG_API OgCommandEncoderHandle : OgHandle
 {
 	OgCommandEncoderHandle();
@@ -2435,6 +2440,27 @@ struct OG_API OgBufferPendingDelete
 	static bool AdvanceFrame();
 	static void FlushPendingDeleteForFreeBuffer(bool bImmediatly);
 };
+
+inline const char* og_get_command_type_string(OgCommandType e)
+{
+	switch (e)
+	{
+	case OgCommandType::END:						return "END";
+	case OgCommandType::BEGIN:						return "BEGIN";
+	case OgCommandType::BIND_PIPELINE:              return "BIND_PIPELINE";
+	case OgCommandType::SET_VIEWPORT:               return "SET_VIEWPORT";
+	case OgCommandType::SET_SCISSOR:                return "SET_SCISSOR";
+	case OgCommandType::BEGIN_RENDERPASS:           return "BEGIN_RENDERPASS";
+	case OgCommandType::END_RENDERPASS:             return "END_RENDERPASS";
+	case OgCommandType::BIND_VERTEX_BUFFERS:        return "BIND_VERTEX_BUFFERS";
+	case OgCommandType::BIND_INDEX_BUFFER:          return "BIND_INDEX_BUFFER";
+	case OgCommandType::DRAW_INDEXED:               return "DRAW_INDEXED";
+	case OgCommandType::DRAW_ARRAYS:                return "DRAW_ARRAYS";
+	case OgCommandType::BIND_RESOURCESET:			return "BIND_RESOURCESET";
+	}
+
+	return "Invaild Enum";
+}
 
 	
 OG_NAMESPACE_RENDER_END

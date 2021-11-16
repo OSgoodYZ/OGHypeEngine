@@ -15,6 +15,17 @@ template< typename T, class A = std::allocator< T >>
 class OgVector
 {
 public:
+	OgVector() = default;
+	OgVector(const OgVector& rhs)
+	{
+		_data = rhs._data;
+	}
+	OgVector(OgVector&& rhs)
+	{
+		_data = rhs._data;
+	}
+
+	
 	~OgVector() = default;
 
 	void Add(const T& value)
@@ -69,14 +80,14 @@ public:
 
 	OG_FORCEINLINE OgVector& operator=(OgVector&& rhs)
 	{
-		this->_data = rhs->_data;
+		_data = rhs._data;
 
 		return *this;
 	}
 
 	OG_FORCEINLINE OgVector& operator=(const OgVector& rhs)
 	{
-		this->_data = rhs->_data;
+		_data = rhs._data;
 
 		return *this;
 	}
