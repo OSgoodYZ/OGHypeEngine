@@ -56,7 +56,7 @@ public:
 		_data.pop_back();
 	}
 
-	size_t Size()
+	size_t Size() const
 	{
 		return _data.size();
 	}
@@ -69,6 +69,16 @@ public:
 	void Reserve(size_t size)
 	{
 		_data.reserve(size);
+	}
+
+	void Clear()
+	{
+		_data.clear();
+	}
+
+	void Shrink()
+	{
+		_data.shrink_to_fit();
 	}
 
 	T* Data()

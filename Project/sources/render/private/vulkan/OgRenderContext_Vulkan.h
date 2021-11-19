@@ -114,12 +114,6 @@ public:
 
 	void Shutdown(void) override;
 
-	bool HasFeature(OgRenderFeature feature) override;
-
-	OgResourceSetPool* CreateResourceSetPool(uint32 maxUniformBufferFromPool, uint32 maxTextureFromPool, uint32 maxSetFromPool) override;
-
-	void DestroyResourceSetPool(OgResourceSetPool* resourceSetPool) override;
-
 private:
 
 	void initInstance();

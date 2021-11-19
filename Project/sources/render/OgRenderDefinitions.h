@@ -6,13 +6,13 @@
 #include "OgPrecompile.h"
 
 #include <iostream> 
-#include <vector>
 #include <queue>
-#include <list>
+
 #include "glm/glm.hpp"
 
-
+#include "system/OgVector.h"
 using namespace std;
+using namespace Og::System;
 
 /*#include "OgRenderContext.h" */namespace Og { namespace Render { class OgRenderContext; } }
 
@@ -1488,11 +1488,6 @@ enum class OgBufferUsage : uint8
 	VERTEX = 0x00000080,
 };
 
-enum class OgRenderFeature : uint8
-{
-
-};
-
 enum class OgMemoryLayout : uint8
 {
 	STD140,
@@ -1562,8 +1557,7 @@ public:
 	{
 		return _type;
 	}
-
-	// Only 
+	
 	static void FlushPendingDeletes(class OgRenderContext* rc, bool forceDeferredDeleteFlush);
 	static bool AdvanceFrame();	// next frame overflow
 
@@ -1578,10 +1572,11 @@ private:
 
 	struct ResourceToDelete
 	{
-		list<OgHandle*> handles;
+		OgVector<OgHandle*> handles;
 		uint32 frameDelete;
 	};
-	static list<ResourceToDelete> _deferredDeleteArray;
+	static OgVector<ResourceToDelete> _deferredDeleteArray;
+
 };
 
 struct OG_API OgBufferHandle : public OgHandle
@@ -1687,7 +1682,7 @@ struct OG_API OgShaderVariable
 struct OG_API OgBufferLayout
 {
 	OgMemoryLayout				memoryLayout = OgMemoryLayout::STD140;
-	list<OgShaderVariable>	variables;
+	OgVector<OgShaderVariable>	variables;
 
 	OgBufferLayout() {}
 
@@ -1723,7 +1718,7 @@ struct OG_API OgBufferLayout
 		return *this;
 	}
 
-	int GetSizeInBytes(OgRenderPlatform platform, const list<list<OgShaderVariable>>* structDefineArrays = nullptr, bool metalStd140Layout = false) const;
+	int GetSizeInBytes(OgRenderPlatform platform, const OgVector<OgVector<OgShaderVariable>>* structDefineArrays = nullptr, bool metalStd140Layout = false) const;
 };
 
 struct OG_API OgUniformWriter

@@ -1842,18 +1842,58 @@ OgCommandEncoderHandle* OgRenderContextVulkan::CreateCommandEncoder()
 }
 void OgRenderContextVulkan::DestroyCommandEncoder(OgCommandEncoderHandle* encoder)
 {
-	//TODO
+	if (encoder == nullptr) LOGE(OG_ID, "LvCommandEncoderHandle is null");
+
+	OgCommandEncoderVK* e = static_cast<OgCommandEncoderVK*>(encoder);
+
+	delete e;
 }
 
 void* OgRenderContextVulkan::MapBuffer(OgBufferHandle* buffer, size_t size, size_t offset)
 {
-	//TODO
+	OG_CHECK(buffer->option == OgMemoryOption::MAP_MANAGED, "Wrong Buffer Memory Option");
+
+	OG_CHECK(buffer->size >= size + offset, "Wrong Buffer Size and Offset");
+
+	OgBufferVK* bf = reinterpret_cast<OgBufferVK*>(buffer);
+	OG_CHECK(bf->isMapBufferCalled == false, "MapBuffer is Already Called for this buffer");
+
+	if (bf->isMapBufferCalled == false)
+	{
+		bf->mappedSize = (uint32)size;
+		bf->mappedOffset = (uint32)offset;
+		bf->isMapBufferCalled = true;
+
+		void* bufferPtr = (uint8*)(bf->mapped) + offset;
+		return bufferPtr;
+	}
+
 	return nullptr;
 }
 
 bool OgRenderContextVulkan::UnmapBuffer(OgBufferHandle* buffer)
 {
-	//TODO
+	// We will not disconnect buffer memorypointer.
+	// Because we only need to connect buffer pointer in vulkan. 
+	// So we connect buffer pointer in `CreateBuffer`.
+	// And we will disconnect buffer pointer in 'DestroyBuffer'.
+	OG_CHECK(buffer->option == OgMemoryOption::MAP_MANAGED, "Wrong Buffer Memory Option");
+
+	OgBufferVK* bf = reinterpret_cast<OgBufferVK*>(buffer);
+	OG_CHECK(bf->isMapBufferCalled == true, "MapBuffer is not called for this buffer");
+
+	if (bf->isMapBufferCalled == true)
+	{
+		if (bf->isAutoCoherent == false)
+			bf->Flush(); //TODO reconsider bf->mappedSize, bf->mappedOffset
+
+		bf->mappedSize = 0;
+		bf->mappedOffset = 0;
+		bf->isMapBufferCalled = false;
+
+		return true;
+	}
+
 	return false;
 }
 
@@ -1869,70 +1909,253 @@ void OgRenderContextVulkan::BlitFramebuffer(uint srcX0, uint srcY0, uint srcX1, 
 
 VkCommandBuffer OgRenderContextVulkan::CreateCommandBuffer(VkCommandBufferLevel level, bool begin)
 {
-	//TODO
-	VkCommandBuffer temp;
-	return temp;
+	VkCommandBuffer cmdBuffer;
+
+	VkCommandBufferAllocateInfo cmdBufAllocateInfo{};
+	cmdBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cmdBufAllocateInfo.commandPool = _cmdPoolVK;
+	cmdBufAllocateInfo.level = level;
+	cmdBufAllocateInfo.commandBufferCount = 1;
+
+	VK_CHECK_RESULT(vkAllocateCommandBuffers(_logicalDeviceVK, &cmdBufAllocateInfo, &cmdBuffer));
+
+	// If requested, also start the new command buffer
+	if (begin)
+	{
+		VkCommandBufferBeginInfo cmdBufferBeginInfo{};
+		cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		VK_CHECK_RESULT(vkBeginCommandBuffer(cmdBuffer, &cmdBufferBeginInfo));
+	}
+
+	return cmdBuffer;
 
 }
 
 void OgRenderContextVulkan::FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
 {
-	//TODO
+	if (commandBuffer == VK_NULL_HANDLE)
+	{
+		return;
+	}
+
+	VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+
+	VkSubmitInfo submit = {};
+	submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit.commandBufferCount = 1;
+	submit.pCommandBuffers = &commandBuffer;
+
+	VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submit, VK_NULL_HANDLE));
+	VK_CHECK_RESULT(vkQueueWaitIdle(queue));
+
+	if (free)
+	{
+		vkFreeCommandBuffers(_logicalDeviceVK, _cmdPoolVK, 1, &commandBuffer);
+	}
 }
 
 OgPixelFormat OgRenderContextVulkan::GetDefaultDepthFormat()
 {
-	//TODO
-	OgPixelFormat temp;
-	return temp;
+	VkFormat fbDepthFormat;
+	vkGetSupportedDepthFormat(_gpuDeviceVK, &fbDepthFormat);
+
+	return static_cast<OgPixelFormat>(fbDepthFormat);
 }
 
 void OgRenderContextVulkan::Submit(OgSwapChain* swapchain, OgCommandEncoderHandle* encoder)
 {
-	//TODO
+	uint32 swapchainHash = System::PointerHash(swapchain);
+	
+	OG_CHECK(_swapChainTables.find(swapchainHash) != _swapChainTables.end(), "There is no SwapchainWrapper matching LvSwapChain.");
+
+	SwapchainWrapper& sw = *(_swapChainTables[swapchainHash]);
+
+	sw.encoderQueue.push(encoder);
 }
 void OgRenderContextVulkan::Present(OgSwapChain* swapchain)
 {
-	//TODO
+	/* TODO : Research for synchronization
+	*
+	* Needs more accurate synchrnoization strategy
+	* 1. About Staging Command Buffer
+	*	We can submit staging command buffer to the transfer queue.
+	*	In that case, we need synchronization primitive between transfer queue (data transfer) and graphics queue (draw command),
+	*	to complete the data transfer before draw command.
+	*
+	* 2. About Multi Window Draw Calls
+	*	Lv1Engine Editor fills the scene rendering command into only one window (for example, main editor window).
+	*	So In this case, if there is other window (not main editor window) to take the texture from main editor window command,
+	*	and the draw command from other window is called earlier that main editor window, the draw order would be wrong.
+	*	In addition, Even If we submit command buffers into the queue sequentially, if the driver hanldes it simultaneously,
+	*	then we need synchronization in this case.
+	*	I wonder whether it's guaranteed that the sequential vkQueueSubmit will be executed and then ended sequentially or not.
+	*/
+
+
+	/*
+	* Head Window 부터 항상 렌더링한다.
+	*/
+	//SwapchainWrapper** swLink = &_rootSwapchainWrapper;
+	//while (*swLink != nullptr)
+	{
+		//SwapchainWrapper& sw = *(*swLink);
+		uint32 hashKey = System::PointerHash(swapchain);
+		SwapchainWrapper& sw = *_swapChainTables[hashKey];
+
+		OgVector<VkSubmitInfo> submits;
+		submits.Reserve(32);
+
+		while (!sw.encoderQueue.empty())
+		{
+			OgCommandEncoderVK* encoder = reinterpret_cast<OgCommandEncoderVK*>(sw.encoderQueue.back());
+			sw.encoderQueue.pop();
+
+			// The submit info structure specifices a command buffer queue submission batch
+			VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+			VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+			submitInfo.pWaitDstStageMask = &waitStageMask;										// Pointer to the list of pipeline stages that the semaphore waits will occur at
+			submitInfo.pWaitSemaphores = &sw.syncObject.imageReadys[sw.syncObject.submissionIndex];		// Semaphore(s) to wait upon before the submitted command buffer starts executing
+			submitInfo.waitSemaphoreCount = 1;													// One wait semaphore																				
+			submitInfo.pSignalSemaphores = &sw.syncObject.renderDones[sw.syncObject.swapchainIndex];		// Semaphore(s) to be signaled when command buffers have completed
+			submitInfo.signalSemaphoreCount = 1;												// One signal semaphore
+			submitInfo.pCommandBuffers = &encoder->cmdBufferVK;								// Command buffers(s) to execute in this batch (submission)
+			submitInfo.commandBufferCount = 1;													// One command buffer
+			submits.Add(submitInfo);
+		}
+
+		if (submits.Size() > 0)
+		{
+			VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueueVK, static_cast<uint32_t>(submits.Size()), submits.Data(), sw.syncObject.fences[sw.syncObject.submissionIndex]));
+
+			VkResult err = sw.swapchainVK.QueuePresent(sw.presentQueueVK, sw.syncObject.swapchainIndex, sw.syncObject.renderDones[sw.syncObject.swapchainIndex]);
+			if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
+			{
+				sw.syncObject.submissionIndex = SUBMISSION_INDEX_NONE;
+
+				while (!sw.encoderQueue.empty())
+				{
+					sw.encoderQueue.pop();
+				}
+			}
+			else if (err != VK_SUCCESS)
+			{
+				LOGE(OG_ID, "failed to present swap chain iamge");
+			}
+		}
+	}
 }
 void OgRenderContextVulkan::Suspend(OgSwapChain* swapchain) 
 {
-	//TODO
+	OG_CHECK(swapchain != nullptr, "LvSwapChain is nullptr");
+
+	uint32 swapchainHash = System::PointerHash(swapchain);
+	OG_CHECK(_swapChainTables.find(swapchainHash) != _swapChainTables.end(), "This LvSwapChain is not used");
+
+	vkDeviceWaitIdle(_logicalDeviceVK);
+
+	vkQueueWaitIdle(_graphicsQueueVK);
+
+	vkResetCommandPool(_logicalDeviceVK, _cmdPoolVK, 0);
+
+	SwapchainWrapper& sw = *(_swapChainTables[swapchainHash]);
+
+	// clear
+	while (!sw.encoderQueue.empty())
+	{
+		sw.encoderQueue.pop();
+	}
+
+	destroySwapChainSyncObject(sw);
+	destroySwapChainFramebuffers(sw);
 }
 void OgRenderContextVulkan::Restore(OgSwapChain* swapchain) 
 {
-	//TODO
+
+	OG_CHECK(swapchain != nullptr, "LvSwapChain is nullptr");
+
+	uint32 swapchainHash = System::PointerHash(swapchain);
+	OG_CHECK(_swapChainTables.find(swapchainHash) != _swapChainTables.end(), "This LvSwapChain is not used");
+
+	vkDeviceWaitIdle(_logicalDeviceVK);
+
+	vkQueueWaitIdle(_graphicsQueueVK);
+
+	VkCommandBufferBeginInfo cmdBufferBeginInfo{};
+	cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+	SwapchainWrapper& sw = *(_swapChainTables[swapchainHash]);
+
+	// TODO : Android의 경우, Home Button을 누르면, Surface까지 파괴되는 것이기 때문에,
+	// destroySwapChainFramebuffers에 해당 전처리기를 넣어서 처리했는데
+	// 이것을 정확히 플랫폼별로 어떻게 동작하는지 알고나서 적용해야 한다.
+#if defined(__ANDROID__)
+	prepareSwapChain(sw);
+#endif
+	initSwapChain(sw);
+	initSwapChainSyncObject(sw);
 }
 void OgRenderContextVulkan::WaitDeviceIdle()
 {
-	//TODO
+	vkDeviceWaitIdle(_logicalDeviceVK);
 }
 void OgRenderContextVulkan::Collect()
 {
-	//TODO
+	if (Render::OgHandle::AdvanceFrame() == true)
+	{
+		// frame count overflow. flush all pending deletes
+		Render::OgHandle::FlushPendingDeletes(this, true);
+	}
+	else
+	{
+		Render::OgHandle::FlushPendingDeletes(this, false);
+	}
 }
 void OgRenderContextVulkan::Shutdown(void) 
 {
-	//TODO
-}
-bool OgRenderContextVulkan::HasFeature(OgRenderFeature feature)
-{
-	//TODO
-	return false;
-}
+	vkDeviceWaitIdle(_logicalDeviceVK);
 
+	OgHandle::FlushPendingDeletes(this, true);
+	
+	for (std::unordered_map<uint32, SwapchainWrapper*>::iterator iter = _swapChainTables.begin(); iter != _swapChainTables.end();)
+	{
+		SwapchainWrapper& sw = *(iter->second);
+		destroySwapChainSyncObject(sw);
+		destroySwapChainFramebuffers(sw);
 
-OgResourceSetPool* OgRenderContextVulkan::CreateResourceSetPool(uint32 maxUniformBufferFromPool, uint32 maxTextureFromPool, uint32 maxSetFromPool)
-{
-	//TODO
-	return nullptr;
+		// clear
+		while (!sw.encoderQueue.empty())
+		{
+			sw.encoderQueue.pop();
+		}
+
+		sw.swapchainVK.Cleanup();
+
+		_swapChainTables.erase(iter);
+	}
+
+	_rootSwapchainWrapper = nullptr;
+
+	if (_descriptorPool != VK_NULL_HANDLE)
+		vkDestroyDescriptorPool(_logicalDeviceVK, _descriptorPool, VK_NULL_HANDLE);
+
+	if (_cmdPoolVK != NULL)
+		vkDestroyCommandPool(_logicalDeviceVK, _cmdPoolVK, VK_NULL_HANDLE);
+
+	if (s_enableValidationLayers)
+	{
+#if !defined(NDEBUG)
+		if (_instance != VK_NULL_HANDLE)
+			destroy_debug_reeport_callback(_instance, _reportCallbackHandle, VK_NULL_HANDLE);
+#endif
+	}
+
+	if (_vulkanDevice != nullptr)
+		delete _vulkanDevice;
+
+	if (_instance != VK_NULL_HANDLE)
+		vkDestroyInstance(_instance, VK_NULL_HANDLE);
 }
-
-void OgRenderContextVulkan::DestroyResourceSetPool(OgResourceSetPool* resourceSetPool)
-{
-	//TODO
-}
-
 
 OG_NAMESPACE_RENDER_END
 

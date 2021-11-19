@@ -4,10 +4,54 @@
 #include "system/OgHashCode.h"
 
 #include "render/OgRenderDefinitions.h"
+#include "render/OgRenderContext.h"
 
 OG_NAMESPACE_RENDER_BEGIN
 
 std::queue<OgHandle*> OgHandle::_pendingDeleteQueue;
+
+static OG_FORCEINLINE void delete_handle(OgRenderContext* rc, OgHandle* handle)
+{
+	switch (handle->GetType())
+	{
+	case OgHandleType::BUFFER:
+		rc->DestroyBuffer((OgBufferHandle*)handle);
+		break;
+	case OgHandleType::SAMPLER:
+		rc->DestroySampler((OgSamplerHandle*)handle);
+		break;
+	case OgHandleType::TEXTURE:
+		rc->DestroyTexture((OgTextureHandle*)handle);
+		break;
+	case OgHandleType::SHADER:
+		rc->DestroyShader((OgShaderHandle*)handle);
+		break;
+	case OgHandleType::PROGRAM:
+		rc->DestroyProgram((OgProgramHandle*)handle);
+		break;
+	case OgHandleType::FRAMEBUFFER:
+		rc->DestroyFrameBuffer((OgFrameBufferHandle*)handle);
+		break;
+	case OgHandleType::RENDERPASS:
+		rc->DestroyRenderPass((OgRenderPassHandle*)handle);
+		break;
+	case OgHandleType::RESOURCE_LAYOUT:
+		rc->DestroyResourceLayout((OgResourceLayoutHandle*)handle);
+		break;
+	case OgHandleType::RESOURCE_SET:
+		rc->DestroyResourceSet((OgResourceSetHandle*)handle);
+		break;
+	case OgHandleType::PIPELINE:
+		rc->DestroyPipeline((OgPipelineHandle*)handle);
+		break;
+	case OgHandleType::COMMAND_ENCODER:
+		rc->DestroyCommandEncoder((OgCommandEncoderHandle*)handle);
+		break;
+	default:
+		LOGE(LV_ID, "Wrong Type");
+		break;
+	}
+}
 
 OgHandle::OgHandle(OgHandleType type)
 	: name(nullptr)
@@ -59,6 +103,472 @@ void OgBufferHandle::End()
 void OgBufferHandle::Reset()
 {
 	LOGE(OG_ID, "It couldn't start");
+}
+
+void OgHandle::FlushPendingDeletes(class OgRenderContext* rc, bool forceDeferredDeleteFlush)
+{
+	auto deleteFunc = [&](OgHandle* handle)
+	{
+		if (handle->GetRefCount() == 0)
+		{
+			delete_handle(rc, handle);
+		}
+	};
+
+	size_t pendingDeleteCount = _pendingDeleteQueue.size();
+	if (pendingDeleteCount > 0)
+	{
+		ResourceToDelete rtd;
+		rtd.frameDelete = _currentFrame;
+		rtd.handles.Resize(pendingDeleteCount);
+		for (size_t i = 0; i < pendingDeleteCount; ++i)
+		{
+			rtd.handles[i] = _pendingDeleteQueue.back();
+			_pendingDeleteQueue.pop();
+		}
+		_deferredDeleteArray.Add(rtd);
+	}
+
+	constexpr uint32 handleExpirePeriod = 3u;
+
+	if (size_t deferredArrayCount = _deferredDeleteArray.Size())
+	{
+		if (forceDeferredDeleteFlush == true)
+		{
+			rc->WaitDeviceIdle();
+
+			for (size_t i = 0; i < deferredArrayCount; ++i)
+			{
+				ResourceToDelete& rtd = _deferredDeleteArray[i];
+
+				for (size_t j = 0, handleMax = rtd.handles.Size(); j < handleMax; ++j)
+				{
+					deleteFunc(rtd.handles[j]);
+				}
+			}
+
+			_deferredDeleteArray.Clear();
+		}
+		else
+		{
+			size_t deletedRtd = 0;
+			for (size_t i = 0; i < deferredArrayCount; ++i)
+			{
+				ResourceToDelete& rtd = _deferredDeleteArray[i];
+
+				if (rtd.frameDelete + handleExpirePeriod < _currentFrame)
+				{
+					++deletedRtd;
+					for (size_t j = 0, handleMax = rtd.handles.Size(); j < handleMax; ++j)
+					{
+						deleteFunc(rtd.handles[j]);
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+	}
+}
+
+bool OgHandle::AdvanceFrame()
+{
+	uint32 nextFrame = _currentFrame + 1;
+
+	// overflow
+	if (nextFrame < _currentFrame)
+	{
+		_currentFrame = 0;
+		return true;
+	}
+	else
+	{
+		_currentFrame = nextFrame;
+		return false;
+	}
+}
+
+static void do_std_140_align(const OgShaderVariable var, int32& outTotal, const OgVector<OgVector<OgShaderVariable>>* structDefineArray)
+{
+	/* https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_uniform_buffer_object.txt
+	* 1. If the member is a scalar consuming N basic machine units, the base alignment is N. (bool, float, int, uint is 4 basic machin units)
+	* 2. If the member is a two- or four-component vector with components consuming N basic machine units,
+	*	 the base alignment is 2N or 4N, respectively.
+	* 3. If the member is a three-component vector with components consuming N basic machine units,
+	*	 the base alignment is 4N.
+	* 4. If the member is an array of scalars or vectors, the base alignment and array
+	*	 stride are set to match the base alignment of a single array element, according
+	*	 to rules (1), (2), and (3), and rounded up to the base alignment of a vec4. The
+	*	 array may have padding at the end; the base offset of the member following
+	*	 the array is rounded up to the next multiple of the base alignment
+	* 5. If the member is a column-major matrix with C columns and R rows, the
+	*	 matrix is stored identically to an array of C column vectors with R components each,
+	*	 according to rule (4)
+	* 6. If the member is an array of S column-major matrices with C columns and
+	*	 R rows, the matrix is stored identically to a row of S x C column vectors
+	*	 with R components each, according to reule (4).
+	* 7. If the member is a row-major matrix with C columns and R rows, the matrix
+	*	 is stored identically to an array of R row vectors with C components each,
+	*	 according to rule (4).
+	* 8. If the member is an array of S row-major matrices with C columns and R
+	*	 rows, the matrix is stored identically to a row of S X R row vectors with C
+	*	 components each, according to rule(4).
+	* 9. If the member is a structure, the base alignment of the structure is N, where
+	*	 N is the largest base alignment value of any of its members, and rounded
+	*	 up to the base alignment of a vec4. The individual members of this sub-
+	*	 structure are then assigned offsets by applying this set of rules recursively,
+	*	 where the base offset of the first member of the sub-structure is equal to the
+	*	 aligned offset of the structure. The structure may have padding at the end;
+	*	 The base offset of the member following the sub-structure is rounded up to
+	*	 the next multiple of the base alignment of the structure.
+	* 10. If the member is an array of S structures, the S elements of the array are laid
+	*	  out in order, according to rule(9).
+	*
+	*/
+	switch (var.type)
+	{
+	case OgShaderValueType::Bool:
+	case OgShaderValueType::Float1:
+	case OgShaderValueType::Int1:
+	case OgShaderValueType::Uint1:
+	{
+		constexpr int32 baseAlign = 4;
+		constexpr int32 baseMask = baseAlign - 1;
+		constexpr int32 arrayBaseAlign = 16;
+		constexpr int32 arrayBaseMask = arrayBaseAlign - 1;
+		constexpr int32 size = 4;
+
+		if (var.arrayCount >= 1)
+		{
+			// round for each array elements
+			for (uint32 i = 0; i < var.arrayCount; ++i)
+			{
+				outTotal = ((outTotal + arrayBaseMask) & (~arrayBaseMask)) + size;
+			}
+
+			// padding at the end
+			outTotal = ((outTotal + arrayBaseMask) & (~arrayBaseMask));
+		}
+		else
+		{
+			outTotal = ((outTotal + baseMask) & (~baseMask)) + size;
+		}
+		break;
+	}
+	case OgShaderValueType::Vec2:
+	{
+		constexpr int32 baseAlign = 8;
+		constexpr int32 baseMask = baseAlign - 1;
+		constexpr int32 arrayBaseAlign = 16;
+		constexpr int32 arrayBaseMask = arrayBaseAlign - 1;
+		constexpr int32 size = 8;
+
+		if (var.arrayCount >= 1)
+		{
+			for (uint32 i = 0; i < var.arrayCount; ++i)
+			{
+				outTotal = ((outTotal + arrayBaseMask) & (~arrayBaseMask)) + size;
+			}
+
+			// padding at the end
+			outTotal = ((outTotal + arrayBaseMask) & (~arrayBaseMask));
+		}
+		else
+		{
+			outTotal = ((outTotal + baseMask) & (~baseMask)) + size;
+		}
+
+		break;
+	}
+	case OgShaderValueType::Vec3:
+	{
+		constexpr int32 align = 16;
+		constexpr int32 mask = align - 1;
+		constexpr int32 size = 12;
+
+		if (var.arrayCount >= 1)
+		{
+			for (uint32 i = 0; i < var.arrayCount; ++i)
+			{
+				outTotal = ((outTotal + mask) & (~mask)) + size;
+			}
+
+			// padding at the end
+			outTotal = ((outTotal + mask) & (~mask));
+		}
+		else
+		{
+			outTotal = ((outTotal + mask) & (~mask)) + size;
+		}
+
+
+		break;
+	}
+	case OgShaderValueType::Vec4:
+	{
+		constexpr int32 align = 16;
+		constexpr int32 mask = align - 1;
+		constexpr int32 size = 16;
+
+		if (var.arrayCount >= 1)
+		{
+			for (uint32 i = 0; i < var.arrayCount; ++i)
+			{
+				outTotal = ((outTotal + mask) & (~mask)) + size;
+			}
+
+			// padding at the end
+			outTotal = ((outTotal + mask) & (~mask));
+		}
+		else
+		{
+			outTotal = ((outTotal + mask) & (~mask)) + size;
+		}
+
+		break;
+	}
+	case OgShaderValueType::Mat2:
+	{
+		constexpr int32 align = 16;
+		constexpr int32 mask = align - 1;
+		constexpr int32 vectorSize = 8;
+
+		if (var.arrayCount >= 1)
+		{
+			// rule 6 -> rule 4
+			for (uint32 i = 0; i < var.arrayCount; ++i)
+			{
+				for (uint32 j = 0; j < 2; ++j)
+				{
+					outTotal = ((outTotal + mask) & (~mask)) + vectorSize;
+				}
+
+				// padding at the end by rule 4
+				outTotal = ((outTotal + mask) & (~mask));
+			}
+		}
+		else
+		{
+			// rule 5 -> rule 4
+			for (uint32 j = 0; j < 2; ++j)
+			{
+				outTotal = ((outTotal + mask) & (~mask)) + vectorSize;
+			}
+
+			// padding at the end by rule 4
+			outTotal = ((outTotal + mask) & (~mask));
+		}
+
+		break;
+	}
+	case OgShaderValueType::Mat3:
+	{
+		constexpr int32 align = 16;
+		constexpr int32 mask = align - 1;
+		constexpr int32 vectorSize = 12;
+
+		if (var.arrayCount >= 1)
+		{
+			for (uint32 i = 0; i < var.arrayCount; ++i)
+			{
+				for (uint32 j = 0; j < 3; ++j)
+				{
+					outTotal = ((outTotal + mask) & (~mask)) + vectorSize;
+				}
+
+				outTotal = ((outTotal + mask) & (~mask));
+			}
+		}
+		else
+		{
+			for (uint32 j = 0; j < 3; ++j)
+			{
+				outTotal = ((outTotal + mask) & (~mask)) + vectorSize;
+			}
+
+			outTotal = ((outTotal + mask) & (~mask));
+		}
+
+		break;
+	}
+	case OgShaderValueType::Mat4:
+	{
+		constexpr int32 align = 16;
+		constexpr int32 mask = align - 1;
+		constexpr int32 vectorSize = 16;
+
+		if (var.arrayCount >= 1)
+		{
+			for (uint32 i = 0; i < var.arrayCount; ++i)
+			{
+				for (uint32 j = 0; j < 4; ++j)
+				{
+					outTotal = ((outTotal + mask) & (~mask)) + vectorSize;
+				}
+
+				outTotal = ((outTotal + mask) & (~mask));
+			}
+		}
+		else
+		{
+			for (uint32 j = 0; j < 4; ++j)
+			{
+				outTotal = ((outTotal + mask) & (~mask)) + vectorSize;
+			}
+
+			outTotal = ((outTotal + mask) & (~mask));
+		}
+
+		break;
+	}
+	case OgShaderValueType::Struct:
+	{
+		constexpr int32 align = 16;
+		constexpr int32 mask = align - 1;
+		OG_CHECK(structDefineArray != nullptr, "No Input Struct Define Array");
+		OG_CHECK(var.structTypeDefineIndex >= 0 && var.structTypeDefineIndex < (*structDefineArray).Size(), "Wrong Struct Type Define Index");
+
+		const OgVector<OgShaderVariable>& typeDefines = (*structDefineArray)[var.structTypeDefineIndex];
+
+		if (var.arrayCount >= 1)
+		{
+			for (uint32 i = 0; i < var.arrayCount; ++i)
+			{
+				// align begin
+				outTotal = ((outTotal + mask) & (~mask));
+
+				for (size_t i = 0; i < typeDefines.Size(); ++i)
+				{
+					do_std_140_align(typeDefines[i], outTotal, structDefineArray);
+				}
+
+				// pad end
+				outTotal = ((outTotal + mask) & (~mask));
+			}
+		}
+		else
+		{
+			// align begin
+			outTotal = ((outTotal + mask) & (~mask));
+
+			for (size_t i = 0; i < typeDefines.Size(); ++i)
+			{
+				do_std_140_align(typeDefines[i], outTotal, structDefineArray);
+			}
+
+			// pad end
+			outTotal = ((outTotal + mask) & (~mask));
+		}
+
+		break;
+	}
+	default:
+	{
+		LOGE(OG_ID, "Not Yet Implemeneted");
+		break;
+	}
+	}
+}
+
+/// OgBufferLayout
+// https://learnopengl.com/Advanced-OpenGL/Advanced-GLSL
+int OgBufferLayout::GetSizeInBytes(OgRenderPlatform platform, const OgVector<OgVector<OgShaderVariable>>* structDefineArrays, bool metalStd140Layout) const
+{
+	int32 total = 0;
+	size_t variableCount = (size_t)variables.Size();
+
+	if (platform == OgRenderPlatform::GLES3 || platform == OgRenderPlatform::VULKAN)
+	{
+		for (size_t variableIndex = 0; variableIndex < variableCount; ++variableIndex)
+		{
+			const OgShaderVariable var = variables[variableIndex];
+			int32 elemCount = var.arrayCount == 0 ? 1 : var.arrayCount;
+			if (memoryLayout == OgMemoryLayout::STD140)
+			{
+				do_std_140_align(var, total, structDefineArrays);
+			}
+			else
+			{
+				switch (var.type)
+				{
+				case OgShaderValueType::Bool:
+					total += 1 * elemCount;
+					break;
+				case OgShaderValueType::Float1:
+				case OgShaderValueType::Int1:
+				case OgShaderValueType::Uint1:
+					total += 4 * elemCount;
+					break;
+				case OgShaderValueType::Vec2:
+					total += 8 * elemCount;
+					break;
+				case OgShaderValueType::Vec3:
+					total += 12 * elemCount;
+					break;
+				case OgShaderValueType::Vec4:
+					total += 16 * elemCount;
+					break;
+				case OgShaderValueType::Mat3:
+					total += 36 * elemCount;
+					break;
+				case OgShaderValueType::Mat4:
+					total += 64 * elemCount;
+					break;
+				default:
+					LOGE(OG_ID, "Not Yet Implemeneted");
+					break;
+				}
+				break;
+			}
+		}
+	}
+	else if (platform == OgRenderPlatform::METAL)
+	{
+		// TODO
+	}
+	else if (platform == OgRenderPlatform::GLES2)
+	{
+		
+		for (uint32 variableIndex = 0; variableIndex < variableCount; ++variableIndex)
+		{
+			const OgShaderVariable var = variables[variableIndex];
+			int32 elemCount = var.arrayCount == 0 ? 1 : var.arrayCount;
+
+			switch (var.type)
+			{
+			case OgShaderValueType::Bool:
+				total += 1 * elemCount;
+				break;
+			case OgShaderValueType::Float1:
+			case OgShaderValueType::Int1:
+			case OgShaderValueType::Uint1:
+				total += 4 * elemCount;
+				break;
+			case OgShaderValueType::Vec2:
+				total += 8 * elemCount;
+				break;
+			case OgShaderValueType::Vec3:
+				total += 12 * elemCount;
+				break;
+			case OgShaderValueType::Vec4:
+				total += 16 * elemCount;
+				break;
+			case OgShaderValueType::Mat3:
+				total += 36 * elemCount;
+				break;
+			case OgShaderValueType::Mat4:
+				total += 64 * elemCount;
+				break;
+			default:
+				LOGE(OG_ID, "Not Yet Implemeneted");
+				break;
+			}
+		}
+	}
+
+	return total;
 }
 
 

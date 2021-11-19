@@ -460,10 +460,6 @@ public:
 	*/
 	virtual void Restore(OgSwapChain* swapchain) = 0;
 
-
-	// OgRender 3.0 Spec.
-	virtual bool HasFeature(OgRenderFeature feature) = 0;
-
 	/**
 	* @fn void WaitDeviceIdle()
 	* @brief GPU에서 돌아가는 명령(command)들이 다 끝날 때까지 대기하도록 합니다.
@@ -486,10 +482,6 @@ public:
 	* @brief GPU Resource 를 소거합니다.
 	*/
 	virtual void Collect() = 0;
-
-	virtual OgResourceSetPool* CreateResourceSetPool(uint32 maxSetFromPool, uint32 maxUniformBufferFromPool, uint32 maxTextureFromPool) = 0;
-
-	virtual void DestroyResourceSetPool(OgResourceSetPool* resourceSetPool) = 0;
 
 private:
 	
