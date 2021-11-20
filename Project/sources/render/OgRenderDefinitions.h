@@ -11,7 +11,7 @@
 #include "glm/glm.hpp"
 
 #include "system/OgVector.h"
-using namespace std;
+
 using namespace Og::System;
 
 /*#include "OgRenderContext.h" */namespace Og { namespace Render { class OgRenderContext; } }
@@ -1567,7 +1567,7 @@ private:
 	uint32 _refCount;
 
 private:
-	static queue<OgHandle*> _pendingDeleteQueue;
+	static std::queue<OgHandle*> _pendingDeleteQueue;
 	static uint32 _currentFrame;
 
 	struct ResourceToDelete
@@ -1733,12 +1733,10 @@ struct OG_API OgUniformWriter
 
 	uint8 valueIndex;				// 1 bytes
 
-	bool metalStd140Layout;
-
 	OgUniformWriter() = delete;
 
 	OgUniformWriter(OgRenderPlatform platform, OgBufferHandle& buffer, const OgBufferLayout& layout,
-		const list<list<OgShaderVariable>>* structDefineArray = nullptr, bool useMetalStd140Layout = false);
+		const OgVector<OgVector<OgShaderVariable>>* structDefineArray = nullptr);
 
 	void Start();
 
@@ -1792,7 +1790,7 @@ struct OG_API OgUniformWriter
 
 	// array count can be 0 or more than 1
 	// return type is the calculated unpadded struct size for recursive function
-	size_t WriteStruct(void* unpaddedStrcutData, uint32 structIndex, const list<list<OgShaderVariable>>& structDefineArrays, uint32 arrayCount, bool isStructMember = false);
+	size_t WriteStruct(void* unpaddedStrcutData, uint32 structIndex, const OgVector<OgVector<OgShaderVariable>>& structDefineArrays, uint32 arrayCount, bool isStructMember = false);
 };
 
 struct OG_API OgSamplerInfo
@@ -2004,7 +2002,7 @@ struct OG_API OgFrameBufferInfo
 
 	OgRenderPassHandle* renderPass;
 
-	vector<OgTextureHandle*> colorBuffers;
+	OgVector<OgTextureHandle*> colorBuffers;
 
 	OgTextureHandle* resoOgeColorBuffer = nullptr;
 

@@ -729,7 +729,7 @@ void OgRenderContextVulkan::initSwapChain(SwapchainWrapper& sw)
 		framebuffers[i]->name = "Swapchain_framebuffer";
 
 		OgTextureVK* tex = new OgTextureVK(sw.swapchainVK.buffers[i].image, sw.swapchainVK.buffers[i].view);
-		framebuffers[i]->framebufferInfo.colorBuffers.push_back(tex);
+		framebuffers[i]->framebufferInfo.colorBuffers.Add(tex);
 	}
 
 	sw.frameBufferObject.frameBuffers = (OgFrameBufferHandle**)framebuffers;
@@ -838,7 +838,7 @@ void OgRenderContextVulkan::destroySwapChainFramebuffers(SwapchainWrapper& sw)
 		{
 			OgDefaultFrameBufferVK* fb = fbs[i];
 
-			for (size_t i = 0; i < fb->framebufferInfo.colorBuffers.size(); ++i)
+			for (size_t i = 0; i < fb->framebufferInfo.colorBuffers.Size(); ++i)
 			{
 				delete fb->framebufferInfo.colorBuffers[i];
 			}
