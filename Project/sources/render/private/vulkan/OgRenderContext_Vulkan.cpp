@@ -2081,7 +2081,91 @@ bool OgRenderContextVulkan::UnmapBuffer(OgBufferHandle* buffer)
 
 void OgRenderContextVulkan::UpdateBuffer(OgBufferHandle* buffer, size_t offset, void* data, size_t size, bool useBarrier)
 {
-	//TODO
+	OG_CHECK(data != nullptr, " Data is null, but data should not be nullptr for UpdateBuffer function !");
+	OG_CHECK(buffer != nullptr, " Buffer is null, but this buffer is already destroyed !");
+	OG_CHECK(size != 0, " Updating data size should be greater than 0!");
+
+	OgBufferVK* targetRealBufferHandle = static_cast<OgBufferVK*>(buffer);
+	OG_CHECK(targetRealBufferHandle->size >= size, " Data size is bigger than buffer size so we can't update data!");
+
+	uint32 targetInnerOffset = targetRealBufferHandle->innerOffset;
+	OgBufferUsage usage = targetRealBufferHandle->usage;
+
+	if (buffer->option == OgMemoryOption::MAP_MANAGED)
+	{
+		OG_CHECK(useBarrier == false, "Map Managed Buffer can't utilize the pipeline barrier");
+
+		void* bufferPtr = (uint8*)(targetRealBufferHandle->mapped);
+		memcpy(bufferPtr, data, size);
+		targetRealBufferHandle->Flush();
+	}
+	else if (buffer->option == OgMemoryOption::PRIVATE_GPU)
+	{
+		if (data != nullptr)
+		{
+			OgBufferVK* ref = nullptr;
+			ref = new OgBufferVK(*_vulkanDevice, size, usage, OgMemoryOption::MAP_MANAGED);
+			ref->Build
+			(
+				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+				size,
+				data
+			);
+
+			VkCommandBuffer copyCmd = _stagingCommandBuffer[_stagingSubmitIndex];
+			VkBufferCopy copyRegion = {};
+			copyRegion.size = size;
+			copyRegion.srcOffset = 0;
+			copyRegion.dstOffset = 0;
+
+			vkCmdCopyBuffer(
+				copyCmd,
+				ref->bufferVK,
+				targetRealBufferHandle->bufferVK,
+				1,
+				&copyRegion);
+
+			constexpr VkAccessFlags srcAccess = VK_ACCESS_TRANSFER_WRITE_BIT;
+			VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+			VkAccessFlags dstAccess = VK_ACCESS_MEMORY_READ_BIT;
+
+			switch (usage)
+			{
+			case OgBufferUsage::UNIFORM:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT; // | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+				dstAccess = VK_ACCESS_UNIFORM_READ_BIT;
+				break;
+			}
+			case OgBufferUsage::INDEX:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+				dstAccess = VK_ACCESS_INDEX_READ_BIT;
+				break;
+			}
+			case OgBufferUsage::VERTEX:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+				dstAccess = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+				break;
+			}
+			}
+
+			CommandpipelineBarrierForBufferUpdate(
+				copyCmd,
+				targetRealBufferHandle->bufferVK,
+				0,
+				size,
+				VK_PIPELINE_STAGE_TRANSFER_BIT,
+				dstStageMask,
+				srcAccess,
+				dstAccess
+			);
+
+			ref->Destroy();
+		}
+	}
 }
 
 void OgRenderContextVulkan::BlitFramebuffer(uint srcX0, uint srcY0, uint srcX1, uint srcY1, OgFrameBufferHandle* srcBuffer, uint dstX0, uint dstY0, uint dstX1, uint dstY1, OgFrameBufferHandle* dstBuffer)
