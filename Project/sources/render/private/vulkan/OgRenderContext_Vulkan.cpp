@@ -489,6 +489,49 @@ void OgRenderContextVulkan::initDescriptorPool()
 	VK_CHECK_RESULT(vkCreateDescriptorPool(_logicalDeviceVK, &descriptorPoolInfo, nullptr, &_descriptorPool));
 }
 
+void OgRenderContextVulkan::initStagingCommandBuffer()
+{
+	VkCommandBufferAllocateInfo cmdBufAllocateInfo{};
+	cmdBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	cmdBufAllocateInfo.commandPool = _cmdPoolVK;
+	cmdBufAllocateInfo.level = VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	cmdBufAllocateInfo.commandBufferCount = 3;
+
+	VK_CHECK_RESULT(vkAllocateCommandBuffers(_logicalDeviceVK, &cmdBufAllocateInfo, _stagingCommandBuffer));
+
+	VkCommandBufferBeginInfo cmdBufferBeginInfo{};
+	cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	vkBeginCommandBuffer(_stagingCommandBuffer[0], &cmdBufferBeginInfo);
+	_stagingSubmitIndex = 0;
+}
+
+void OgRenderContextVulkan::submitStagingCommandBuffer()
+{
+	VkCommandBuffer curStagingCmdBuffer = _stagingCommandBuffer[_stagingSubmitIndex];
+	vkEndCommandBuffer(curStagingCmdBuffer);
+
+	VkSubmitInfo stagingSubmitInfo{};
+	stagingSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	stagingSubmitInfo.commandBufferCount = 1;
+	stagingSubmitInfo.pCommandBuffers = &curStagingCmdBuffer;
+	VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueueVK, 1, &stagingSubmitInfo, VK_NULL_HANDLE));
+
+	// advance staging submit index and begin command
+	_stagingSubmitIndex = (_stagingSubmitIndex + 1) % 3;
+
+	// BeginCommandBuffer will reset the next command buffer to be encoded
+	VkCommandBufferBeginInfo cmdBufferBeginInfo{};
+	cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	VK_CHECK_RESULT(vkResetCommandBuffer(_stagingCommandBuffer[_stagingSubmitIndex], 0));
+	VK_CHECK_RESULT(vkBeginCommandBuffer(_stagingCommandBuffer[_stagingSubmitIndex], &cmdBufferBeginInfo));
+}
+
+void OgRenderContextVulkan::freeStagingCommandBuffers()
+{
+	vkFreeCommandBuffers(_logicalDeviceVK, _cmdPoolVK, 3, _stagingCommandBuffer);
+}
+
+
 void OgRenderContextVulkan::prepareSwapChain(SwapchainWrapper& sw)
 {
  
@@ -790,6 +833,7 @@ void OgRenderContextVulkan::initSwapChainSyncObject(SwapchainWrapper& sw)
 void OgRenderContextVulkan::Init(void)
 {
 	initCommandPool();
+	initStagingCommandBuffer();
 	initDescriptorPool();
 	
 	// Swapchain Wrapper Class setting
@@ -1023,12 +1067,150 @@ uint32 OgRenderContextVulkan::GetCurrentImageIndex(OgSwapChain* swapchain)
 
 OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option )
 {
-	//TODO
-	return nullptr;
+	OgBufferVK* r = nullptr;
+	VkBufferUsageFlagBits vkUsage = static_cast<VkBufferUsageFlagBits>(usage);
+
+	if (usage == OgBufferUsage::UNIFORM)
+		r = new OgUniformBufferVK(*_vulkanDevice, (uint32)size, usage, option);
+	else
+		r = new OgBufferVK(*_vulkanDevice, (uint32)size, usage, option);
+
+	// PropertyFlag 설명.
+
+	// VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT 
+	// 호스트에서 액세스 가능한 가상 메모리 어드레스 노출을 vkMapMemory 를 사용해서 할 수 있다.
+
+	// VK_MEMORY_PROPERTY_HOST_CACHED_BIT
+	// 캐시된 메모리를 사용할지 결정한다. 이 타입은 호스트에서 액세스 할 때나 읽어올 때 빠르다.
+	// 하지만, 캐시되지 않은 메모리는 일관성이 유지된다.
+
+	// VK_MEMORY_PROPERTY_HOST_COHERENT_BIT 
+	// 캐시 관리 커맨드 (vkFlushMappedMemoryRanges, vkInvalidateMappedMemoryRanges) 가 필요 없이
+	// 자동으로 일관성이 보장된다.
+
+	switch (option)
+	{
+		// Cached, incoherent
+		// Read Faster
+		// https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/memory_mapping.html
+	case OgMemoryOption::MAP_MANAGED:
+	{
+		r->Build(vkUsage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+			VK_MEMORY_PROPERTY_HOST_CACHED_BIT, size, data);
+		break;
+	}
+	case OgMemoryOption::PRIVATE_GPU:
+	{
+		// Create device local buffers
+		VK_CHECK_RESULT(_vulkanDevice->CreateBuffer(
+			vkUsage | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			size,
+			&r->bufferVK,
+			&r->memoryVK));
+
+		// Get a temporary staging buffer
+		
+		if (data != nullptr)
+		{
+			OgBufferVK* ref = nullptr;
+			ref = new OgBufferVK(*_vulkanDevice, size, usage, OgMemoryOption::MAP_MANAGED);
+			ref->Build
+			(
+				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+				size,
+				data
+			);
+
+			VkCommandBuffer copyCmd = _stagingCommandBuffer[_stagingSubmitIndex];
+			VkBufferCopy copyRegion = {};
+			copyRegion.size = size;
+			copyRegion.srcOffset = 0;
+			copyRegion.dstOffset = 0; //r->innerOffset
+
+			vkCmdCopyBuffer(
+				copyCmd,
+				ref->bufferVK,
+				r->bufferVK,
+				1,
+				&copyRegion);
+
+			constexpr VkAccessFlags srcAccess = VK_ACCESS_TRANSFER_WRITE_BIT;
+			VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+			VkAccessFlags dstAccess = VK_ACCESS_MEMORY_READ_BIT;
+
+			switch (usage)
+			{
+			case OgBufferUsage::UNIFORM:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT; // | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+				dstAccess = VK_ACCESS_UNIFORM_READ_BIT;
+				break;
+			}
+			case OgBufferUsage::INDEX:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+				dstAccess = VK_ACCESS_INDEX_READ_BIT;
+				break;
+			}
+			case OgBufferUsage::VERTEX:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+				dstAccess = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+				break;
+			}
+			}
+
+			CommandpipelineBarrierForBufferUpdate(
+				copyCmd,
+				r->bufferVK,
+				0,
+				size,
+				VK_PIPELINE_STAGE_TRANSFER_BIT,
+				dstStageMask,
+				srcAccess,
+				dstAccess
+			);
+
+			ref->Destroy();
+		}
+		break;
+
+	}
+	// https://www.khronos.org/opengl/wiki/Buffer_Object#Persistent_mapping
+	}
+
+#if defined(_DEBUG)
+	r->instanceType = "Buffer";
+	_livingObjects.Add(r);
+#endif
+	return r;
 }
+
 void OgRenderContextVulkan::DestroyBuffer(OgBufferHandle* buffer)
 {
-	//TODO
+	if (buffer == nullptr) LOGE(OG_ID, "LvBuffer is nullptr");
+
+	OgBufferVK* b = static_cast<OgBufferVK*>(buffer);
+
+	b->Unmap();
+
+#if defined(_DEBUG)
+	_livingObjects.Remove(b);
+#endif
+
+	if (b->usage == OgBufferUsage::UNIFORM)
+	{
+		OgUniformBufferVK* ref = static_cast<OgUniformBufferVK*>(b);
+		ref->Destroy();
+		delete ref;
+	}
+	else
+	{
+		b->Destroy();
+		delete b;
+	}
 }
 
 OgShaderHandle* OgRenderContextVulkan::CreateShader(OgShaderType flag, const char* text, uint32 codeSize, const char* funcName )
@@ -1992,6 +2174,15 @@ void OgRenderContextVulkan::Present(OgSwapChain* swapchain)
 	*/
 
 
+	// Submit the staging command buffer
+	{
+		if (_acquireOnceForPresent)
+		{
+			submitStagingCommandBuffer();
+			_acquireOnceForPresent = false;
+		}
+	}
+
 	/*
 	* Head Window 부터 항상 렌더링한다.
 	*/
@@ -2117,6 +2308,8 @@ void OgRenderContextVulkan::Shutdown(void)
 
 	OgHandle::FlushPendingDeletes(this, true);
 	
+	freeStagingCommandBuffers();
+
 	for (std::unordered_map<uint32, SwapchainWrapper*>::iterator iter = _swapChainTables.begin(); iter != _swapChainTables.end();)
 	{
 		SwapchainWrapper& sw = *(iter->second);

@@ -48,6 +48,8 @@ struct OgBufferVK : OgBufferHandle
 		option = memOption;
 	}
 
+
+	// 지금 이런식으로 memory와 buffer가 같이 운용되고 있는 것은 문제가 있음.
 	VkResult Build(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void* data = nullptr)
 	{
 		VkBufferCreateInfo bufferCreateInfo{};
@@ -58,7 +60,7 @@ struct OgBufferVK : OgBufferHandle
 
 		this->memoryPropertyFlags = memoryPropertyFlags;
 
-		//VK_CHECK_RESULT(vkCreateBuffer(vulkanDevice.logicalDevice, &bufferCreateInfo, nullptr, &bufferVK));
+		VK_CHECK_RESULT(vkCreateBuffer(vulkanDevice.logicalDevice, &bufferCreateInfo, nullptr, &bufferVK));
 
 		VkMemoryRequirements memReqs;
 		VkMemoryAllocateInfo memAlloc{};
@@ -69,7 +71,7 @@ struct OgBufferVK : OgBufferHandle
 		// Find a memory type index that fits the properties of the buffer
 
 		memAlloc.memoryTypeIndex = vulkanDevice.GetMemoryType(memReqs.memoryTypeBits, memoryPropertyFlags);
-		//VK_CHECK_RESULT(vkAllocateMemory(vulkanDevice.logicalDevice, &memAlloc, nullptr, &memoryVK));
+		VK_CHECK_RESULT(vkAllocateMemory(vulkanDevice.logicalDevice, &memAlloc, nullptr, &memoryVK));
 
 		VkMemoryType type = vulkanDevice.memoryProperties.memoryTypes[memAlloc.memoryTypeIndex];
 
@@ -85,7 +87,7 @@ struct OgBufferVK : OgBufferHandle
 		}
 
 		// createbuffer -> get the mapped pointer.
-		//VK_CHECK_RESULT(Map());
+		VK_CHECK_RESULT(Map());
 
 		if (data != nullptr)
 		{

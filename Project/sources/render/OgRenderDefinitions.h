@@ -1590,8 +1590,6 @@ struct OG_API OgBufferHandle : public OgHandle
 
 	OgMemoryOption option;
 
-	//uint32 offset;
-
 	virtual void Start(uint32 position = 0);
 
 	virtual void Align(uint32 alignment);

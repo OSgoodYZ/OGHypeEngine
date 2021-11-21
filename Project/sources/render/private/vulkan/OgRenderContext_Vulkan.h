@@ -123,6 +123,9 @@ private:
 	void initCommandPool();
 	void initDescriptorPool();
 	
+	void initStagingCommandBuffer();
+	void submitStagingCommandBuffer();
+	void freeCommandBuffers();
 	// TODO list
 
 	//OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
@@ -229,6 +232,10 @@ private:
 	// Key: PointerHash(OgSwapChain*)
 	std::unordered_map<uint32, SwapchainWrapper*> _swapChainTables;
 	SwapchainWrapper* _rootSwapchainWrapper;
+
+	// Staging Command Buffer
+	VkCommandBuffer _stagingCommandBuffer[3];
+	uint32 _stagingSubmitIndex;
 
 #if defined(_DEBUG)
 	System::OgVector<OgHandle*> _livingObjects;
