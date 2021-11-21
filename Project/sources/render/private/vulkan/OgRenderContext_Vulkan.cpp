@@ -1127,7 +1127,7 @@ OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgB
 			VkBufferCopy copyRegion = {};
 			copyRegion.size = size;
 			copyRegion.srcOffset = 0;
-			copyRegion.dstOffset = 0; //r->innerOffset
+			copyRegion.dstOffset = 0; 
 
 			vkCmdCopyBuffer(
 				copyCmd,

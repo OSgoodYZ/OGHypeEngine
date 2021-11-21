@@ -125,7 +125,7 @@ private:
 	
 	void initStagingCommandBuffer();
 	void submitStagingCommandBuffer();
-	void freeCommandBuffers();
+	void freeStagingCommandBuffers();
 	// TODO list
 
 	//OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
