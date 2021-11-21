@@ -1065,7 +1065,7 @@ uint32 OgRenderContextVulkan::GetCurrentImageIndex(OgSwapChain* swapchain)
 	return sw.syncObject.swapchainIndex;
 }
 
-OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option )
+OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option)
 {
 	OgBufferVK* r = nullptr;
 	VkBufferUsageFlagBits vkUsage = static_cast<VkBufferUsageFlagBits>(usage);
@@ -1267,11 +1267,428 @@ void OgRenderContextVulkan::DestroyProgram(OgProgramHandle* handle)
 
 void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 {
-	//TODO
+	OgTextureInfo& info = texture->info;
+	const bool isGPULocal = (info.usage & OgTextureUsage::GPU_LOCAL) != 0;
+	const bool useStaging = (info.usage & OgTextureUsage::STAGING) != 0;
+	if (useStaging && texture->data == nullptr)
+	{
+		LOGE(OG_ID, "Don't Use Texture Staging without Data");
+	}
+
+	// Tiling Description : https://lifeisforu.tistory.com/410
+	// Vulkan 24bit format is not supported : https://www.reddit.com/r/vulkan/comments/4w0w8o/why_doesnt_vulkan_support_24bit_image_formats/
+	VkFormatProperties formatProps;
+	vkGetPhysicalDeviceFormatProperties(_gpuDeviceVK, texture->vkFormat, &formatProps);
+	VkImageTiling tiling = VkImageTiling::VK_IMAGE_TILING_MAX_ENUM;
+	VkFormatFeatureFlags tilingFeature;
+
+	if ((formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0)
+	{
+		tiling = VkImageTiling::VK_IMAGE_TILING_LINEAR;
+		tilingFeature = formatProps.linearTilingFeatures;
+	}
+
+	if ((formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) != 0)
+	{
+		tiling = VkImageTiling::VK_IMAGE_TILING_OPTIMAL;
+		tilingFeature = formatProps.optimalTilingFeatures;
+	}
+	else
+	{
+		LOGE(OG_ID, "Fatal : Optimal Texture Tiling not Supported");
+	}
+
+	if (tiling == VK_IMAGE_TILING_MAX_ENUM)
+	{
+		LOGE(OG_ID, "LvPixelFormat = %i is not supported", info.format);
+	}
+
+	// mipmap generation시 vkCmdBlitImage 조건 체크
+	OG_CHECK
+	(
+		(info.isGenerateMipmaps == true && texture->data != nullptr)
+		?
+		// mipmap 생성시에, vkCmdBlitImage 되는지 체크
+		(
+		((tilingFeature & VK_FORMAT_FEATURE_BLIT_SRC_BIT) != 0) &&
+			((tilingFeature & VK_FORMAT_FEATURE_BLIT_DST_BIT) != 0) &&
+
+			// filter가 linear라면 그걸 지원하는지 체크
+			(texture->sampler->info.mipmapMode == OgSamplerMipmapMode::LINEAR ?
+			((tilingFeature & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT) != 0)
+				: true	// texture->sampler->info.mipmapMode == LvSamplerMipmapMode::LINEAR
+				)
+			)
+		:
+		true, // (info.generateMipmaps == true && texture->data != nullptr)
+		"Hardware does not support Blitting on this format"
+	);
+
+	// Create Image
+	VkImageCreateInfo imageInfo{ VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+	imageInfo.imageType = static_cast<VkImageType>(info.type);
+	imageInfo.format = texture->vkFormat;
+	imageInfo.mipLevels = info.mipLevels;
+	imageInfo.arrayLayers = info.arrayLayers;
+	imageInfo.samples = static_cast<VkSampleCountFlagBits>(info.samples);
+	imageInfo.tiling = tiling;
+	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	imageInfo.extent = { info.extent.width, info.extent.height, info.extent.depth };
+	imageInfo.usage = GetVkImageUsageFlags(info.usage);
+
+	// Staging option
+	if (useStaging) imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+	// Mipmap option
+	if (info.isGenerateMipmaps)
+	{
+		info.mipLevels = (uint32)floorf(log2f(OG_MAX(info.extent.width, OG_MAX(info.extent.height, info.extent.depth)))) + 1;
+		imageInfo.mipLevels = info.mipLevels;
+		imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	}
+
+	// 한 COMPATIBLE_BIT에 대한 문서 참조.
+	switch (info.viewType)
+	{
+	case OgTextureViewType::TEX_CUBE:
+	{
+		imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+		break;
+	}
+	default:
+		break;
+	}
+
+	VK_CHECK_RESULT(vkCreateImage(_logicalDeviceVK, &imageInfo, nullptr, &texture->image));
+	VkMemoryAllocateInfo memAllocInfo{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO };
+	VkMemoryRequirements memReqs = {};
+	vkGetImageMemoryRequirements(_logicalDeviceVK, texture->image, &memReqs);
+	memAllocInfo.allocationSize = memReqs.size;
+	memAllocInfo.memoryTypeIndex = _vulkanDevice->GetMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VK_CHECK_RESULT(vkAllocateMemory(_logicalDeviceVK, &memAllocInfo, nullptr, &texture->memory));
+	VK_CHECK_RESULT(vkBindImageMemory(_logicalDeviceVK, texture->image, texture->memory, 0));
+
+	// Create image view를 하기 위한 옵션 체크
+
+	// aspectMask 결정
+	VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	bool isDepthorStencil = false;
+	bool isDepthOnly = false;
+	bool isStencilOnly = false;
+	bool isDepthStencilOnly = false;
+	if (OgFormatSupplement::IsDepthFormat(texture->info.format))
+	{
+		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		isDepthorStencil = true;
+		isDepthOnly = true;
+	}
+	else if (OgFormatSupplement::IsStencilFormat(texture->info.format))
+	{
+		aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+		isDepthorStencil = true;
+		isStencilOnly = true;
+	}
+	else if (OgFormatSupplement::IsDepthStencilFormat(texture->info.format))
+	{
+		aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+		isDepthorStencil = true;
+		isDepthStencilOnly = true;
+	}
+	OG_CHECK(info.viewType == OgTextureViewType::TEX_CUBE ? !(isDepthStencilOnly || isDepthOnly || isStencilOnly || isDepthStencilOnly) : true, "%s",
+		"Can't use Tex Cube as depth stencil format");
+
+	/*
+		enum class LvTextureUsage : uint32_t
+		{
+			GPU_LOCAL
+			STAGING
+			SAMPLED
+			STORAGE -> TODO : research 해야함
+			COLOR_ATTACHMENT
+			DEPTH_ATTACHMENT
+			STENCIL_ATTACHMENT
+			DEPTH_STENCIL_ATTACHMENT
+			TRANSIENT_ATTACHMENT
+		};
+
+		SAMPLED -> Vulkan Read가 붙어야함
+		DEPTH/STENCIL/DEPTH_STNECIl Attachment | SAMPLED-> DEPTH READ / STENCIL READ / DEPTH_STENCIL READ
+
+		Layout 확인 순서 (아래로 내려갈수록 더 많은 범위에 쓰일 수 있음)
+		0. GPU LOCAL -> LAYOUT_UNDEFINED
+		1. Attachment 전용 -> Attachment 전용 Layout
+		2. Sample 전용 -> Attachment + Sample 가능 Layout
+		3. Staging -> Staging buffer를 통해, UNDEFINED -> TRANSFER_DST -> (1 또는 2에서 결정된 Layout)
+	*/
+	texture->imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;	// GPU_LOCAL
+	bool isAttachment = IsAttachmentUsage(info.usage);
+	OG_CHECK(info.viewType == OgTextureViewType::TEX_CUBE ? !isAttachment : true, "%s", "Can't use Tex Cube as an attachment");
+	OG_CHECK(info.viewType == OgTextureViewType::TEX_2D_ARRAY ? !isAttachment : true, "%s", "Can't use Tex Array as an attachment");
+	if (isAttachment == true)
+	{
+		if ((info.usage & OgTextureUsage::COLOR_ATTACHMENT) != 0) texture->imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		if (isDepthorStencil) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	}
+
+	if ((info.usage & OgTextureUsage::SAMPLED) != 0) //SAMPLED
+	{
+		// Sampling한다면 attachment/shader read 둘 다로 쓰일 수 있는 layout으로
+		texture->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		// TODO !!! : Spec에 맞추어 sample할 때의 최적의 image layout 고치기
+
+		// depth/stencil 처리
+		if (isDepthOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		else if (isStencilOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		else if (isDepthStencilOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+	}
+
+
+	VkImageViewCreateInfo view{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
+	view.viewType = static_cast<VkImageViewType>(info.viewType);
+	view.format = texture->vkFormat;
+	view.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
+	view.subresourceRange.aspectMask = aspectMask;
+	view.subresourceRange.baseMipLevel = 0;
+	view.subresourceRange.levelCount = (useStaging || info.isGenerateMipmaps) ? info.mipLevels : 1;
+	view.subresourceRange.baseArrayLayer = 0;
+	view.subresourceRange.layerCount = info.arrayLayers;
+	view.image = texture->image;
+	VK_CHECK_RESULT(vkCreateImageView(_logicalDeviceVK, &view, nullptr, &texture->view));
+
+	// GPULocal이 아니라면, 다른 곳에서 Sampling 될 수 있다는 것이기에, image layout을 미리 변환해준다.
+	// Sampling하려면, shader read할 수 있는 layout이여야 하기 때문이다.
+	// GPULocal이라면, RenderPass에서 Undefined -> any Layout으로 바꾸기 때문에 크게 상관없다.
+	// GPULocal의 예는, Framebuffer의 depth/stencil을 다른 곳에 안쓰는 경우 이다. 이 때는 layout을 안바꾸고 
+	// RenderPass에 의해서만 하면 된다.
+	if (isGPULocal == false && useStaging == false) // Render Target
+	{
+		OG_CHECK(info.isGenerateMipmaps == false, "%s", "Not Implemented yet on generating mipmap on a rendertarget");
+
+		VkCommandBuffer transitionCmd = _stagingCommandBuffer[_stagingSubmitIndex];
+		vkSetImageLayout
+		(
+			transitionCmd,
+			texture->image,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			texture->imageLayout,
+			view.subresourceRange,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT
+		);
+	}
+
+	if (useStaging) // Sampling Image
+	{
+		// texture의 쓰임용도에 따라 고도화가 필요하다. 지금은 단지 2차원의 텍셀버퍼만을 위해서 작업해두었음.
+		
+		OgBufferVK* ref = nullptr;
+		ref = new OgBufferVK(*_vulkanDevice, info.byteSize, OgBufferUsage::UNIFORM, OgMemoryOption::MAP_MANAGED);
+		ref->Build
+		(
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+			info.byteSize,
+			nullptr
+		);
+
+		void* stagingBufferPtr = (uint8*)(ref->mapped);
+		if (info.viewType == OgTextureViewType::TEX_2D_ARRAY)
+		{
+			uint size = info.extent.width * info.extent.height * OgFormatSupplement::GetSizeInBytes(info.format);
+			unsigned char* offset = (unsigned char*)stagingBufferPtr;
+
+			for (uint i = 0; i < info.arrayLayers; ++i)
+			{
+				memcpy((void*)offset, texture->data[i], size);
+				offset += size;
+			}
+			ref->Flush();
+		}
+		else
+		{
+			memcpy(stagingBufferPtr, texture->data[0], info.byteSize);
+			ref->Flush();
+		}
+
+		VkCommandBuffer copyCmd = _stagingCommandBuffer[_stagingSubmitIndex];
+
+		vkSetImageLayout(
+			copyCmd,
+			texture->image,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			view.subresourceRange,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+		switch (info.viewType)
+		{
+		case OgTextureViewType::TEX_CUBE:
+		{
+			const int OneTextureSize = info.extent.width * info.extent.height * OgFormatSupplement::GetSizeInBytes(info.format);
+			uint32_t offset = 0;
+
+			OgVector<VkBufferImageCopy> bufferCopyRegions;
+			bufferCopyRegions.Reserve(6);
+			for (uint32_t face = 0; face < 6; face++)
+			{
+				VkBufferImageCopy bufferCopyRegion = {};
+				bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				bufferCopyRegion.imageSubresource.mipLevel = 0;
+				bufferCopyRegion.imageSubresource.baseArrayLayer = face;
+				bufferCopyRegion.imageSubresource.layerCount = 1;
+				bufferCopyRegion.imageExtent.width = info.extent.width;
+				bufferCopyRegion.imageExtent.height = info.extent.height;
+				bufferCopyRegion.imageExtent.depth = info.extent.depth;
+
+				bufferCopyRegion.bufferOffset = offset;
+				bufferCopyRegions.Add(bufferCopyRegion);
+
+				// Increase offset into staging buffer for next face
+				offset += OneTextureSize;
+			}
+
+			vkCmdCopyBufferToImage(
+				copyCmd,
+				ref->bufferVK,
+				texture->image,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				static_cast<uint32_t>(bufferCopyRegions.Size()),
+				bufferCopyRegions.Data());
+			break;
+		} // if (TEX_CUBE)
+		case OgTextureViewType::TEX_2D_ARRAY:
+		{
+			const int OneTextureSize = info.extent.width * info.extent.height * OgFormatSupplement::GetSizeInBytes(info.format);
+			uint32_t offset = 0;
+
+			OgVector<VkBufferImageCopy> bufferCopyRegions;
+			bufferCopyRegions.Reserve(32);
+			for (uint32_t face = 0; face < info.arrayLayers; face++)
+			{
+				VkBufferImageCopy bufferCopyRegion = {};
+				bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				bufferCopyRegion.imageSubresource.mipLevel = 0;
+				bufferCopyRegion.imageSubresource.baseArrayLayer = face;
+				bufferCopyRegion.imageSubresource.layerCount = 1;
+				bufferCopyRegion.imageExtent.width = info.extent.width;
+				bufferCopyRegion.imageExtent.height = info.extent.height;
+				bufferCopyRegion.imageExtent.depth = info.extent.depth;
+
+				bufferCopyRegion.bufferOffset = offset;
+				bufferCopyRegions.Add(bufferCopyRegion);
+
+				// Increase offset into staging buffer for next face
+				offset += OneTextureSize;
+			}
+
+			vkCmdCopyBufferToImage(
+				copyCmd,
+				ref->bufferVK,
+				texture->image,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				static_cast<uint32_t>(bufferCopyRegions.Size()),
+				bufferCopyRegions.Data());
+			break;
+		}
+		default:
+		{
+			// https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkBufferImageCopy.html
+			// To copy both the depth and stencil aspects of a depth/stencil format, 
+			// two entries in pRegions can be used, where one specifies the depth aspect in imageSubresource, and the other specifies the stencil aspect.
+			OgVector<VkBufferImageCopy> regions;
+
+			VkBufferImageCopy bufferCopyRegion;
+			if (aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				bufferCopyRegion = {};
+				bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+				bufferCopyRegion.imageSubresource.mipLevel = 0;
+				bufferCopyRegion.imageSubresource.layerCount = 1;
+				bufferCopyRegion.imageExtent.width = info.extent.width;
+				bufferCopyRegion.imageExtent.height = info.extent.height;
+				bufferCopyRegion.imageExtent.depth = info.extent.depth;
+
+				bufferCopyRegion.bufferOffset = 0;
+
+				regions.Add(bufferCopyRegion);
+			}
+
+			if (aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
+			{
+				bufferCopyRegion = {};
+				bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+				bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+				bufferCopyRegion.imageSubresource.mipLevel = 0;
+				bufferCopyRegion.imageSubresource.layerCount = 1;
+				bufferCopyRegion.imageExtent.width = info.extent.width;
+				bufferCopyRegion.imageExtent.height = info.extent.height;
+				bufferCopyRegion.imageExtent.depth = info.extent.depth;
+
+				bufferCopyRegion.bufferOffset = 0;
+
+				regions.Add(bufferCopyRegion);
+			}
+
+			if (aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT)
+			{
+				VkBufferImageCopy bufferCopyRegion = {};
+				bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+				bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+				bufferCopyRegion.imageSubresource.mipLevel = 0;
+				bufferCopyRegion.imageSubresource.layerCount = 1;
+				bufferCopyRegion.imageExtent.width = info.extent.width;
+				bufferCopyRegion.imageExtent.height = info.extent.height;
+				bufferCopyRegion.imageExtent.depth = info.extent.depth;
+
+				bufferCopyRegion.bufferOffset = 0;
+
+				regions.Add(bufferCopyRegion);
+			}
+
+			vkCmdCopyBufferToImage(
+				copyCmd,
+				ref->bufferVK,
+				texture->image,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				static_cast<uint32_t>(regions.Size()), regions.Data());
+			break;
+		} // else (Tex 2D)
+		}
+
+		if (info.isGenerateMipmaps)
+		{
+			// TODO
+			// buildMipmap(copyCmd, texture, view.subresourceRange);
+		}
+		else
+		{
+			// Mipmap 생성 안하므로 최종 layout으로 바꿔주기
+			vkSetImageLayout(
+				copyCmd,
+				texture->image,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				texture->imageLayout,					// image가 쓰일 최종 layout
+				view.subresourceRange,
+				VK_PIPELINE_STAGE_TRANSFER_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+		}
+
+		ref->Destroy();
+
+	}
+
+	// TODO : Research on Linear Tiliing.
+	// CreateMappableTexture(tex, info, aspectMask, isDepthorStencil);
 }
 void OgRenderContextVulkan::releaseTexture(OgTextureVK* texture)
 {
-	// TODO
+	if (texture->view != VK_NULL_HANDLE) vkDestroyImageView(this->_logicalDeviceVK, texture->view, nullptr);
+	if (texture->image != VK_NULL_HANDLE) vkDestroyImage(this->_logicalDeviceVK, texture->image, nullptr);
+	if (texture->memory != VK_NULL_HANDLE) vkFreeMemory(this->_logicalDeviceVK, texture->memory, nullptr);
 }
 
 OgTextureHandle* OgRenderContextVulkan::CreateTexture(void* image, OgPixelFormat format, uint32 width, uint32 height, OgSamplerHandle* sampler , bool generateMipmaps )
