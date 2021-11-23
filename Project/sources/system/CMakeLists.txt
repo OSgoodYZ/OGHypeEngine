@@ -1,27 +1,35 @@
 ﻿# set(CMAKE_CXX_STANDARD 11)
 
-set(PLATFORM_COMMON 
-	platform/win/OgPlatformDefinition_win32.h
-	)
-source_group("plaform" FILES ${PLATFORM_COMMON})
-list(APPEND TOTAL_FILE ${PLATFORM_COMMON})
+SET(COLLECTION_PUBLIC OgVector.h)
+SOURCE_GROUP("collection\\public" FILES ${COLLECTION_PUBLIC})
+SET(COLLECTION_PRIVATE)
+SOURCE_GROUP("collection\\private" FILES ${COLLECTION_PRIVATE})
 
+IF(APPLE)
+	#TODO
+ELSEIF(WIN32)
+	#file(GLOB SRC_PLATFORM "win/*.c" "win/*.cpp" "win/*.h" "win/*.hpp" "win/*.natvis")
+	set(SRC_PUBLIC_PLATFORM platform/win/OgPlatformDefinition_win32.h)
+	source_group("platform\\public" FILES ${SRC_PUBLIC_PLATFORM})
 
-set(PUBLIC_COMMON 
-	OgSystemContext.h
-	OgSystemContext.cpp
-	OgInput.h
-	OgInput.cpp
-	OgMemory.h
-	OgMemory.cpp
-	OgHashCode.h
-	OgHashCode.cpp
-	#---------------------- 
-	OgVector.h
-	OgVector.cpp
-	)
-source_group("public" FILES ${PUBLIC_COMMON})
-list(APPEND TOTAL_FILE ${PUBLIC_COMMON})
+	set(SRC_PRIVATE_PLATFORM private/platform/OgPlatformCommon.h private/platform/OgPlatformCommon.cpp private/platform/win/OgPlatform_win32.h private/platform/win/OgPlatform_win32.cpp private/platform/win/OgCollection.natvis private/platform/win/OgMemory_win32.c private/platform/win/OgPlatformStream_win32.cpp private/platform/win/OgThread_win32.c private/platform/win/OgFileSystem_win32.cpp)
+	source_group("platform\\private" FILES ${SRC_PRIVATE_PLATFORM})
+	# MESSAGE(STATUS "win32 ${SRC_PRIVATE_PLATFORM}")
+ELSEIF(ANDROID)
+	#TODO
+ENDIF()
+
+list(APPEND TOTAL_FILE ${SRC_PUBLIC_PLATFORM})
+list(APPEND TOTAL_FILE ${SRC_PRIVATE_PLATFORM})
+
+set(SRC_SYSTEM private/OgSystemContext.cpp private/OgMemory.cpp private/OgInput.cpp private/OgHashCode.cpp private/OgFileSystem.cpp)
+source_group("private" FILES ${SRC_SYSTEM})
+list(APPEND TOTAL_FILE ${SRC_SYSTEM})
+
+set(INC_SYSTEM OgSystemContext.h OgInput.h OgMemory.h OgHashCode.h OgFileSystem.h)
+source_group("public" FILES ${INC_SYSTEM})
+list(APPEND TOTAL_FILE ${INC_SYSTEM})
+
 
 SET(SOURCE_GLM
 	${PROJECT_SOURCE_DIR}/deps/include/glm/detail/glm.cpp
@@ -30,10 +38,17 @@ SOURCE_GROUP("thirdparty\\glm" FILES ${SOURCE_GLM})
 LIST(APPEND TOTAL_FILE ${SOURCE_GLM})
 
 
-add_library(system STATIC ${TOTAL_FILE})
+#add_library(system STATIC ${TOTAL_FILE})
+
+
+IF(ANDROID)
+	#TODO
+ELSE()
+	add_library(system STATIC ${TOTAL_FILE} ${COLLECTION_PRIVATE} ${COLLECTION_PUBLIC} )
+ENDIF()
+
 link_directories(${LIB_DIR})
 target_link_libraries(system PUBLIC ${GLFW3})
-
 
 # target_compile_options(render PUBLIC -Wall)
 IF(OG_ENGINE_SHARED_LIB)

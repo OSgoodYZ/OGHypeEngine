@@ -319,9 +319,9 @@ extern "C" {
 #define OG_VRESIZE_CURSOR         OG_POINTING_HAND_CURSOR
 
 
-	typedef struct OgNativeWindow OGNativeWindow;
+	typedef struct OgNativeWindow OgNativeWindow;
 
-	typedef struct OgInput OGInput;
+	typedef struct OgInput OgInput;
 
 	typedef void(*OgOnKeyCallback)(OgNativeWindow* window, int keyCode, int scanCode, int action, int modifierKeys);
 

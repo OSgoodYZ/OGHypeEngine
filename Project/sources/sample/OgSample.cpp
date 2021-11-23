@@ -20,7 +20,20 @@ void OgSample::initWindow()
 
 void OgSample::initVulkan() 
 {
-
+	// TODO
+	//createInstance();
+	//setupDebugMessenger();
+	//createSurface();
+	//pickPhysicalDevice();
+	//createLogicalDevice();
+	//createSwapChain();
+	//createImageViews();
+	//createRenderPass();
+	//createGraphicsPipeline();
+	//createFramebuffers();
+	//createCommandPool();
+	//createCommandBuffers();
+	//createSyncObjects();
 }
 
 void OgSample::mainLoop() 
@@ -36,5 +49,6 @@ void OgSample::cleanup()
 	glfwDestroyWindow(_window);
 	glfwTerminate();
 }
+
 
 OG_NAMESPACE_SAMPLE_END

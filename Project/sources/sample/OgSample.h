@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <cstdlib>
 
+#include "render/OgRenderContext.h"
+
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
@@ -32,6 +34,21 @@ private:
 	void initVulkan();
 	void mainLoop();
 	void cleanup();
+
+	// initVulkan
+	void createInstance();
+	//setupDebugMessenger();
+	//createSurface();
+	//pickPhysicalDevice();
+	//createLogicalDevice();
+	//createSwapChain();
+	//createImageViews();
+	//createRenderPass();
+	//createGraphicsPipeline();
+	//createFramebuffers();
+	//createCommandPool();
+	//createCommandBuffers();
+	//createSyncObjects();
 
 	GLFWwindow* _window;
 	const uint32 _width = 800;

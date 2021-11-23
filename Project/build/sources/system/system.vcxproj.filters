@@ -1,20 +1,38 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgSystemContext.cpp">
-      <Filter>public</Filter>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\OgPlatformCommon.cpp">
+      <Filter>platform\private</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.cpp">
-      <Filter>public</Filter>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgPlatform_win32.cpp">
+      <Filter>platform\private</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.cpp">
-      <Filter>public</Filter>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgMemory_win32.c">
+      <Filter>platform\private</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.cpp">
-      <Filter>public</Filter>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgPlatformStream_win32.cpp">
+      <Filter>platform\private</Filter>
     </ClCompile>
-    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgVector.cpp">
-      <Filter>public</Filter>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgThread_win32.c">
+      <Filter>platform\private</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgFileSystem_win32.cpp">
+      <Filter>platform\private</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgSystemContext.cpp">
+      <Filter>private</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgMemory.cpp">
+      <Filter>private</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgInput.cpp">
+      <Filter>private</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgHashCode.cpp">
+      <Filter>private</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgFileSystem.cpp">
+      <Filter>private</Filter>
     </ClCompile>
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\deps\include\glm\detail\glm.cpp">
       <Filter>thirdparty\glm</Filter>
@@ -22,7 +40,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\platform\win\OgPlatformDefinition_win32.h">
-      <Filter>plaform</Filter>
+      <Filter>platform\public</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\OgPlatformCommon.h">
+      <Filter>platform\private</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgPlatform_win32.h">
+      <Filter>platform\private</Filter>
     </ClInclude>
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgSystemContext.h">
       <Filter>public</Filter>
@@ -36,16 +60,39 @@
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgVector.h">
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgFileSystem.h">
       <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgVector.h">
+      <Filter>collection\public</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="plaform">
-      <UniqueIdentifier>{C5AFD333-70BA-3F23-873F-D411F92A25D1}</UniqueIdentifier>
+    <Natvis Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgCollection.natvis">
+      <Filter>platform\private</Filter>
+    </Natvis>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="collection">
+      <UniqueIdentifier>{0E66900E-3C1C-3081-A6FC-73AB01F97BD1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="collection\public">
+      <UniqueIdentifier>{39C359F8-B674-3E7D-B1CA-171A9E334E74}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="platform">
+      <UniqueIdentifier>{6AF120EA-6205-35DD-9ECA-504A9BEE9C9F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="platform\private">
+      <UniqueIdentifier>{7128AA07-485A-3FF6-8464-84288D5E924F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="platform\public">
+      <UniqueIdentifier>{8A79354D-63C3-34AE-9674-8953A01F11FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="private">
+      <UniqueIdentifier>{A41FDB05-4B4A-3EDC-86B2-708306323F76}</UniqueIdentifier>
     </Filter>
     <Filter Include="public">
       <UniqueIdentifier>{5BE45934-E073-390D-B5D2-FB44A6ED57CB}</UniqueIdentifier>
