@@ -1,6 +1,5 @@
-#ifdef OG_SAMPLE_BUILD
 #include "sample/OgSample.h"
-#endif // OG_SAMPLE_BUILD
+#include "system/OgFileSystem.h"
 
 using namespace Og;
 using namespace Og::System;
@@ -24,20 +23,19 @@ OgSystemContext* createSystemContext()
 	context->graphicLibrary.name = "VULKAN";
 #endif
 
-	// TODO
-	//context->executablePath = og_path_executable_current();
-	//static Lv::LvString executableDirectoryPath = og_path_parent(context->executablePath);
-	//context->executableDirectoryPath = executableDirectoryPath.c_str();
+	context->executablePath = og_path_executable_current();
+	static std::string executableDirectoryPath = og_path_parent(context->executablePath);
+	context->executableDirectoryPath = executableDirectoryPath.c_str();
 
-	//if (lv_system_init(context, NULL))
-	//{
-	//	return context;
-	//}
-	//else
-	//{
-	//	delete context;
-	//	return nullptr;
-	//}
+	if (lv_system_init(context, NULL))
+	{
+		return context;
+	}
+	else
+	{
+		delete context;
+		return nullptr;
+	}
 
 	//temp code
 	return nullptr;

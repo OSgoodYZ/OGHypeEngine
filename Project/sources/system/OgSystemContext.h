@@ -14,7 +14,9 @@
 #include "system/platform/android/OgPlatformDefinitions_android.h"
 #endif
 
-OG_NAMESPACE_SYSTEM_BEGIN
+
+#define OG_DONT_CARE -1
+//OG_NAMESPACE_SYSTEM_BEGIN
 
 struct OgMonitor;
 typedef void(*MonitorCallback)(OgMonitor*, int);
@@ -224,7 +226,7 @@ struct OG_API OgNativeWindow
 	_OG_PLATFORM_WINDOW
 };
 
-OG_NAMESPACE_SYSTEM_END
+//OG_NAMESPACE_SYSTEM_END
 
 
 #endif // _OG_SYSTEM_CONTEXT_H_

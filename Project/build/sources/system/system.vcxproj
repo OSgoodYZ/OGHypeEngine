@@ -345,15 +345,21 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgThread_win32.c" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\platform\win\OgFileSystem_win32.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgSystemContext.cpp" />
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgNativeWindow.cpp" />
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgNativeEvent.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgMemory.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgInput.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgHashCode.cpp" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgFileSystem.cpp" />
+    <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\private\OgStream.cpp" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgSystemContext.h" />
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgFileSystem.h" />
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgNativeWindow.h" />
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgNativeEvent.h" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgInput.h" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgMemory.h" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgHashCode.h" />
-    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgFileSystem.h" />
+    <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgStream.h" />
     <ClCompile Include="X:\OSgoodYZ\OGHypeEngine\Project\deps\include\glm\detail\glm.cpp" />
     <ClInclude Include="X:\OSgoodYZ\OGHypeEngine\Project\sources\system\OgVector.h" />
   </ItemGroup>

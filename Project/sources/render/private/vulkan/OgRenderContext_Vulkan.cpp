@@ -1,5 +1,4 @@
-﻿#include <vector>
-#include <utility>
+﻿#include <utility>
 
 #include "OgPrecompile.h"
 

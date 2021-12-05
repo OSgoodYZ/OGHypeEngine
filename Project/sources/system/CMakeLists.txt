@@ -22,11 +22,11 @@ ENDIF()
 list(APPEND TOTAL_FILE ${SRC_PUBLIC_PLATFORM})
 list(APPEND TOTAL_FILE ${SRC_PRIVATE_PLATFORM})
 
-set(SRC_SYSTEM private/OgSystemContext.cpp private/OgMemory.cpp private/OgInput.cpp private/OgHashCode.cpp private/OgFileSystem.cpp)
+set(SRC_SYSTEM private/OgSystemContext.cpp private/OgNativeWindow.cpp private/OgNativeEvent.cpp private/OgMemory.cpp private/OgInput.cpp private/OgHashCode.cpp private/OgFileSystem.cpp private/OgStream.cpp)
 source_group("private" FILES ${SRC_SYSTEM})
 list(APPEND TOTAL_FILE ${SRC_SYSTEM})
 
-set(INC_SYSTEM OgSystemContext.h OgInput.h OgMemory.h OgHashCode.h OgFileSystem.h)
+set(INC_SYSTEM OgSystemContext.h OgFileSystem.h OgNativeWindow.h OgNativeEvent.h OgInput.h OgMemory.h OgHashCode.h  OgStream.h)
 source_group("public" FILES ${INC_SYSTEM})
 list(APPEND TOTAL_FILE ${INC_SYSTEM})
 

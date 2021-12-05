@@ -19,4 +19,14 @@ using namespace Og;
 #define DIRECTORY_SEPARATOR_WCHAR L'\\'
 #endif
 
+char s_executablePath[OG_CHAR_INIT_LONG_LENGTH] = { 0, };
+const char* og_path_executable_current()
+{
+	if (0 == strcmp("", s_executablePath))
+	{
+		GetModuleFileNameA(NULL, s_executablePath, MAX_PATH);
+	}
+	return s_executablePath;
+}
+
 // TODO
