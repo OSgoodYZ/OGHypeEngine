@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#define _OG_WNDCLASSNAME O"Og"
+#define _OG_WNDCLASSNAME L"Og"
 
 #define STYLE_BASIC         (WS_CLIPSIBLINGS | WS_CLIPCHILDREN)
 #define STYLE_FULLSCREEN    (WS_POPUP)
@@ -25,7 +25,7 @@ extern "C" {
 #define _OG_PLATFORM_MONITOR_STATE    OgMonitorWIN win32;
 
 	// ntdll.dll function pointer typedefs
-	typedef LONG(WINAPI* PFNrtOgerifyVersionInfo)(OSVERSIONINFOEXW*, ULONG, ULONGLONG);
+	typedef LONG(WINAPI* PFNrtlVerifyVersionInfo)(OSVERSIONINFOEXW*, ULONG, ULONGLONG);
 
 	// shcore.dll function pointer typedefs
 #ifndef DPI_ENUMS_DECLARED
@@ -68,7 +68,7 @@ extern "C" {
 		struct
 		{
 			HINSTANCE instance;
-			PFNrtOgerifyVersionInfo pFNRtOgerifyVersionInfo;
+			PFNrtlVerifyVersionInfo pFNRtlVerifyVersionInfo;
 		} ntdll;
 
 		struct

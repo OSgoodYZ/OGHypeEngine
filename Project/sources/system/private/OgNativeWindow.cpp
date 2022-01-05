@@ -118,18 +118,18 @@ OgNativeWindow* og_window_create(OgSystemContext* context, const OgWindowConfig*
 	}
 
 	// set the start dimension/coordinate of window
-	lv_platform_window_get_size(window, &(window->width), &(window->height));
-	lv_platform_window_get_pos(window, &(window->x), &(window->y));
+	og_platform_window_get_size(window, &(window->width), &(window->height));
+	og_platform_window_get_pos(window, &(window->x), &(window->y));
 
 	if (window->monitor == NULL)
 	{
 		if (wConfig->visible)
 		{
-			lv_platform_window_show(window);
+			og_platform_window_show(window);
 
 			if (wConfig->focused)
 			{
-				lv_platform_window_focus_in(window);
+				og_platform_window_focus_in(window);
 			}
 		}
 	}
@@ -137,15 +137,15 @@ OgNativeWindow* og_window_create(OgSystemContext* context, const OgWindowConfig*
 	return window;
 }
 
-void lv_window_destroy(LvNativeWindow* window)
+void og_window_destroy(OgNativeWindow* window)
 {
 	if (window == NULL)
 		return;
 
-	LvSystemContext* systemContext = lv_system_get_context();
+	OgSystemContext* systemContext = og_system_get_context();
 
 	// Unlink
-	LvNativeWindow** prevWindow = &systemContext->headWindow;
+	OgNativeWindow** prevWindow = &systemContext->headWindow;
 
 	while (*prevWindow != window)
 		prevWindow = &((*prevWindow)->next);
@@ -153,36 +153,37 @@ void lv_window_destroy(LvNativeWindow* window)
 	(*prevWindow) = window->next;
 
 
-	lv_platform_window_destroy(window);
+	og_platform_window_destroy(window);
 
 	if (window->title != NULL)
 	{
 		free(window->title);
 	}
 
-	LvEventWindow* w = static_cast<LvEventWindow*>(window);
+	OgEventWindow* w = static_cast<OgEventWindow*>(window);
 	delete w; // allocated with new LvEventWindow()
 }
 
 
-void lv_window_event_push(LvNativeWindow* window, LvNativeEvent* evt)
+void og_window_event_push(OgNativeWindow* window, OgNativeEvent* evt)
 {
-	LvEventWindow* win = reinterpret_cast<LvEventWindow*>(window);
+	OgEventWindow* win = reinterpret_cast<OgEventWindow*>(window);
 	if (evt != nullptr)
 	{
-		win->queue.Enqueue(*evt);
+		win->queue.push(*evt);
 	}
 }
 
-bool lv_window_event_poll(LvNativeWindow* window, LvNativeEvent* evt)
+bool og_window_event_poll(OgNativeWindow* window, OgNativeEvent* evt)
 {
-	LV_CHECK(window != nullptr, "It should be exists window");
-	LvEventWindow* win = reinterpret_cast<LvEventWindow*>(window);
+	OG_CHECK(window != nullptr, "It should be exists window");
+	OgEventWindow* win = reinterpret_cast<OgEventWindow*>(window);
 
-	if (win->queue.Count() > 0)
+	if (win->queue.size() > 0)
 	{
-		LvNativeEvent e = win->queue.Dequeue();
-		memcpy(evt, &e, sizeof(LvNativeEvent));
+		OgNativeEvent e = win->queue.back();
+		memcpy(evt, &e, sizeof(OgNativeEvent));
+		win->queue.pop();
 		return true;
 	}
 

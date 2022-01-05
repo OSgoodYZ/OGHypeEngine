@@ -159,7 +159,7 @@ bool check_validation_layer_support()
 	return false;
 }
 
-OgRenderContextVulkan::OgRenderContextVulkan(System::OgSystemContext* context)
+OgRenderContextVulkan::OgRenderContextVulkan(OgSystemContext* context)
 	:_instance(nullptr)
 {
 	this->platform = OgRenderPlatform::VULKAN;
@@ -563,7 +563,7 @@ void OgRenderContextVulkan::initSwapChain(SwapchainWrapper& sw)
 	if (sw.frameBufferObject.isInitialized == true)
 		return;
 
-	System::OgNativeWindow* window = sw.window;
+	OgNativeWindow* window = sw.window;
 
 	sw.swapchainVK.Create((uint32_t*)(&window->width), (uint32_t*)(&window->height), false);
 	sw.frameBufferObject.bufferCount = sw.swapchainVK.imageCount;
@@ -841,7 +841,7 @@ void OgRenderContextVulkan::Init(void)
 	this->_rootSwapchainWrapper = nullptr;
 }
 
-OgSwapChain* OgRenderContextVulkan::CreateSwapchain(System::OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo)
+OgSwapChain* OgRenderContextVulkan::CreateSwapchain(OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo)
 {
 	OG_CHECK(nativeWindow != nullptr, "Native Window is nullptr");
 

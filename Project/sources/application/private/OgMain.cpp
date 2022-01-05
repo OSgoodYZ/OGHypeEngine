@@ -27,7 +27,7 @@ OgSystemContext* createSystemContext()
 	static std::string executableDirectoryPath = og_path_parent(context->executablePath);
 	context->executableDirectoryPath = executableDirectoryPath.c_str();
 
-	if (lv_system_init(context, NULL))
+	if (og_system_init(context, NULL))
 	{
 		return context;
 	}

@@ -37,7 +37,7 @@ enum class OgFileMode
  */
 struct OG_API OgFileAttribute
 {
-	Lv::LvString name;
+	std::string name;
 
 	size_t size;
 
@@ -98,5 +98,32 @@ OG_API const char* og_path_executable_current();
 
 OG_API std::string og_path_parent(const char* path);
 
+/**
+ * @brief window 경로로 변환합니다.
+ * @param dest 변경 이후 경로
+ * @param src 변경 이전 경로
+ * @file #include "system/LvFileSystem.h"
+ */
+OG_API void og_path_to_win(char* dest, const char* src);
+
+/**
+ * @brief char(utf8) path에서 os system path로 변환합니다.
+ * @param dest_sys 변경 이후 경로 (windows: wchar_t, mac: NSString)
+ * @param src_utf8 변경 이전 경로
+ * @param need_safe_conversion utf-8이 아닌 ANSI type까지 처리 (only for window)
+ * @file #include "system/LvFileSystem.h"
+ */
+OG_API void og_path_utf8_to_system(void* dest_sys, const char* src_utf8, bool need_safe_conversion = false);
+
+
+OG_API void og_path_system_to_utf8(char* dest_utf8, const void* src_sys);
+
+/**
+ * @brief char(utf8(nfc)) path에서 가변 byte로 인해 추가된 byte수를 계산합니다.
+ * @param src_utf8 utf8 경로
+ * @return 1byte보다 긴 가변 bytes 수
+ * @file #include "system/LvFileSystem.h"
+ */
+OG_API int og_path_utf8_extra_length(const char* src_utf8);
 #endif // __OG_FILESYSTEM_H__
 

@@ -30,7 +30,7 @@ OG_NAMESPACE_RENDER_BEGIN
 class OgRenderContextVulkan : public OgRenderContext
 {
 public:
-	OgRenderContextVulkan(System::OgSystemContext* context);
+	OgRenderContextVulkan(OgSystemContext* context);
 
 	~OgRenderContextVulkan() override;
 
@@ -38,7 +38,7 @@ public:
 
 	void Init(void) override;
 
-	OgSwapChain* CreateSwapchain(System::OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo) override;
+	OgSwapChain* CreateSwapchain(OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo) override;
 
 	void DestroySwapchain(OgSwapChain* swapchain) override;
 
@@ -179,7 +179,7 @@ private:
 		SwapchainWrapper* next;
 
 		// TODO: reconsider
-		System::OgNativeWindow* window;
+		OgNativeWindow* window;
 
 		OgSwapChainVulkan swapchainVK;
 		VkQueue presentQueueVK;

@@ -26,7 +26,7 @@ public:
 
 	static const uint32 SUBMISSION_INDEX_NONE = -1;	// Notice : -1 -> underflow
 
-	System::OgSystemContext* context;
+	OgSystemContext* context;
 
 	virtual ~OgRenderContext() {};
 	
@@ -53,7 +53,7 @@ public:
 	* @return void
 	* @see http://devgit.com2us.com/TS/TPact/wikis/OgRender/1)-Basic-Triangle#Ogrender-module-%EC%84%A4%EB%AA%85-%EC%B4%88%EA%B8%B0%ED%99%94-%EC%88%9C%EC%84%9C%EB%A1%9C
 	*/
-	virtual OgSwapChain* CreateSwapchain(System::OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo) = 0;
+	virtual OgSwapChain* CreateSwapchain(OgNativeWindow* nativeWindow, const OgSwapChainInfo& swapchainInfo) = 0;
 
 	virtual void DestroySwapchain(OgSwapChain* swapchain) = 0;
 

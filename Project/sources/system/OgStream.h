@@ -45,8 +45,8 @@ public:
 	template<typename T,
 		typename std::enable_if<
 		!std::is_pointer<T>::value &&
-		!std::is_same<T, td::string>::value &&
-		!std::is_same<T, td::wstring>::value
+		!std::is_same<T, std::string>::value &&
+		!std::is_same<T, std::wstring>::value
 	>::type * = nullptr>
 		void Read(T& data, size_t count)
 	{
