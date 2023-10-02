@@ -11,6 +11,55 @@
 #include <unistd.h>
 #endif
 
+const char* og_print_errno(int error_code)
+{
+	switch (error_code)
+	{
+	case EPERM: return "Operation not permitted";
+	case ENOENT: return "No such file or directory";
+	case ESRCH: return "No such process";
+	case EINTR: return "Interrupted system call";
+	case EIO: return "Error I/O";
+	case ENXIO: return "No such device or address";
+	case E2BIG: return "Argument list too long";
+	case ENOEXEC: return "Exec format error";
+	case EBADF: return "Bad file number";
+	case ECHILD: return "No child processes";
+	case EAGAIN: return "Try again";
+	case ENOMEM: return "Out of memory";
+	case EACCES: return "Access Permission denied";
+	case EFAULT: return "Bad address";
+	case EBUSY: return "Block device required";
+	case EEXIST: return "File exists";
+	case EXDEV: return "Cross-device link";
+	case ENODEV: return "No such device";
+	case ENOTDIR: return "Not a directory";
+	case EISDIR: return "Is a directory";
+	case EINVAL: return "Invalid argument";
+	case ENFILE: return "File table overflow";
+	case EMFILE: return "Too many open files";
+	case ENOTTY: return "Not a typewriter";
+	case ETXTBSY: return "Text file busy";
+	case EFBIG: return "File too large";
+	case ENOSPC: return "No space left on device";
+	case ESPIPE: return "Illegal seek";
+	case EROFS: return "Read-only file system";
+	case EMLINK: return "Too many links";
+	case EPIPE: return "Broken pipe, The process cannot access the file because it is being used by another process.";
+	case EDOM: return "Math argument out of domain of func";
+	case ERANGE: return "Math result not representable";
+	case EDEADLK: return "Resource deadlock would occur";
+	case ENAMETOOLONG: return "File name too long";
+	case ENOLCK: return "No record locks available";
+	case ENOSYS: return "Function not implemented";
+	case ENOTEMPTY: return "Directory not empty";
+#if defined(__WIN32__)
+	case ERROR_INVALID_PARAMETER: return "The parameter is incorrect";
+#endif
+	}
+	return "Unknown error, you should check https://man7.org/linux/man-pages/man3/errno.3.html page";
+}
+
 void og_str_replace_opt(char* dest, char const * const src, char const * const pattern, char const * const replace)
 {
 	size_t const replen = strlen(replace);
@@ -99,15 +148,28 @@ void og_path_to_win(char* dest, const char* src)
 	og_str_replace_opt(dest, src, "/", "\\");
 }
 
+
+void og_path_to_absolute(char* dest, const char* relative, const char* root)
+{
+	const char sper[2] = { OG_DIRECTORY_SEPARATOR_CHAR, 0 };
+	// TODO
+}
+
+bool og_path_contains(const char* parent, const char* child)
+{
+	// TODO
+	return false;
+}
+
 int og_path_utf8_extra_length(const char* src_utf8)
 {
 	int added = 0;
 	size_t srcLen = strlen(src_utf8);
 	for (size_t i = 0; i < srcLen; ++i)
 	{
-		if ((int)src_utf8[i] < 0)
+		if (static_cast<int>(src_utf8[i]) < 0)
 		{
-			int charI = (uint)src_utf8[i] % 0x100;
+			int charI = static_cast<uint>(src_utf8[i]) % 0x100;
 			int addedBytes = 0;
 
 			//https://en.wikipedia.org/wiki/UTF-8#Description
@@ -119,18 +181,24 @@ int og_path_utf8_extra_length(const char* src_utf8)
 				if (flags & 0b0010)
 				{
 					if (flags & 1)
+					{
 						addedBytes = 3;
+					}
 					else
+					{
 						addedBytes = 2;
+					}
 				}
 				else
+				{
 					addedBytes = 1;
-			}
+				}
+				}
 
 			added += addedBytes;
 			i += addedBytes;
+			}
 		}
-	}
 	return added;
 }
 
@@ -139,124 +207,100 @@ int og_path_utf8_extra_length(const char* src_utf8)
 
 OG_NAMESPACE_SYSTEM_BEGIN
 
-OgFileStream::OgFileStream(FILE * file)
-	: _file(file), _position(0), _length(0)
+
+OgFileStream::OgFileStream(OgFileHandle file)
+	: _position(0)
+	, _length(0)
+	, _file(file)
 {
-	if (_file == NULL)
+	if (file.nativeHandle == OG_INVALID_HANDLE)
 	{
-		int error_code = errno;
-		LOGE(OG_ID, "Code = %i : %s", error_code, og_print_errno(error_code));
+		const int errorCode = errno;
+		OG_THROW("Code = %i : %s", errorCode, og_print_errno(errorCode));
 	}
 
-	fseek(_file, 0, SEEK_END);
-	_length = ftell(_file);
-	fseek(_file, 0, SEEK_SET);
-}
-
-OgFileStream::OgFileStream(FILE* file, OgFileMode mode)
-	: _file(file), mode(mode), _position(0), _length(0)
-{
-	if (_file == NULL)
+	og_file_seek(_file, 0, OgSeekMode::END);
+	int64 length = 0;
+	if (og_file_get_pos(_file, length))
 	{
-		int error_code = errno;
-		LOGE(OG_ID, "Code = %i : %s", error_code, og_print_errno(error_code));
+		_length = static_cast<size_t>(length);
 	}
 
-	fseek(_file, 0, SEEK_END);
-	_length = ftell(_file);
-	fseek(_file, 0, SEEK_SET);
+	og_file_seek(_file, 0, OgSeekMode::BEGIN);
 }
 
 OgFileStream::OgFileStream(const char* path, OgFileMode mode)
-	: _file(nullptr), mode(mode), _position(0), _length(0)
+	: OgFileStream(og_file_open(path, OgFileAccess::READ_WRITE, mode))
 {
-	switch (mode)
-	{
-	case OgFileMode::APPEND:
-		_file = og_file_open(path, "ab");
-		break;
-	case OgFileMode::CREATE:
-		_file = og_file_open(path, "wb");
-		break;
-	case OgFileMode::NEW:
-		if (og_file_exist(path))
-			LOGE(OG_ID, "%s file exists", path);
-		_file = og_file_open(path, "w+b");
-		break;
-	case OgFileMode::OPEN:
-		_file = og_file_open(path, "rb");
-		break;
-	case OgFileMode::OPEN_CREATE:
-		_file = og_file_open(path, "w+b");
-		break;
-	case OgFileMode::TRUNCATE:
-		_file = og_file_open(path, "w+b");
-		break;
-	}
-
-	if (_file == NULL)
-	{
-		int error_code = errno;
-		LOGE(OG_ID, "Code = %i : %s", error_code, og_print_errno(error_code));
-	}
-
-	fseek(_file, 0, SEEK_END);
-	_length = ftell(_file);
-	fseek(_file, 0, SEEK_SET);
+	//_mode = mode;
 }
 
-OgFileStream::OgFileStream(const OgFileStream & stream)
-	: _file(stream._file), _position(stream._position), mode(stream.mode), _length(stream._length)
+OgFileStream::OgFileStream(OgFileStream&& o) noexcept
+	: _position(o._position)
+	, _length(o._length)
+	, _file(o._file)
+	//, _mode(o._mode)
 {
+	o._file.nativeHandle = OG_INVALID_HANDLE;
 }
 
 OgFileStream::~OgFileStream()
 {
-	_file = nullptr;
+	if (_file.nativeHandle != OG_INVALID_HANDLE)
+	{
+		og_file_close(_file);
+		_file.nativeHandle = OG_INVALID_HANDLE;
+	}
 }
 
-void OgFileStream::WriteRaw(const void * ptr, size_t size)
+void OgFileStream::WriteRaw(const void* ptr, size_t size)
 {
 	// TODO : fwrite left over using while loop
-	fwrite(ptr, size, 1, _file);
+	og_file_write(_file, ptr, size);
+	//fwrite(ptr, size, 1, _file.handle);
 	_position += size;
-	_length = OG_MAX(_position, _length + 1);
+	_length = OG_MAX(_position, static_cast<int64>(_length + 1));
 }
 
-void OgFileStream::WriteChar(const char * c)
+void OgFileStream::WriteChar(const char* c)
 {
 	// TODO : fwrite left over using while loop
-	size_t s = og_strlen(c);
-	fwrite(c, s, 1, _file);
+	const size_t s = strlen(c);
+	og_file_write(_file, c, s);
+	//fwrite(c, s, 1, _file.handle);
 	_position += s;
-	_length = OG_MAX(_position, _length + 1);
+	_length = OG_MAX(_position, static_cast<int64>(_length + 1));
 }
 
 void OgFileStream::WriteWChar(const wchar_t* c)
 {
 	// TODO : fwrite left over using while loop
-	size_t s = og_strlen(c) * sizeof(wchar_t);
-	fwrite(c, s, 1, _file);
+	const size_t s = wcslen(c) * sizeof(wchar_t);
+	og_file_write(_file, c, s);
+	//fwrite(c, s, 1, _file.handle);
 	_position += s;
-	_length = OG_MAX(_position, _length + 1);
+	_length = OG_MAX(_position, static_cast<int64>(_length + 1));
 }
 
 void OgFileStream::ReadRaw(void* ptr, size_t size)
 {
-	uint8* movePointer = (uint8*)ptr;
+	if (size == 0) OG_THROW("size > 0 Size should not be zero");
+
+	uint8* movePointer = static_cast<uint8*>(ptr);
 	size_t leftOverReadSize = size;
 	size_t currentReadSize = 0;
 	size_t totalReadSize = 0;
 	while (totalReadSize < size)
 	{
-		currentReadSize = fread(movePointer, 1, leftOverReadSize, _file);
+		//currentReadSize = fread(movePointer, 1, leftOverReadSize, _file.handle);
+		currentReadSize = og_file_read(_file, movePointer, leftOverReadSize);
 		totalReadSize += currentReadSize;
 		if (totalReadSize >= size) break;
 
 		movePointer += currentReadSize;
 		leftOverReadSize -= currentReadSize;
 
-		if (feof(_file) || currentReadSize <= 0)
+		if (/*feof(_file.handle)*/ og_file_eof(_file) || currentReadSize <= 0)
 		{
 			// Fail to read for some problems
 			break;
@@ -267,50 +311,75 @@ void OgFileStream::ReadRaw(void* ptr, size_t size)
 
 	if (totalReadSize != size)
 	{
-		int error_code = errno;
-		if (error_code != 0)
-			LOGE(OG_ID, "File read failed Code = %i : %s", error_code, og_print_errno(error_code));
+		const int errorCode = errno;
+		if (errorCode != 0)
+		{
+			OG_THROW("File read failed Code = %i : %s", errorCode, og_print_errno(errorCode));
+		}
 	}
 }
 
 int64 OgFileStream::GetPosition()
 {
-	if (fgetpos(_file, &_position) != 0)
+	int64 position = 0;
+	//if (fgetpos(_file.handle, &_position) != 0)
+	if (!og_file_get_pos(_file, position))
 	{
-		int error_code = errno;
-		if (error_code != 0)
-			LOGE(OG_ID, "File getpos failed Code = %i : %s", error_code, og_print_errno(error_code));
+		const int errorCode = errno;
+		if (errorCode != 0)
+		{
+			OG_THROW("File getpos failed Code = %i : %s", errorCode, og_print_errno(errorCode));
+		}
 	}
-	return _position;
-}
 
+	_position = static_cast<size_t>(position);
+	return position;
+}
 
 void OgFileStream::SetPosition(int64 pos)
 {
-	_position = pos;
+	_position = static_cast<size_t>(pos);
 
-	if (fsetpos(_file, &_position) != 0)
+	//if (fsetpos(_file.handle, &_position) != 0)
+	if (!og_file_set_pos(_file, pos))
 	{
-		int error_code = errno;
-		if (error_code != 0)
-			LOGE(OG_ID, "File setpos failed Code = %i : %s", error_code, og_print_errno(error_code));
+		const int errorCode = errno;
+		if (errorCode != 0)
+		{
+			OG_THROW("File setpos failed Code = %i : %s", errorCode, og_print_errno(errorCode));
+		}
 	}
 }
+
+OgFileStream& OgFileStream::operator=(OgFileStream&& o) noexcept
+{
+	if (this != &o)
+	{
+		this->~OgFileStream();
+		new (this) OgFileStream(std::move(o));
+	}
+
+	return *this;
+}
+
 
 size_t OgFileStream::Length() const
 {
 	return _length;
 }
 
-void OgFileStream::Flush()
+void OgFileStream::Flush() const
 {
-	fflush(_file);
+	og_file_flush(_file);
+	//fflush(_file.handle);
 }
 
 void OgFileStream::Close()
 {
-	fclose(_file);
+	og_file_close(_file);
+	_file.nativeHandle = OG_INVALID_HANDLE;
 }
+
 
 OG_NAMESPACE_SYSTEM_END
 #pragma endregion

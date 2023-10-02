@@ -5,6 +5,7 @@
 #ifndef __OG_PRECOMPILED_H_
 #define __OG_PRECOMPILED_H_
 
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -346,6 +347,8 @@ __inline__ static void trap_instruction(void)
 #define ASSERT(x) do { const volatile bool og_assert_b____ = !(x); if(og_assert_b____) { OG_DEBUG_BREAK(); } } while (false)
 #endif
 #endif
+
+#define OG_THROW(fmt, ...) do { fprintf(stderr, fmt "\n", ##__VA_ARGS__); OG_DEBUG_BREAK(); } while (false)
 
 #if defined(_DEBUG)
 #define OG_CHECK(x, fmt, ...) do { const volatile bool og_assert_b____ = !(x); if(og_assert_b____) { LOGE(OG_ID, fmt, ##__VA_ARGS__); } } while (false)

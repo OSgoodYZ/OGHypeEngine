@@ -12,6 +12,8 @@
 class OG_API OgStream
 {
 public:
+	virtual ~OgStream() {};
+
 	virtual int64 GetPosition() = 0;
 
 	virtual void SetPosition(int64 pos) = 0;
