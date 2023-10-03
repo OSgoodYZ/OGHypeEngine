@@ -1,4 +1,4 @@
-#include "sample/OgSample.h"
+ï»¿#include "sample/OgSample.h"
 #include "system/OgFileSystem.h"
 
 using namespace Og;
@@ -43,19 +43,25 @@ OgSystemContext* createSystemContext()
 
 
 #endif
-int main()
+
+/*
+* argv[0] : program name
+* -g, --graphics graphics library name
+* -et, --editortest editor test history path
+*/
+int main(int argc, char* argv[])
 {
 	
 	
+	s_systemContext = createSystemContext();
 
 
-
-	// sample test¸¦ À§ÇÑ ÄÚµå
+	// sample testë¥¼ ìœ„í•œ ì½”ë“œ
 #ifdef OG_SAMPLE_BUILD
 	Og::Sample::OgSample sample;
 
 	try {
-		sample.Run();
+		sample.Run(s_systemContext);
 	}
 	catch (const std::exception& e) {
 		std::cerr << e.what() << std::endl;
@@ -65,9 +71,7 @@ int main()
 
 #endif // OG_SAMPLE_BUILD
 
-	// sampleÀÌ ¾Æ´Ñ ÄÚµå´Â ¿©±â¿¡¼­ º»°ÝÀûÀ¸·Î ½ÇÇà
+	// sampleì´ ì•„ë‹Œ ì½”ë“œëŠ” ì—¬ê¸°ì—ì„œ ë³¸ê²©ì ìœ¼ë¡œ ì‹¤í–‰
 	// TODO
-
-
 
 }

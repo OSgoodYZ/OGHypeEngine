@@ -1,11 +1,11 @@
-
 #include "OgSample.h"
 
+#include "render/private/vulkan/OgRenderContext_Vulkan.h"
 OG_NAMESPACE_SAMPLE_BEGIN
 
-void OgSample::Run() {
+void OgSample::Run(OgSystemContext* systemContext) {
 	initWindow();
-	initVulkan();
+	initVulkan(systemContext);
 	mainLoop();
 	cleanup();
 }
@@ -18,8 +18,12 @@ void OgSample::initWindow()
 	_window = glfwCreateWindow(_width, _height, "Vulkan", nullptr, nullptr);
 }
 
-void OgSample::initVulkan() 
+void OgSample::initVulkan(OgSystemContext* systemContext)
 {
+	_renderContext = new Render::OgRenderContextVulkan(systemContext);
+	_renderContext->Load();
+	_renderContext->Init();
+	
 	// TODO
 	//createInstance();
 	//setupDebugMessenger();
@@ -48,6 +52,12 @@ void OgSample::cleanup()
 {
 	glfwDestroyWindow(_window);
 	glfwTerminate();
+
+	_renderContext->Shutdown();
+	delete _renderContext;
+		
+
+
 }
 
 

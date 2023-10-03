@@ -193,8 +193,8 @@ void OgRenderContextVulkan::initInstance()
 
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = "Lv";
-	appInfo.pEngineName = "Lv Engine";
+	appInfo.pApplicationName = "Og";
+	appInfo.pEngineName = "Og Engine";
 	appInfo.apiVersion = VK_API_VERSION_1_1;
 
 	bool surfaceExtFound = false;
@@ -279,6 +279,7 @@ void OgRenderContextVulkan::initInstance()
 	instanceInfo.enabledExtensionCount = static_cast<uint32_t>(_enabledInstanceExtensions.size());
 	instanceInfo.ppEnabledExtensionNames = &_enabledInstanceExtensions.front();
 
+	list<const char*> validationLayers;
 	if (s_enableValidationLayers)
 	{
 #if defined(_DEBUG)
@@ -288,19 +289,14 @@ void OgRenderContextVulkan::initInstance()
 
 			if (s_sdkVersion.major >= 1 && s_sdkVersion.minor >= 2)
 			{
-				const list<const char*> validationLayers =
-				{
-					"VK_LAYER_KHRONOS_validation"
-				};
+				validationLayers.push_back("VK_LAYER_KHRONOS_validation");
+				
 				instanceInfo.enabledLayerCount = (uint32_t)validationLayers.size();
 				instanceInfo.ppEnabledLayerNames = &validationLayers.front();
 			}
 			else
 			{
-				const list<const char*> validationLayers =
-				{
-					"VK_LAYER_LUNARG_standard_validation",
-				};
+				validationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
 				instanceInfo.enabledLayerCount = (uint32_t)validationLayers.size();
 				instanceInfo.ppEnabledLayerNames = &validationLayers.front();
 			}

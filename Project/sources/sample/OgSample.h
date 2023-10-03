@@ -11,6 +11,7 @@
 #include <stdexcept>
 #include <cstdlib>
 
+#include "system/OgSystemContext.h"
 #include "render/OgRenderContext.h"
 
 const uint32_t WIDTH = 800;
@@ -27,16 +28,17 @@ public:
 	OgSample() = default;
 	~OgSample() {};
 
-	void Run();
+	void Run(OgSystemContext* systemContext);
 
 private:
 	void initWindow();
-	void initVulkan();
+	void initVulkan(OgSystemContext* systemContext);
 	void mainLoop();
+
 	void cleanup();
 
 	// initVulkan
-	void createInstance();
+	//void createInstance();
 	//setupDebugMessenger();
 	//createSurface();
 	//pickPhysicalDevice();
@@ -53,6 +55,8 @@ private:
 	GLFWwindow* _window;
 	const uint32 _width = 800;
 	const uint32 _height = 600;
+
+	Render::OgRenderContext* _renderContext = nullptr;
 };
 
 OG_NAMESPACE_SAMPLE_END
