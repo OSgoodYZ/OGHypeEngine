@@ -195,7 +195,7 @@ void OgRenderContextVulkan::initInstance()
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = "Lv";
 	appInfo.pEngineName = "Lv Engine";
-	appInfo.apiVersion = VK_API_VERSION_1_0;
+	appInfo.apiVersion = VK_API_VERSION_1_1;
 
 	bool surfaceExtFound = false;
 	bool platformSurfaceExtFound = false;
