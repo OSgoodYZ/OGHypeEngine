@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #ifndef _OG_SAMPLE_H__
 #define _OG_SAMPLE_H__
 #include "OgPrecompile.h"
@@ -20,7 +20,7 @@ const uint32_t HEIGHT = 600;
 OG_NAMESPACE_SAMPLE_BEGIN
 
 /**
-* @brief ´Ü¼ö vulkan code¸¦ Å×½ºÆ® ÇÏ±â À§ÇÑ sample ÄÚµåÀÌ´Ù. renderÂÊÀÌ ¸¸µé¾îÁø ÈÄ¿¡ »ç¶óÁú ÄÚµåÀÌ´Ù.
+* @brief ë‹¨ìˆ˜ vulkan codeë¥¼ í…ŒìŠ¤íŠ¸ í•˜ê¸° ìœ„í•œ sample ì½”ë“œì´ë‹¤. renderìª½ì´ ë§Œë“¤ì–´ì§„ í›„ì— ì‚¬ë¼ì§ˆ ì½”ë“œì´ë‹¤.
 */
 class OG_API OgSample
 {
@@ -33,26 +33,16 @@ public:
 private:
 	void initWindow();
 	void initVulkan(OgSystemContext* systemContext);
+	
 	void mainLoop();
-
+	
 	void cleanup();
 
-	// initVulkan
-	//void createInstance();
-	//setupDebugMessenger();
-	//createSurface();
-	//pickPhysicalDevice();
-	//createLogicalDevice();
-	//createSwapChain();
-	//createImageViews();
-	//createRenderPass();
-	//createGraphicsPipeline();
-	//createFramebuffers();
-	//createCommandPool();
-	//createCommandBuffers();
-	//createSyncObjects();
+	// TODO: @osgood window surface class ë§Œë“¤ì–´ì„œ ë”°ë¡œ ë¹¼ê¸°
 
 	GLFWwindow* _window;
+	Render::OgSwapChain* _swapchain;
+
 	const uint32 _width = 800;
 	const uint32 _height = 600;
 

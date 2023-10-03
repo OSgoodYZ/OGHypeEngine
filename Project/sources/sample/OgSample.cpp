@@ -24,20 +24,12 @@ void OgSample::initVulkan(OgSystemContext* systemContext)
 	_renderContext->Load();
 	_renderContext->Init();
 	
-	// TODO
-	//createInstance();
-	//setupDebugMessenger();
-	//createSurface();
-	//pickPhysicalDevice();
-	//createLogicalDevice();
-	//createSwapChain();
-	//createImageViews();
-	//createRenderPass();
-	//createGraphicsPipeline();
-	//createFramebuffers();
-	//createCommandPool();
-	//createCommandBuffers();
-	//createSyncObjects();
+	Render::OgSwapChainInfo scInfo;
+	scInfo.useDepthBuffer = true;
+	scInfo.useStencilBuffer = false;
+	scInfo.depthBufferFormat = Render::OgRenderTextureFormat::DEFAULT_DEPTH;
+	_swapchain = _renderContext->CreateSwapchain(systemContext->headWindow, scInfo);
+
 }
 
 void OgSample::mainLoop() 

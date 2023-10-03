@@ -51,8 +51,6 @@ OgSystemContext* createSystemContext()
 */
 int main(int argc, char* argv[])
 {
-	
-	
 	s_systemContext = createSystemContext();
 
 
