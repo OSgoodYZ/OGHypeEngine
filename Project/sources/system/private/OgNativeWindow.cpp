@@ -189,3 +189,14 @@ bool og_window_event_poll(OgNativeWindow* window, OgNativeEvent* evt)
 
 	return false;
 }
+
+void og_window_show(OgNativeWindow* window)
+{
+	if (window == nullptr) OG_THROW("It should be exists window");
+	og_platform_window_show(window);
+}
+void og_window_focus_in(OgNativeWindow* window)
+{
+	if (window == nullptr) OG_THROW("It should be exists window");
+	og_platform_window_focus_in(window);
+}

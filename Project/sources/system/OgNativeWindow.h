@@ -58,6 +58,7 @@ extern "C" {
 	OG_API void og_window_focus_in(OgNativeWindow* window);
 
 	OG_API void og_window_focus_out(OgNativeWindow* window);
+	
 
 	OG_API bool og_window_get_focused(OgNativeWindow* window);
 

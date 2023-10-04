@@ -1901,7 +1901,7 @@ void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
 	}
 
 	OgVector<VkAttachmentReference> colorReference;
-	colorReference.Resize(8);
+	colorReference.Resize(outputColorAttachmentCount);
 	for (int i = 0; i < colorReference.Size(); ++i)
 	{
 		auto& each = colorReference[i];
