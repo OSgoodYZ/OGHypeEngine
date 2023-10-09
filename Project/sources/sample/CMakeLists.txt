@@ -3,20 +3,26 @@
 set(CMAKE_CXX_STANDARD 11)
 IF(OG_SAMPLE_ON)
 
-set(COMMON 
+set(PUBLIC_COMMON
 	OgSample.h
 	OgSample.cpp
 	)
-source_group("private" FILES ${COMMON})
+source_group("public" FILES ${PUBLIC_COMMON})
+list(APPEND TOTAL_FILE ${PUBLIC_COMMON})
 
-list(APPEND TOTAL_FILE ${COMMON})
+set(PUBLIC_EDITOR
+	public/editor/OgPlayWindow.h
+	public/editor/OgPlayWindow.cpp
+	)
+source_group("public\\editor" FILES ${PUBLIC_EDITOR})
+list(APPEND TOTAL_FILE ${PUBLIC_EDITOR})
 
 add_library(sample STATIC ${TOTAL_FILE})
 link_directories(${LIB_DIR})
 target_link_libraries(sample render)#${GLFW3}
 
 IF(OG_ENGINE_SHARED_LIB)
-	target_compile_definitions(sample PRIVATE "-DOG_API_EXPORT")
+	target_compile_definitions(sample PUBLIC "-DOG_API_EXPORT")
 ENDIF()
 
 ## Common
