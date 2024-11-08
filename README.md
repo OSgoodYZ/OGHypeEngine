@@ -12,7 +12,11 @@ OGHypeEngine 은 VULKAN을 기본 그래픽 api로 이용하여 제작된 render
   * visual studio 2019
   * vulkan
   * ...
-* 작성 중...
+  * 
+
+* notion 문서
+  * [https://www.notion.so/OgHypeEngine-348b3738fa12408db35946459144c944?pvs=4](https://www.notion.so/OgHypeEngine-348b3738fa12408db35946459144c944?pvs=4)
+
 
 
 
