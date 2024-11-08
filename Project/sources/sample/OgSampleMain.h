@@ -23,23 +23,28 @@
 OG_NAMESPACE_SAMPLE_BEGIN
 
 /**
-* @brief 단수 vulkan code를 테스트 하기 위한 sample 코드이다. render쪽이 만들어진 후에 사라질 코드이다.
+* @brief Render backend를 테스트 하기위한 sample 코드의 main Loop입니다.
 */
-class OG_API OgSample
+class OG_API OgSampleMain
 {
 public:
-	OgSample() = default;
-	~OgSample() {};
+	OgSampleMain() = default;
+	~OgSampleMain() {};
 
 	void Run(OgSystemContext* systemContext);
 
 private:
+	
+
+	void initRenderContext(OgSystemContext* systemContext);
+	
 	void initWindow();
-	void initVulkan(OgSystemContext* systemContext);
-	
+
 	void mainLoop();
+
+	void finalWindow();
 	
-	void cleanup();
+	void finalRenderContext();
 
 	// TODO: @osgood window surface class 만들어서 따로 빼기
 

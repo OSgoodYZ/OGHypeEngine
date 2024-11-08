@@ -1,5 +1,8 @@
-﻿#include "sample/OgSample.h"
-#include "system/OgFileSystem.h"
+﻿#include "system/OgFileSystem.h"
+
+#ifdef OG_SAMPLE_BUILD
+#include "sample/OgSampleMain.h"
+#endif
 
 using namespace Og;
 using namespace Og::System;
@@ -56,7 +59,7 @@ int main(int argc, char* argv[])
 
 	// sample test를 위한 코드
 #ifdef OG_SAMPLE_BUILD
-	Og::Sample::OgSample sample;
+	Og::Sample::OgSampleMain sample;
 
 	try {
 		sample.Run(s_systemContext);

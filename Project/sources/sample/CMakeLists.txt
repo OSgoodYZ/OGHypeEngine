@@ -4,11 +4,18 @@ set(CMAKE_CXX_STANDARD 11)
 IF(OG_SAMPLE_ON)
 
 set(PUBLIC_COMMON
-	OgSample.h
-	OgSample.cpp
+	OgSampleMain.h
+	OgSampleMain.cpp
 	)
 source_group("public" FILES ${PUBLIC_COMMON})
 list(APPEND TOTAL_FILE ${PUBLIC_COMMON})
+
+set(PUBLIC_CORE
+	public/core/OgTriangle.h
+	public/core/OgTriangle.cpp
+	)
+source_group("public\\core" FILES ${PUBLIC_CORE})
+list(APPEND TOTAL_FILE ${PUBLIC_CORE})
 
 set(PUBLIC_EDITOR
 	public/editor/OgPlayWindow.h

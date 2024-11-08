@@ -1,0 +1,105 @@
+#include "OgSampleMain.h"
+
+#include "render/private/vulkan/OgRenderContext_Vulkan.h"
+
+using namespace std;
+OG_NAMESPACE_SAMPLE_BEGIN
+
+void OgSampleMain::Run(OgSystemContext* systemContext) {
+	initRenderContext(systemContext);
+	initWindow();
+	mainLoop();
+	finalWindow();
+	finalRenderContext();
+}
+
+void OgSampleMain::initRenderContext(OgSystemContext* systemContext)
+{
+	_renderContext = new Render::OgRenderContextVulkan(systemContext);
+	_renderContext->Load();
+	_renderContext->Init();
+
+}
+
+void OgSampleMain::initWindow() 
+{
+	_handle = new OgPlayWindow(_renderContext, "Vulkan", _width, _height);
+	_handle->Open();
+}
+
+void OgSampleMain::finalWindow()
+{
+	_handle->Close();
+	delete _handle;
+	_handle = nullptr;
+	
+}
+
+
+
+
+
+void OgSampleMain::mainLoop() 
+{
+
+	while (true)
+	{
+
+		og_system_poll_events();
+
+		::vector<OgPlayWindow*> deleteWindows;
+
+		//for (int32 i = static_cast<int32>(windows.Count()) - 1; i >= 0; i += -1)
+		{
+			OgPlayWindow& window = *_handle;
+
+			if (window.ShouldClose() == false)
+			{
+				window.PeekEvent();
+			}
+			else
+			{
+				//dispatchQueueHandle->Execute();
+				window.Close();
+				deleteWindows.push_back(&window);
+			}
+		}
+
+
+		if (nullptr != _handle)
+		{
+			_renderContext->Collect();
+
+//			for (size_t i = 0; i < windows.Count(); ++i)
+			{
+				OgPlayWindow& window = *_handle;
+				if (!window.ShouldClose())
+				{
+					window.NextFrame();
+					window.Update();
+					window.Present();
+				}
+			}
+
+		}
+		else
+		{
+			break;
+		}
+
+	}
+
+}
+
+void OgSampleMain::finalRenderContext() 
+{
+
+	_renderContext->Shutdown();
+	delete _renderContext;
+		
+
+
+}
+
+
+OG_NAMESPACE_SAMPLE_END

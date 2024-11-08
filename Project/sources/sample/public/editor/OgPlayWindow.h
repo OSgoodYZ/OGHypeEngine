@@ -14,9 +14,12 @@
 #include <cstring>
 
 #include "system/OgSystemContext.h"
-#include "render/OgRenderContext.h"
 #include "system/OgNativeWindow.h"
 #include "system/OgNativeEvent.h"
+
+#include "render/OgRenderContext.h"
+
+#include "sample/public/core/OgTriangle.h"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -49,6 +52,7 @@ public:
 		, _presentable(false)
 		, _shouldCloseNextFrame(false)
 		, _renderContext(renderContext)
+		, _triangleSample(renderContext)
 	{
 		OgNativeWindow* nativeParent = nullptr;
 		if (_parent != nullptr)
@@ -276,7 +280,7 @@ protected:
 
 	void onGUI()
 	{
-
+		_triangleSample.OnRender();
 	}
 
 	void onUpdate()
@@ -378,6 +382,8 @@ protected:
 	Render::OgSwapChain* _swapchain;
 
 	Render::OgRenderContext* _renderContext;
+
+	OgTriangle _triangleSample;
 
 	uint32 _submitIndex = 0;
 
