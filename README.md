@@ -9,7 +9,7 @@ OGHypeEngine 은 VULKAN을 기본 그래픽 api로 이용하여 제작된 render
 * 사용중인 환경
   * window
   * cmake 3.20.1
-  * visual studio 2017
+  * visual studio 2019
   * vulkan
   * ...
 * 작성 중...
