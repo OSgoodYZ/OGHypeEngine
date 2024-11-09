@@ -169,8 +169,7 @@ public:
 	// Editor Run Method
 	void Update()
 	{
-		Render::OgCommandEncoderHandle* encoder = getSubmitEncorder();
-		encoder->Begin();
+
 
 		onUpdate();
 
@@ -179,9 +178,9 @@ public:
 			prepare(_delta);
 			render(_delta);
 		}
-		encoder->End();
+		
 
-		_renderContext->Submit(_swapchain, encoder);
+		
 
 		// TODO: @osgood inputHandler작업
 		//s_inputHandler->Update();
@@ -252,11 +251,6 @@ protected:
 
 	void onInit()
 	{
-		for (size_t i = 0; i < _renderContext->maxSubmitCount; ++i)
-		{
-			_encoders.push_back(_renderContext->CreateCommandEncoder());
-		}
-
 		Render::OgSwapChainInfo scInfo;
 		scInfo.useDepthBuffer = true;
 		scInfo.useStencilBuffer = false;
@@ -269,18 +263,13 @@ protected:
 	void onDestroy()
 	{
 		_renderContext->DestroySwapchain(_swapchain);
-		for (int i = 0; i < _renderContext->maxSubmitCount; ++i)
-		{
-			_renderContext->DestroyCommandEncoder(_encoders[i]);
-		}
 
-		_encoders.clear();
 
 	}
 
 	void onGUI()
 	{
-		_triangleSample.OnRender();
+		// TODO
 	}
 
 	void onUpdate()
@@ -297,8 +286,7 @@ protected:
 
 	void onResize()
 	{
-		_renderContext->Suspend(_swapchain);
-		_renderContext->Restore(_swapchain);
+
 
 		Position position = GetPosition();
 		//_surface->rect.x = static_cast<float>(position.x);
@@ -313,49 +301,44 @@ protected:
 
 	void onPrepare(float deltaTime)
 	{
-		//app_prepare(deltaTime);
+		
 	}
 
 	void onRender(float deltaTime)
 	{
-		//app_render(deltaTime);
+		_triangleSample.OnRender(_swapchain);
 	}
 
 	void onPresent()
 	{
-		if (_presentable)
-		{
-			//app_present();
-			_renderContext->Present(_swapchain);
-		}
+		_triangleSample.OnPresent(_swapchain,_presentable);
 	}
 
 	void onNextFrame()
 	{
-		if (_presentable)
-		{
-			_submitIndex = (_submitIndex + 1) % _renderContext->maxSubmitCount;
-		}
+		_triangleSample.OnNextFrame(_presentable);
+
 	}
 
 	void onRestore()
 	{
-		//app_restore();
+		_triangleSample.OnSuspent(_swapchain);
+		_triangleSample.OnRestore(_swapchain);
+		
 	}
 
 	virtual void onOpen()
 	{
-		//app_init();
+		
 	}
 
 	virtual void onClose()
 	{
-		//app_destroy();
+		
 	}
 
 	void onDropFiles(const std::vector<std::string>& absolutePaths) {}
-
-	Render::OgCommandEncoderHandle* getSubmitEncorder() { return _encoders[_submitIndex]; }
+		
 
 	void prepare(float deltaTime)
 	{
@@ -385,7 +368,7 @@ protected:
 
 	OgTriangle _triangleSample;
 
-	uint32 _submitIndex = 0;
+	
 
 	std::string _title;
 
@@ -393,7 +376,7 @@ protected:
 
 	OgNativeWindow* _handle;
 
-	std::vector<Render::OgCommandEncoderHandle*> _encoders;
+	
 
 	uint32 _tick;
 
