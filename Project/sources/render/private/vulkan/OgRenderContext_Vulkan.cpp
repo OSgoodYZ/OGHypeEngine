@@ -717,7 +717,7 @@ void OgRenderContextVulkan::initSwapChain(SwapchainWrapper& sw)
 		if (sw.settingInfo.useMSAA)
 			depthStencilAttachment.sampleCount = sw.settingInfo.msaaSampleCount;
 
-		rpInfo.useDepthStencilAttacment = true;
+		rpInfo.useDepthStencilAttachment = true;
 		rpInfo.outputDepthStencilAttachment = depthStencilAttachment;
 	}
 
@@ -1859,7 +1859,7 @@ void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
 	int outputColorAttachmentCount = rInfo.outputColorAttachmentCount;
 	
 	int totalAttachmentCount = outputColorAttachmentCount;
-	if (rInfo.useDepthStencilAttacment == true)  totalAttachmentCount++;
+	if (rInfo.useDepthStencilAttachment == true)  totalAttachmentCount++;
 
 	// https://developer.android.com/ndk/guides/graphics/design-notes?hl=ko
 	OgVector<VkAttachmentDescription> attachmentDescriptors;
@@ -1877,13 +1877,14 @@ void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
 		attachmentDescriptors[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		if (rInfo.outputColorAttachments[0].load == OgRenderBufferLoadAction::LOAD)
 		{
+
 			// NOTE: load시에는 무조건 layout이 맞아야 제대로 load 할 수 있다.
 			attachmentDescriptors[i].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		}
 		attachmentDescriptors[i].finalLayout = colorFinalLayout;
 	}
 
-	if (rInfo.useDepthStencilAttacment == true)
+	if (rInfo.useDepthStencilAttachment == true)
 	{
 		auto& depthDescriptor = attachmentDescriptors[totalAttachmentCount - 1];
 		vk_convert_format(renderContext->_gpuDeviceVK, depthDescriptor, rInfo.outputDepthStencilAttachment);
@@ -1922,7 +1923,7 @@ void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
 	subpassDescription.colorAttachmentCount = outputColorAttachmentCount;
 	subpassDescription.pColorAttachments = (outputColorAttachmentCount > 0) ? &colorReference[colorReference.Size() - 1] : nullptr;
 	subpassDescription.pResolveAttachments = nullptr;
-	subpassDescription.pDepthStencilAttachment = rInfo.useDepthStencilAttacment ? &depthReference : nullptr;
+	subpassDescription.pDepthStencilAttachment = rInfo.useDepthStencilAttachment ? &depthReference : nullptr;
 	subpassDescription.preserveAttachmentCount = 0;
 	subpassDescription.pPreserveAttachments = nullptr;
 
@@ -2242,7 +2243,7 @@ OgResourceLayoutHandle* OgRenderContextVulkan::CreateResourceLayout(OgResourceBi
 	// Descriptor 는 glsl이나 hlsl 에 선언된 변수의 설명.
 	// DescriptorLayoutBinding 선언된 구조체 변수에 자료형을 설명. (binding)
 	// WriteDescriptorSet 버퍼로 쓰여지는 리소스에 대한 정보
-	OG_CHECK(count > 0, "Wrong Binding Count");
+	
 	
 	// LvResourceLayoutVK has mem alloc on the constructor.
 	OgResourceLayoutVK* rLayout = new OgResourceLayoutVK(_logicalDeviceVK, bindings, count);

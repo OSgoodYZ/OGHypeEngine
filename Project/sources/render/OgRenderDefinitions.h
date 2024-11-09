@@ -1929,9 +1929,9 @@ struct OG_API OgRenderPassInfo
 
 	uint8 outputColorAttachmentCount : 3;
 
-	uint8 resoOgeColorAttachmentCount : 3;
+	uint8 resolveColorAttachmentCount : 3;
 
-	uint8 useDepthStencilAttacment : 1;
+	uint8 useDepthStencilAttachment : 1;
 
 	uint8 isSwapchainRenderPass : 1;
 
@@ -2293,8 +2293,6 @@ struct OG_API OgDepthStencilDescriptor
 
 struct OG_API OgPipelineDescriptor
 {
-	OgPipelineDescriptor();
-
 	OgPipelineType				type;
 	const char*					name;
 	OgRenderPassHandle*			renderPass = nullptr;

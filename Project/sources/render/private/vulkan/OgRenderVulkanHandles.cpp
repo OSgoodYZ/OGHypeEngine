@@ -76,7 +76,7 @@ void OgCommandEncoderVK::BeginRenderPass
 	beginInfo.renderArea.extent.height = area.height;
 
 	uint8 attachmentLen = rpInfo.outputColorAttachmentCount;
-	if (rpInfo.useDepthStencilAttacment == true)
+	if (rpInfo.useDepthStencilAttachment == true)
 		attachmentLen += 1;
 
 	OgVector<VkClearValue> clearValues;
@@ -98,9 +98,9 @@ void OgCommandEncoderVK::BeginRenderPass
 
 
 	bool cmdUseDepthStencil = depthAttachmentClear != nullptr;
-	OG_CHECK(cmdUseDepthStencil == rpInfo.useDepthStencilAttacment,
+	OG_CHECK(cmdUseDepthStencil == rpInfo.useDepthStencilAttachment,
 		"The usage of Command Depth Stencil (%d) is different from RenderPass Info Usage of Depth Stencil (%d)",
-		(int)cmdUseDepthStencil, (int)rpInfo.useDepthStencilAttacment);
+		(int)cmdUseDepthStencil, (int)rpInfo.useDepthStencilAttachment);
 	if (cmdUseDepthStencil == true)
 	{
 		OgCommandEncoderHandle::ClearValue cv = *depthAttachmentClear;

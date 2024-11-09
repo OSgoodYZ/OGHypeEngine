@@ -2621,7 +2621,7 @@ OgAttachment::OgAttachment() { }
 OgRenderPassInfo::OgRenderPassInfo()
 	: outputColorAttachments(nullptr)
 	, outputColorAttachmentCount(0)
-	, useDepthStencilAttacment(false)
+	, useDepthStencilAttachment(false)
 	, isSwapchainRenderPass(false)
 {}
 
@@ -2676,7 +2676,7 @@ OgRenderPassHandle::OgRenderPassHandle(const OgRenderPassInfo& info)
 		memcpy(this->info.outputColorAttachments, info.outputColorAttachments, info.outputColorAttachmentCount * sizeof(OgAttachment));
 	}
 
-	this->info.useDepthStencilAttacment = info.useDepthStencilAttacment;
+	this->info.useDepthStencilAttachment = info.useDepthStencilAttachment;
 	this->info.outputDepthStencilAttachment = info.outputDepthStencilAttachment;
 
 	// TODO MSAA

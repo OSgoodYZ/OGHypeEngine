@@ -20,23 +20,20 @@ public:
 		:_renderContext(renderContext)
 		, _submitIndex{0}
 	{
-		OnInit();
 	};
 
 	~OgTriangle() 
 	{
-		OnDestroy();
+		
 	};
 
-	void OnInit();
+	void OnInit(Render::OgSwapChain* swapchain);
 
 	void OnRender(Render::OgSwapChain* swapchain);
-
 
 	void OnSuspent(Render::OgSwapChain* swapchain);
 
 	void OnRestore(Render::OgSwapChain* swapchain);
-
 
 	void OnNextFrame(bool presentable);
 
@@ -47,10 +44,24 @@ public:
 
 private:
 
+	void createResourceHandles(Render::OgSwapChain* swapchain);
+
+	void destroyResourceHandles();
+
+	// Render resources
+	Render::OgBufferHandle* _vertexBuffer;
+	Render::OgBufferHandle* _uniformBuffer;
+	Render::OgShaderHandle* _vertexShader;
+	Render::OgShaderHandle* _fragmentShader;
+	Render::OgProgramHandle* _program;
+	Render::OgResourceLayoutHandle* _resourceLayout;
+	Render::OgRenderPassHandle* _renderPass;
+	Render::OgFrameBufferHandle* _frameBuffer;
+	Render::OgPipelineHandle* _pipeline;
+
+
 
 	Render::OgRenderContext* _renderContext = nullptr;
-
-
 	std::vector<Render::OgCommandEncoderHandle*> _encoders;
 	uint8 _submitIndex;
 };

@@ -257,13 +257,14 @@ protected:
 		scInfo.depthBufferFormat = Render::OgRenderTextureFormat::DEFAULT_DEPTH;
 
 		_swapchain = _renderContext->CreateSwapchain(_handle, scInfo);
+		_triangleSample.OnInit(_swapchain);
 
 	}
 
 	void onDestroy()
 	{
+		_triangleSample.OnDestroy();
 		_renderContext->DestroySwapchain(_swapchain);
-
 
 	}
 
