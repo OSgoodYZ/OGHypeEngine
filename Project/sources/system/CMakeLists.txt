@@ -19,16 +19,16 @@ ELSEIF(ANDROID)
 	#TODO
 ENDIF()
 
-list(APPEND TOTAL_FILE ${SRC_PUBLIC_PLATFORM})
-list(APPEND TOTAL_FILE ${SRC_PRIVATE_PLATFORM})
+LIST(APPEND TOTAL_FILE ${SRC_PUBLIC_PLATFORM})
+LIST(APPEND TOTAL_FILE ${SRC_PRIVATE_PLATFORM})
 
 set(SRC_SYSTEM private/OgSystemContext.cpp private/OgNativeWindow.cpp private/OgNativeEvent.cpp private/OgMemory.cpp private/OgInput.cpp private/OgHashCode.cpp private/OgFileSystem.cpp private/OgStream.cpp)
 source_group("private" FILES ${SRC_SYSTEM})
-list(APPEND TOTAL_FILE ${SRC_SYSTEM})
+LIST(APPEND TOTAL_FILE ${SRC_SYSTEM})
 
 set(INC_SYSTEM OgSystemContext.h OgFileSystem.h OgNativeWindow.h OgNativeEvent.h OgInput.h OgMemory.h OgHashCode.h  OgStream.h)
 source_group("public" FILES ${INC_SYSTEM})
-list(APPEND TOTAL_FILE ${INC_SYSTEM})
+LIST(APPEND TOTAL_FILE ${INC_SYSTEM})
 
 
 SET(SOURCE_GLM
@@ -37,18 +37,37 @@ SET(SOURCE_GLM
 SOURCE_GROUP("thirdparty\\glm" FILES ${SOURCE_GLM})
 LIST(APPEND TOTAL_FILE ${SOURCE_GLM})
 
+set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/sources/system/thirdparty/imgui)
+set(SOURCES_IMGUI
+	${IMGUI_DIR}/imconfig.h
+	${IMGUI_DIR}/imgui.h
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+	${IMGUI_DIR}/imgui_internal.h
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+	${IMGUI_DIR}/imstb_rectpack.h
+	${IMGUI_DIR}/imstb_textedit.h
+	${IMGUI_DIR}/imstb_truetype.h
+	${IMGUI_DIR}/backends/imgui_impl_vulkan.h
+    ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+)
+SOURCE_GROUP("thirdparty\\imgui" FILES ${SOURCES_IMGUI})
+LIST(APPEND TOTAL_FILE ${SOURCES_IMGUI})
 
-#add_library(system STATIC ${TOTAL_FILE})
+add_library(imgui STATIC ${SOURCES_IMGUI})
+target_include_directories(imgui PUBLIC ${IMGUI_DIR})
 
 
 IF(ANDROID)
 	#TODO
 ELSE()
-	add_library(system STATIC ${TOTAL_FILE} ${COLLECTION_PRIVATE} ${COLLECTION_PUBLIC} )
+	add_library(system STATIC ${TOTAL_FILE} ${COLLECTION_PRIVATE} ${COLLECTION_PUBLIC} ${SOURCES_IMGUI})
 ENDIF()
 
 link_directories(${LIB_DIR})
-target_link_libraries(system PUBLIC ${GLFW3})
+target_link_libraries(system PUBLIC ${GLFW3} imgui)
 
 # target_compile_options(render PUBLIC -Wall)
 IF(OG_ENGINE_SHARED_LIB)
