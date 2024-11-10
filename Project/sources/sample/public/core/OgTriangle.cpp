@@ -63,7 +63,7 @@ void OgTriangle::OnRender(Render::OgSwapChain* swapchain)
 	
 }
 
-void OgTriangle::OnSuspent(Render::OgSwapChain* swapchain)
+void OgTriangle::OnSuspend(Render::OgSwapChain* swapchain)
 {
 	_renderContext->Suspend(swapchain);
 }

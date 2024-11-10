@@ -323,7 +323,7 @@ protected:
 
 	void onRestore()
 	{
-		_triangleSample.OnSuspent(_swapchain);
+		_triangleSample.OnSuspend(_swapchain);
 		_triangleSample.OnRestore(_swapchain);
 		
 	}

@@ -31,7 +31,7 @@ public:
 
 	void OnRender(Render::OgSwapChain* swapchain);
 
-	void OnSuspent(Render::OgSwapChain* swapchain);
+	void OnSuspend(Render::OgSwapChain* swapchain);
 
 	void OnRestore(Render::OgSwapChain* swapchain);
 
