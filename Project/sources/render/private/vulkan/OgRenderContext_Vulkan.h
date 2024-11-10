@@ -159,6 +159,15 @@ private:
 	VkDevice _logicalDeviceVK;
 	VkQueue _graphicsQueueVK;
 	VkFormat _defaultDepthFormat;
+
+	enum class CommandPoolState : uint8
+	{
+		INIT = 0,
+		RECORING = 1,
+		RESET = 2,
+		DEINIT = 3,
+	} _cmdPoolState;
+
 	VkCommandPool _cmdPoolVK;
 
 	// Manual Managed Descriptor Pool

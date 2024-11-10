@@ -454,6 +454,7 @@ void OgRenderContextVulkan::initCommandPool()
 	cmdPoolInfo.queueFamilyIndex = _vulkanDevice->queueFamilyIndices.graphics;
 	cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	VK_CHECK_RESULT(vkCreateCommandPool(_logicalDeviceVK, &cmdPoolInfo, nullptr, &_cmdPoolVK));
+	_cmdPoolState = CommandPoolState::INIT;
 }
 
 void OgRenderContextVulkan::initDescriptorPool()
@@ -502,14 +503,17 @@ void OgRenderContextVulkan::initStagingCommandBuffer()
 
 void OgRenderContextVulkan::submitStagingCommandBuffer()
 {
-	VkCommandBuffer curStagingCmdBuffer = _stagingCommandBuffer[_stagingSubmitIndex];
-	vkEndCommandBuffer(curStagingCmdBuffer);
+	if (_cmdPoolState != CommandPoolState::RESET)
+	{
+		VkCommandBuffer curStagingCmdBuffer = _stagingCommandBuffer[_stagingSubmitIndex];
+		vkEndCommandBuffer(curStagingCmdBuffer);
 
-	VkSubmitInfo stagingSubmitInfo{};
-	stagingSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	stagingSubmitInfo.commandBufferCount = 1;
-	stagingSubmitInfo.pCommandBuffers = &curStagingCmdBuffer;
-	VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueueVK, 1, &stagingSubmitInfo, VK_NULL_HANDLE));
+		VkSubmitInfo stagingSubmitInfo{};
+		stagingSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		stagingSubmitInfo.commandBufferCount = 1;
+		stagingSubmitInfo.pCommandBuffers = &curStagingCmdBuffer;
+		VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueueVK, 1, &stagingSubmitInfo, VK_NULL_HANDLE));
+	}
 
 	// advance staging submit index and begin command
 	_stagingSubmitIndex = (_stagingSubmitIndex + 1) % 3;
@@ -2732,6 +2736,9 @@ void OgRenderContextVulkan::Present(OgSwapChain* swapchain)
 			}
 		}
 	}
+
+	_cmdPoolState = CommandPoolState::RECORING;
+
 }
 void OgRenderContextVulkan::Suspend(OgSwapChain* swapchain) 
 {
@@ -2745,6 +2752,7 @@ void OgRenderContextVulkan::Suspend(OgSwapChain* swapchain)
 	vkQueueWaitIdle(_graphicsQueueVK);
 
 	vkResetCommandPool(_logicalDeviceVK, _cmdPoolVK, 0);
+	_cmdPoolState = CommandPoolState::RESET;
 
 	SwapchainWrapper& sw = *(_swapChainTables[swapchainHash]);
 
@@ -2827,7 +2835,11 @@ void OgRenderContextVulkan::Shutdown(void)
 	_rootSwapchainWrapper = nullptr;
 
 	if (_descriptorPool != VK_NULL_HANDLE)
+	{
 		vkDestroyDescriptorPool(_logicalDeviceVK, _descriptorPool, VK_NULL_HANDLE);
+		_cmdPoolState = CommandPoolState::DEINIT;
+	}
+		
 
 	if (_cmdPoolVK != NULL)
 		vkDestroyCommandPool(_logicalDeviceVK, _cmdPoolVK, VK_NULL_HANDLE);
