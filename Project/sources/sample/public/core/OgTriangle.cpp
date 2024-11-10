@@ -18,13 +18,9 @@ void OgTriangle::OnInit(Render::OgSwapChain* swapchain)
 
 void OgTriangle::OnRender(Render::OgSwapChain* swapchain)
 {
-	
-	cerr << "You can continue working from here.! 2024/11/9!!" << endl;
-	std::terminate();
 
 	Render::OgCommandEncoderHandle* encoder = _encoders[_submitIndex];
 	encoder->Begin();
-
 
 	float passColor[]{ 0.0f, 1.0f, 0.0f, 1.0f };
 

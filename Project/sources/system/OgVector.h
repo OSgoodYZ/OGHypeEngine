@@ -14,8 +14,17 @@ OG_NAMESPACE_SYSTEM_BEGIN
 template< typename T, class A = std::allocator< T >>
 class OgVector
 {
+	
 public:
+
 	OgVector() = default;
+
+	OgVector(size_t size)
+		: _data(size)
+	{
+	}
+
+
 	OgVector(const OgVector& rhs)
 	{
 		_data = rhs._data;

@@ -388,9 +388,8 @@ struct OgResourceLayoutVK : OgResourceLayoutHandle
 		, descriptorSetLayoutVK(VK_NULL_HANDLE)
 	{
 		OG_CHECK(bufferUsageCount + textureUsageCount == count, "Wrong ResourceBinding Count");
-
-		OgVector<VkDescriptorSetLayoutBinding> setLayoutBindings;
-		setLayoutBindings.Resize(count);
+		
+		OgVector<VkDescriptorSetLayoutBinding> setLayoutBindings((count == 0) ? 1 : count);
 
 		for (uint i = 0; i < count; ++i)
 		{
