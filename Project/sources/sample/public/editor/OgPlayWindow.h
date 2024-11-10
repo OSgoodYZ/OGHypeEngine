@@ -17,6 +17,8 @@
 #include "system/OgNativeWindow.h"
 #include "system/OgNativeEvent.h"
 
+#include "system/thirdparty/imgui/imgui.h"
+
 #include "render/OgRenderContext.h"
 
 #include "sample/public/core/OgTriangle.h"
@@ -302,7 +304,13 @@ protected:
 
 	void onPrepare(float deltaTime)
 	{
-		
+		ImGui::NewFrame();
+		//ImGui::Begin("Hello, world!");
+		//ImGui::Text("This is some useful text.");
+		//ImGui::End();
+
+		//// 렌더링
+		//ImGui::Render();
 	}
 
 	void onRender(float deltaTime)

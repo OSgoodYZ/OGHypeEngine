@@ -42,7 +42,7 @@ list(APPEND TOTAL_FILE ${PRIVATE_VULKAN})
 add_library(render STATIC ${TOTAL_FILE})
 link_directories(${LIB_DIR})
 target_link_libraries(render PUBLIC ${VULKAN} system)
-
+SET_TARGET_PROPERTIES(render PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OG_PROJECT_BINARY_DIR})
 
 # target_compile_options(render PUBLIC -Wall)
 IF(OG_ENGINE_SHARED_LIB)

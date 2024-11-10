@@ -22,11 +22,31 @@ ENDIF()
 LIST(APPEND TOTAL_FILE ${SRC_PUBLIC_PLATFORM})
 LIST(APPEND TOTAL_FILE ${SRC_PRIVATE_PLATFORM})
 
-set(SRC_SYSTEM private/OgSystemContext.cpp private/OgNativeWindow.cpp private/OgNativeEvent.cpp private/OgMemory.cpp private/OgInput.cpp private/OgHashCode.cpp private/OgFileSystem.cpp private/OgStream.cpp)
+set(SRC_SYSTEM 
+	private/OgSystemContext.cpp 
+	private/OgNativeWindow.cpp 
+	private/OgNativeEvent.cpp 
+	private/OgMemory.cpp 
+	private/OgInput.cpp 
+	private/OgHashCode.cpp 
+	private/OgFileSystem.cpp 
+	private/OgStream.cpp
+	private/OgImGUIManager.cpp
+	)
 source_group("private" FILES ${SRC_SYSTEM})
 LIST(APPEND TOTAL_FILE ${SRC_SYSTEM})
 
-set(INC_SYSTEM OgSystemContext.h OgFileSystem.h OgNativeWindow.h OgNativeEvent.h OgInput.h OgMemory.h OgHashCode.h  OgStream.h)
+set(INC_SYSTEM 
+	OgSystemContext.h 
+	OgFileSystem.h 
+	OgNativeWindow.h 
+	OgNativeEvent.h 
+	OgInput.h 
+	OgMemory.h 
+	OgHashCode.h  
+	OgStream.h
+	OgImGUIManager.h
+	)
 source_group("public" FILES ${INC_SYSTEM})
 LIST(APPEND TOTAL_FILE ${INC_SYSTEM})
 
@@ -55,6 +75,9 @@ set(SOURCES_IMGUI
 )
 SOURCE_GROUP("thirdparty\\imgui" FILES ${SOURCES_IMGUI})
 LIST(APPEND TOTAL_FILE ${SOURCES_IMGUI})
+SET(PUBLIC_FONT thirdparty/IconsFontAwesome6.h)
+SOURCE_GROUP("thirdparty\\font" FILES ${PUBLIC_FONT})
+LIST(APPEND TOTAL_FILE ${PUBLIC_FONT})
 
 add_library(imgui STATIC ${SOURCES_IMGUI})
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
@@ -76,7 +99,7 @@ ENDIF()
 
 #GUI framework
 target_link_directories(system PRIVATE ${GLFW3} ${SOURCE_GLM})	
-
+SET_TARGET_PROPERTIES(system PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OG_PROJECT_BINARY_DIR})
 ## DEBUG
 INSTALL(TARGETS system CONFIGURATIONS Debug ARCHIVE DESTINATION "${INSTALL_FOLDER}/dev/lib" LIBRARY DESTINATION "${INSTALL_FOLDER}" RUNTIME DESTINATION "${INSTALL_FOLDER}")
 install(DIRECTORY "." CONFIGURATIONS Debug PUBLIC_HEADER DESTINATION "${INSTALL_FOLDER}/dev/include/system" FILES_MATCHING PATTERN "*.h" PATTERN "private" EXCLUDE)

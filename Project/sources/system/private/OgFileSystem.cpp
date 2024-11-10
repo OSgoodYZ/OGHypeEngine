@@ -112,22 +112,98 @@ void og_path_to_system(char* dest, const char* src)
 }
 
 
+OG_API bool og_path_check_extension(const char* checkString, const char* extension)
+{
+	int32 checkStrLen = static_cast<int32>(strlen(checkString)) - 1;
+	int32 extLen = static_cast<int32>(strlen(checkString)) - 1;
+
+	while (checkStrLen >= 0 && extLen >= 0)
+	{
+		if (checkString[checkStrLen] != extension[extLen])
+		{
+			return false;
+		}
+
+		--checkStrLen;
+		--extLen;
+	}
+
+	return (extLen == -1);
+}
+
+OG_API std::string og_path_combine(const char* a, const char* b)
+{
+
+	int32 aLen = a ? static_cast<int32>(strlen(a)) : -1;
+	int32 bLen = b ? static_cast<int32>(strlen(b)) : -1;
+	const char* pa = aLen == -1 ? nullptr : a + aLen - 1;
+	const char* pb = bLen == -1 ? nullptr : b + bLen - 1;
+
+	while (aLen >= 0 && *pa == OG_DIRECTORY_SEPARATOR_CHAR)
+	{
+		--pa;
+		--aLen;
+	}
+
+	while (bLen >= 0 && *pb == OG_DIRECTORY_SEPARATOR_CHAR)
+	{
+		--pb;
+		--bLen;
+	}
+
+	size_t newCapacity = aLen + bLen + 2; // 1 : DIRECTORY_SEPARATOR_CHAR, 2 : null limiter
+
+	
+	std::string s;
+	s.reserve(newCapacity);
+	if (aLen >= 0)
+	{
+		s.append(a, 0, aLen);
+		s.push_back(OG_DIRECTORY_SEPARATOR_CHAR);
+		
+	}
+
+	if (bLen >= 0)
+	{
+		s.append(b, 0, bLen);
+	}
+
+
+#if defined(WIN32)
+	size_t pos = 0;
+	while ((pos = s.find("\\\\", pos)) != std::string::npos) {
+		s.replace(pos, 2, "\\");
+		pos += 1; // Move past the replaced backslash
+	}
+#else
+	size_t pos = 0;
+	while ((pos = s.find("//", pos)) != std::string::npos) {
+		s.replace(pos, 2, "/");
+		pos += 1; // Move past the replaced forward slash
+	}
+#endif
+
+	return s;
+}
+
 std::string og_path_parent(const char* path)
 {
-	std::string result("");
-	const char ds[2] = { OG_DIRECTORY_SEPARATOR_CHAR, 0 };
+	std::string result;
+	const char ds = OG_DIRECTORY_SEPARATOR_CHAR;
 	char conv[OG_CHAR_INIT_LENGTH] = { 0 };
 
 	og_path_to_system(conv, path);
-	
-	const char* ptr = strstr(conv, ds);
-	//strcpy(conv, (const char*)(ptr - conv));
 
-	if (ptr == nullptr) 
+	const char* last_separator = strrchr(conv, ds);
+
+	if (last_separator == nullptr || last_separator == conv)
+	{
+		// 구분자가 없거나 경로가 루트인 경우
 		return result;
+	}
 	else
 	{
-		result.append(conv, 0, (int)(ptr - conv));
+		result.assign(conv, last_separator - conv);
 		return result;
 	}
 }

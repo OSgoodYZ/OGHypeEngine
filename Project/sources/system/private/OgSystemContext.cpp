@@ -22,6 +22,9 @@ bool og_system_init(OgSystemContext* context, void* platformHandle)
 	if (_context->isInitialized)
 		return true;
 
+
+
+
 #if defined(OG_USE_CRT_CHASE_MEMORY_LEAK)
 	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
 	_CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
@@ -50,6 +53,7 @@ bool og_system_init(OgSystemContext* context, void* platformHandle)
 		return false;
 	}
 	
+
 
 	return true;
 }

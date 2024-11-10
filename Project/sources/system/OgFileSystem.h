@@ -157,6 +157,18 @@ OG_API const char* og_path_current();
 
 OG_API const char* og_path_executable_current();
 
+
+OG_API bool og_path_check_extension(const char* checkString, const char* extension);
+
+/**
+ * @brief 두개의 경로를 경로 구분자와 함께 합성합니다.
+ * @param path 경로
+ * @return 합성된 경로
+ * @file #include "system/LvFileSystem.h"
+ */
+OG_API std::string og_path_combine(const char* a, const char* b);
+
+
 OG_API std::string og_path_parent(const char* path);
 
 /**

@@ -1,5 +1,6 @@
 #include "OgSampleMain.h"
 
+#include "system/OgImGUIManager.h"
 #include "render/private/vulkan/OgRenderContext_Vulkan.h"
 
 using namespace std;
@@ -7,9 +8,11 @@ OG_NAMESPACE_SAMPLE_BEGIN
 
 void OgSampleMain::Run(OgSystemContext* systemContext) {
 	initRenderContext(systemContext);
+	initImGUIContext();
 	initWindow();
 	mainLoop();
 	finalWindow();
+	finalImGUIContext();
 	finalRenderContext();
 }
 
@@ -19,6 +22,15 @@ void OgSampleMain::initRenderContext(OgSystemContext* systemContext)
 	_renderContext->Load();
 	_renderContext->Init();
 
+}
+
+void OgSampleMain::initImGUIContext()
+{
+	OgImGuiContextManager::Initialize();
+
+	ImGuiContext* ctx = OgImGuiContextManager::CreateContext(true);
+
+	OgImGuiContextManager::SetMainImGuiContext(ctx);
 }
 
 void OgSampleMain::initWindow() 
@@ -34,8 +46,6 @@ void OgSampleMain::finalWindow()
 	_handle = nullptr;
 	
 }
-
-
 
 
 
@@ -91,7 +101,12 @@ void OgSampleMain::mainLoop()
 
 }
 
-void OgSampleMain::finalRenderContext() 
+void OgSampleMain::finalImGUIContext()
+{
+	OgImGuiContextManager::Finalize();
+}
+
+void OgSampleMain::finalRenderContext()
 {
 
 	_renderContext->Shutdown();

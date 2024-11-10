@@ -37,13 +37,19 @@ private:
 	
 
 	void initRenderContext(OgSystemContext* systemContext);
+
+	void initImGUIContext();
 	
+
 	void initWindow();
 
 	void mainLoop();
 
 	void finalWindow();
 	
+	void finalImGUIContext();
+	
+
 	void finalRenderContext();
 
 	// TODO: @osgood window surface class 만들어서 따로 빼기

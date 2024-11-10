@@ -2,7 +2,18 @@
 # ref https://www.tuwlab.com/27270
 cmake_minimum_required (VERSION 3.8)
 
-project( OGHypeEngine )
+project( OGHypeEngine VERSION 0.1.0)
+
+SET(OG_ENGINE_ROOT_DIR ${OGHypeEngine_SOURCE_DIR})
+SET(OG_ENGINE_BIN_DIR ${OGHypeEngine_BINARY_DIR})
+SET(OG_ENGINE_SRC_DIR ${OG_ENGINE_ROOT_DIR}/sources)
+SET(OG_ENGINE_RES_DIR ${OG_ENGINE_ROOT_DIR}/res)
+
+message(STATUS " - OG_ENGINE_ROOT_DIR \t ${OG_ENGINE_ROOT_DIR}")
+message(STATUS " - OG_ENGINE_BIN_DIR \t ${OG_ENGINE_BIN_DIR}")
+message(STATUS " - OG_ENGINE_SRC_DIR \t ${OG_ENGINE_SRC_DIR}")
+message(STATUS " - OG_ENGINE_RES_DIR \t ${OG_ENGINE_RES_DIR}")
+
 
 IF (NOT DEFINED $ENV{VULKAN_SDK})
 	MESSAGE(STATUS "Vulkan SDK is $ENV{VULKAN_SDK}")
@@ -104,8 +115,12 @@ message(STATUS " - Version  \t: ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS " - Path     \t: ${CMAKE_CXX_COMPILER}")
 message(STATUS " - BUILD SRC \t; ${CMAKE_BINARY_DIR}")
 
+
 IF (MSVC)
 	# /Gz = __stdcall
+
+
+
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /UMBCS /D_UNICODE /DUNICODE /Gz")
 	IF("${MSVC_C_ARCHITECTURE_ID}" STREQUAL "X86")
 		SET(ARCH "i686")
@@ -188,6 +203,9 @@ ELSEIF(WIN32)
 	SET(LIB_DEBUG_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/win/x64/Debug")
 	SET(DLL_DEBUG_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/win/x64/Debug")
 
+	message(STATUS " - LIB_DEBUG_DIR \t; ${LIB_DEBUG_DIR}")
+	message(STATUS " - DLL_DEBUG_DIR \t; ${DLL_DEBUG_DIR}")
+
 	SET(LIB_RELEASE_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/win/x64/Release")
 	SET(DLL_RELEASE_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/win/x64/Release")
 
@@ -238,6 +256,8 @@ IF(APPLE)
 
 ELSEIF(WIN32)
 	SET(GLFW3 ${LIB_DEBUG_DIR}/glfw3.lib CACHE PATH "") #TODO delete
+	SET(OG_PROJECT_BINARY_DIR ${PROJECT_BINARY_DIR})
+	MESSAGE("PROJECT_BINARY_DIR \t ${PROJECT_BINARY_DIR}")
 ENDIF()
 IF (GLFW3)
     MESSAGE("Using bundled GLFW3 version ${GLFW3}")
@@ -297,15 +317,24 @@ include_directories(deps/include)
 
 # 모두 설정해주고, Sub Directory를 추가하여 다른 CMake들 실행
 
-SET(SYSTEM sources/system)
-SET(RENDER sources/render)
+IF(NOT ANDROID AND NOT IOS)
+	IF(RELEASE_REAL_INSTALL)
+		SET(INSTALL_FOLDER ".")
+	ELSE() 
+		SET(INSTALL_FOLDER "$<TARGET_FILE_DIR:application>")
+	ENDIF()
+ENDIF()
+
+
+SET(OG_ENGINE_SYSTEM_DIR sources/system)
+SET(OG_ENGINE_RENDER_DIR sources/render)
 #SET(ENGINE sources/engine)
 #SET(ENTRY sources/entry)
 #SET(TEMPLATE sources/template)
 
 
-add_subdirectory(${SYSTEM})
-add_subdirectory(${RENDER})
+add_subdirectory(${OG_ENGINE_SYSTEM_DIR})
+add_subdirectory(${OG_ENGINE_RENDER_DIR})
 #add_subdirectory(${ENGINE})
 #add_subdirectory(${ENTRY})
 #add_dependencies(Play-Entry engine)
@@ -342,79 +371,10 @@ IF(NOT ANDROID AND NOT IOS)
 	add_subdirectory(${APPLICATION})
 	add_dependencies(application render)
 
-	#IF(WIN32)
-	#	IF(INCLUDE_VSIX)
-	#		SET(VSIX "tools/Lv1VSIX/LvVSIX")
-	#		add_subdirectory(${VSIX})
-	#	ENDIF()
-	#ENDIF()
+	
 
-	#IF(SCRIPT_GENERATOR_PROJECT)
-	#	SET(SCRIPT_GENERATOR script/generator)
-	#	add_subdirectory(${SCRIPT_GENERATOR})
-	#ENDIF()
-	#SET(ANDROID_BUILD script/android)
-	#add_subdirectory(${ANDROID_BUILD})
-	#
-	#ADD_DEPENDENCIES(LvReflect-Engine LvReflection)
-	#ADD_DEPENDENCIES(LvReflect-Editor LvReflection)
-	#
-	#set(APP_NAME ${CMAKE_PROJECT_NAME})
-	#set(CPACK_NSIS_CONTACT "Com2uS ECO GE Team")
-	#
-	#set(CPACK_PACKAGE_VENDOR "Com2uS")
-	#set(CPACK_SYSTEM_NAME x64)
-	#set(CPACK_CREATE_DESKTOP_LINKS ${CMAKE_PROJECT_NAME})
-	#set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CMAKE_PROJECT_NAME})
-	#set(CPACK_PACKAGE_VERSION 2021.1a1)
-	#set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${CPACK_PACKAGE_NAME} ${CPACK_PACKAGE_VERSION} (Win64)")
-	
-	#set(CPACK_THREADS 0)
-	#IF (WIN32)
-	#	INSTALL(PROGRAMS "${CMAKE_SOURCE_DIR}/deps/install/win64/cmake-3.20.1-windows-x86_64.msi" DESTINATION ${INSTALL_FOLDER}/temp)
-	#	#cpack_add_component(CMAKE_INSTALL DISPLAY_NAME "cmake install" REQUIRED DOWNLOADED)
-	#	#cpack_configure_downloads(https://github.com/Kitware/CMake/releases/download/v3.20.1/cmake-3.20.1-windows-x86_64.msi)
-	#	# 설치 시 관리자 권한으로 실행하는 인스톨러로 생성
-	#	set(CPACK_NSIS_DEFINES "RequestExecutionLevel admin")
-	#	set(CPACK_NSIS_HELP_LINK "http://devgit.com2us.com/TS/TPact/-/wikis/home")
-	#	set(CPACK_NSIS_URL_INFO_ABOUT "http://devgit.com2us.com/TS/TPact")
-	#	set(CPACK_NSIS_COMPRESSOR "/SOLID zlib")
-	#	set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
-	#	set(CPACK_NSIS_PACKAGE_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY} (Win64)")
-	#	set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
-	#	set(CPACK_NSIS_DISPLAY_NAME "${CMAKE_PROJECT_NAME}")
-	#	
-	#	set(APPLINK_NAME "${CMAKE_PROJECT_NAME} (${CPACK_PACKAGE_VERSION}).lnk")	
-	#	
-	#	set(CPACK_CREATE_DESKTOP_LINKS ${CMAKE_PROJECT_NAME})
-	#	# 바로가기 설치
-	#	set(CPACK_NSIS_CREATE_ICONS_EXTRA
-	#		"CreateShortCut '$SMPROGRAMS\\\\$STARTMENU_FOLDER\\\\${APPLINK_NAME}' '$INSTDIR\\\\${APPLICATION_NAME}.exe'"
-	#	)
-	#	#SET(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "
-	#	#NSISdl::download https://github.com/Kitware/CMake/releases/download/v3.20.1/cmake-3.20.1-windows-x86_64.msi $INSTDIR\\\\cmake-3.20.1-windows-x86_64.msi
-	#	#ExecWait 'msiexec /i \\\"$INSTDIR\\\\cmake-3.20.1-windows-x86_64.msi\\\" /passive '
-	#	#Delete \\\"$INSTDIR\\\\cmake-3.20.1-windows-x86_64.msi\\\"
-	#	#")
-	#
-	#	# 바로가기 제거
-	#	set(CPACK_NSIS_DELETE_ICONS_EXTRA
-	#		"Delete '$SMPROGRAMS\\\\$START_MENU\\\\${APPLINK_NAME}'"
-	#	)	
-	#	list(APPEND CPACK_NSIS_EXTRA_INSTALL_COMMANDS "MessageBox MB_OK 'Lv1Engine needs to install cmake, Are you sure?'")
-	#	list(APPEND CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait 'msiexec /i \\\"$INSTDIR\\\\temp\\\\cmake-3.20.1-windows-x86_64.msi\\\" /quiet '")
-	#	set(CPACK_NSIS_MUI_FINISHPAGE_RUN "..\\\\${APPLICATION_NAME}.exe")
-	#ENDIF()
-	
-	#include(CPack)
 ENDIF()
 
-#IF(ANDROID)
-#	IF(TEST_PROJECT)
-#		SET(ANDROID_TEST src/test)
-#		add_subdirectory(${ANDROID_TEST})
-#	ENDIF()
-#ENDIF()
-
-#set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
+IF(WIN32)
+	SET_PROPERTY(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT application)
+ENDIF()
