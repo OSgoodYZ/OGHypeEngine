@@ -64,7 +64,22 @@ OgSystemContext* og_system_get_context()
 }
 void og_system_poll_events() 
 {
-	//TODO
+	OgSystemContext* sysCtx = og_system_get_context();
+
+	OgNativeWindow* window = sysCtx->headWindow;
+	while (window)
+	{
+		window->input.wheel.x = 0.0;
+		window->input.wheel.y = 0.0;
+		memset(window->input.currentPointers, 0xff, sizeof(window->input.currentPointers));
+		memset(window->input.currentKeys, 0xff, sizeof(window->input.currentKeys));
+
+		window = window->next;
+
+		
+	}
+
+	og_platform_poll_events();
 }
 void og_system_monitor_set_callback(OgSystemContext*, MonitorCallback cb)
 {
