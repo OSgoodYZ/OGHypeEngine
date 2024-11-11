@@ -16,12 +16,13 @@
 #include "system/OgSystemContext.h"
 #include "system/OgNativeWindow.h"
 #include "system/OgNativeEvent.h"
-
+#include "system/OgImGUIManager.h"
 #include "system/thirdparty/imgui/imgui.h"
 
 #include "render/OgRenderContext.h"
 
 #include "sample/public/core/OgTriangle.h"
+
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -304,17 +305,28 @@ protected:
 
 	void onPrepare(float deltaTime)
 	{
-		ImGui::NewFrame();
-		//ImGui::Begin("Hello, world!");
-		//ImGui::Text("This is some useful text.");
-		//ImGui::End();
+		
+		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+		ImGuiIO& io = context->IO;
 
-		//// 렌더링
-		//ImGui::Render();
+		io.DisplaySize.x = static_cast<float>(GetWidth());
+		io.DisplaySize.y = static_cast<float>(GetHeight());
+
+		
+		// TODO just test code 여기에 직접적인 editor code 구현하면 됨.
+		ImGui::NewFrame();
+		ImGui::Begin("Hello, world!");
+		ImGui::Text("This is some useful text.");
+		ImGui::End();
+		
+		
+		
 	}
 
 	void onRender(float deltaTime)
 	{
+		ImGui::Render();
+		// TODO 여기에 ImGUI용 Renderer가 필요함.
 		_triangleSample.OnRender(_swapchain);
 	}
 

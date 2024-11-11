@@ -2,8 +2,7 @@
 
 #include "system/OgFileSystem.h"
 #include "system/OgSystemContext.h"
-#include "system//thirdparty/imgui/imgui.h"
-#include "system//thirdparty/imgui/imgui_internal.h"
+
 #include "system/thirdparty/IconsFontAwesome6.h"
 
 OG_NAMESPACE_SYSTEM_BEGIN

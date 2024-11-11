@@ -3,6 +3,8 @@
 #define __OG_IMGUI_CONTEXT_MANAGER_H__
 
 #include "OgPrecompile.h"
+#include "system//thirdparty/imgui/imgui.h"
+#include "system//thirdparty/imgui/imgui_internal.h"
 
 /* #include "engine/thirdparty/imgui/imgui.h" */ struct ImGuiViewport;
 /* #include "engine/thirdparty/imgui/imgui.h" */ struct ImGuiContext;
