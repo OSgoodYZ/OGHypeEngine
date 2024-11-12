@@ -1,0 +1,6 @@
+#include "OgImguiRenderer.h"
+
+OG_NAMESPACE_SAMPLE_BEGIN
+
+
+OG_NAMESPACE_SAMPLE_END

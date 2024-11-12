@@ -20,6 +20,8 @@ list(APPEND TOTAL_FILE ${PUBLIC_CORE})
 set(PUBLIC_EDITOR
 	public/editor/OgPlayWindow.h
 	public/editor/OgPlayWindow.cpp
+	public/editor/OgImguiRenderer.h
+	public/editor/OgImguiRenderer.cpp
 	)
 source_group("public\\editor" FILES ${PUBLIC_EDITOR})
 list(APPEND TOTAL_FILE ${PUBLIC_EDITOR})
