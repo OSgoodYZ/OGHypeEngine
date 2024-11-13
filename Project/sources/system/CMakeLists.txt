@@ -51,11 +51,19 @@ source_group("public" FILES ${INC_SYSTEM})
 LIST(APPEND TOTAL_FILE ${INC_SYSTEM})
 
 
-SET(SOURCE_GLM
-	${PROJECT_SOURCE_DIR}/deps/include/glm/detail/glm.cpp
-)
-SOURCE_GROUP("thirdparty\\glm" FILES ${SOURCE_GLM})
-LIST(APPEND TOTAL_FILE ${SOURCE_GLM})
+# 포함할 GLM 폴더 경로 설정
+set(GLM_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/deps/include/glm")
+
+# 폴더 내 모든 .h, .hpp, .cpp 파일을 변수에 저장
+file(GLOB GLM_SOURCE_FILES 
+     "${GLM_INCLUDE_DIR}/*.h"
+     "${GLM_INCLUDE_DIR}/*.hpp" 
+     "${GLM_INCLUDE_DIR}/*.cpp")
+
+# 변수를 프로젝트에 추가  
+source_group("thirdparty\\glm" FILES ${GLM_SOURCE_FILES})
+list(APPEND TOTAL_FILE ${GLM_SOURCE_FILES})
+
 
 set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/sources/system/thirdparty/imgui)
 set(SOURCES_IMGUI

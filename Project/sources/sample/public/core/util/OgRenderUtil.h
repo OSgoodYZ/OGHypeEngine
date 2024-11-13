@@ -47,7 +47,7 @@ struct OG_API OgRect
 		return y + height;
 	}
 
-	inline glm::vec<2, float32, lowp> Min() const
+	inline glm::vec2 Min() const
 	{
 		return glm::vec2(x, y);
 	}
