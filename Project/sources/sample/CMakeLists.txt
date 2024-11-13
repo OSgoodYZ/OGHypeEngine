@@ -10,6 +10,13 @@ set(PUBLIC_COMMON
 source_group("public" FILES ${PUBLIC_COMMON})
 list(APPEND TOTAL_FILE ${PUBLIC_COMMON})
 
+set(PUBLIC_CORE_UTIL
+	public/core/util/OgRenderUtil.h
+	public/core/util/OgRenderUtil.cpp
+	)
+source_group("public\\core\\util" FILES ${PUBLIC_CORE_UTIL})
+list(APPEND TOTAL_FILE ${PUBLIC_CORE_UTIL})
+
 set(PUBLIC_CORE
 	public/core/OgTriangle.h
 	public/core/OgTriangle.cpp
