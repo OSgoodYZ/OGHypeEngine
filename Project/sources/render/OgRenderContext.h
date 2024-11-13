@@ -4,7 +4,7 @@
 
 #include "OgPrecompile.h"
 #include "system/OgSystemContext.h"
-#include "OgRenderDefinitions.h"
+#include "render/OgRenderDefinitions.h"
 
 using namespace Og;
 
