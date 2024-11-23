@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef _OG_PLAY_WINDOW_H__
 #define _OG_PLAY_WINDOW_H__
 #include "OgPrecompile.h"
@@ -20,7 +20,7 @@
 #include "system/thirdparty/imgui/imgui.h"
 
 #include "render/OgRenderContext.h"
-
+#include "sample/public/editor/OgImguiRenderer.h"
 #include "sample/public/core/OgTriangle.h"
 
 
@@ -96,6 +96,9 @@ public:
 		//OgInputManager::Bind(_handle);
 		//OgNativeEventHandler::Bind(&s_system);
 		onInit();
+
+		// ImGui 렌더러 초기화
+		_imguiRenderer = new OgImguiRenderer(renderContext);
 	}
 
 	~OgPlayWindow()
@@ -266,6 +269,13 @@ protected:
 
 	void onDestroy()
 	{
+		if (_imguiRenderer)
+		{
+			delete _imguiRenderer;
+			_triangleSample.OnDestroy();
+			_renderContext->DestroySwapchain(_swapchain);
+		}
+
 		_triangleSample.OnDestroy();
 		_renderContext->DestroySwapchain(_swapchain);
 
@@ -312,11 +322,23 @@ protected:
 		io.DisplaySize.x = static_cast<float>(GetWidth());
 		io.DisplaySize.y = static_cast<float>(GetHeight());
 
-		
-		// TODO just test code 여기에 직접적인 editor code 구현하면 됨.
+		// TODO: 단지 테스트 코드!!
 		ImGui::NewFrame();
-		ImGui::Begin("Hello, world!");
-		ImGui::Text("This is some useful text.");
+
+		// 중앙에 텍스트 표시
+		ImGui::SetNextWindowPos(
+			ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+			ImGuiCond_Always,
+			ImVec2(0.5f, 0.5f)
+		);
+
+		ImGui::Begin("Center Text", nullptr,
+			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_AlwaysAutoResize);
+
+		ImGui::Text("Hello, Centered Text!");
 		ImGui::End();
 		
 		
@@ -326,7 +348,16 @@ protected:
 	void onRender(float deltaTime)
 	{
 		ImGui::Render();
-		// TODO 여기에 ImGUI용 Renderer가 필요함.
+
+		ImDrawData* drawData = ImGui::GetDrawData();
+		if (drawData)
+		{
+			OgRenderParam param;
+			param.drawList = drawData;
+			param.guiContextKey = 0;  // 메인 컨텍스트는 0
+			_imguiRenderer->RenderGUI(param);
+		}
+		
 		_triangleSample.OnRender(_swapchain);
 	}
 
@@ -338,6 +369,7 @@ protected:
 	void onNextFrame()
 	{
 		_triangleSample.OnNextFrame(_presentable);
+		_imguiRenderer->NextFrame(_swapchain);
 
 	}
 
@@ -386,6 +418,8 @@ protected:
 	Render::OgSwapChain* _swapchain;
 
 	Render::OgRenderContext* _renderContext;
+	
+	OgImguiRenderer* _imguiRenderer;
 
 	OgTriangle _triangleSample;
 
@@ -396,7 +430,7 @@ protected:
 	OgPlayWindow* _parent;
 
 	OgNativeWindow* _handle;
-
+	
 	
 
 	uint32 _tick;
