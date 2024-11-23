@@ -2,7 +2,7 @@
 
 #include "system/OgImGUIManager.h"
 #include "render/private/vulkan/OgRenderContext_Vulkan.h"
-
+#include "sample/public/editor/OgPlayWindow.h"  
 using namespace std;
 OG_NAMESPACE_SAMPLE_BEGIN
 
@@ -54,7 +54,7 @@ void OgSampleMain::mainLoop()
 
 	while (true)
 	{
-
+		
 		og_system_poll_events();
 
 		::vector<OgPlayWindow*> deleteWindows;

@@ -56,6 +56,8 @@ private:
     // Resource layout and sets
     Render::OgResourceLayoutHandle* _resourceLayout{ nullptr };
     Render::OgResourceSetHandle* _resourceSet{ nullptr };
+    Render::OgBufferHandle* _uniformBuffer;  // projection matrix를 위한 유니폼 버퍼
+    
 
     // Font texture resources
     Render::OgTextureHandle* _fontTexture{ nullptr };

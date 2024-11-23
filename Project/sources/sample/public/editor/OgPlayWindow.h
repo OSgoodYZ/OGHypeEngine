@@ -29,7 +29,7 @@ const uint32_t HEIGHT = 600;
 
 OG_NAMESPACE_SAMPLE_BEGIN
 
-class OgPlayWindow
+class OG_API OgPlayWindow
 {
 public:
 

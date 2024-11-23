@@ -145,7 +145,81 @@ void OgImguiRenderer::NextFrame(Render::OgSwapChain* swapChain)
 
 void OgImguiRenderer::setupImGuiPipeline()
 {
+    // 셰이더 코드 정의
+    const char* vertexShaderCode = R"(
+        #version 450
+        layout(location = 0) in vec2 inPos;
+        layout(location = 1) in vec2 inUV;
+        layout(location = 2) in vec4 inColor;
+        
+        layout(binding = 0) uniform UniformBufferObject {
+            mat4 projection;
+        } ubo;
+        
+        layout(location = 0) out vec2 outUV;
+        layout(location = 1) out vec4 outColor;
+        
+        void main() {
+            gl_Position = ubo.projection * vec4(inPos.xy, 0.0, 1.0);
+            outUV = inUV;
+            outColor = inColor;
+        }
+    )";
+
+    const char* fragmentShaderCode = R"(
+        #version 450
+        layout(location = 0) in vec2 inUV;
+        layout(location = 1) in vec4 inColor;
+        
+        layout(binding = 1) uniform sampler2D fontSampler;
+        
+        layout(location = 0) out vec4 outColor;
+        
+        void main() {
+            outColor = inColor * texture(fontSampler, inUV);
+        }
+    )";
+
+    // 셰이더 생성
+    OgShaderHandle* vertexShader = _renderContext->CreateShader(
+        OgShaderType::VERTEX,
+        vertexShaderCode,
+        strlen(vertexShaderCode),
+        "main"
+    );
+
+    OgShaderHandle* fragmentShader = _renderContext->CreateShader(
+        OgShaderType::FRAGMENT,
+        fragmentShaderCode,
+        strlen(fragmentShaderCode),
+        "main"
+    );
+
+    // 프로그램 생성
+    OgShaderHandle* shaders[2] = { vertexShader, fragmentShader };
+    OgProgramHandle* program = _renderContext->CreateProgram(shaders, 2);
+
+    // 리소스 레이아웃 설정
+    OgResourceBinding bindings[2];
+
+    // Uniform buffer binding (projection matrix)
+    bindings[0].type = OgResourceType::UNIFORM_BUFFER;
+    bindings[0].stage = OgShaderType::VERTEX;
+    bindings[0].binding = 0;
+    bindings[0].arrayCount = 0;
+    bindings[0].name = "UniformBufferObject";
+
+    // Texture sampler binding
+    bindings[1].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+    bindings[1].stage = OgShaderType::FRAGMENT;
+    bindings[1].binding = 1;
+    bindings[1].arrayCount = 0;
+    bindings[1].name = "fontSampler";
+
+    OgResourceLayoutHandle* resourceLayout = _renderContext->CreateResourceLayout(bindings, 2);
+
     OgPipelineDescriptor pipelineDesc;
+
     // 버텍스 입력 설정
     OgVertexBufferLayoutDescriptor vertexLayout(0, sizeof(ImGuiVertex));
     std::vector<OgVertexAttributeDescriptor> attributes = {
@@ -175,6 +249,13 @@ void OgImguiRenderer::setupImGuiPipeline()
     pipelineDesc.type = OgPipelineType::GRAPHICS_PIPELINE;
     pipelineDesc.name = "ImGui Pipeline";
     pipelineDesc.renderPass = _renderPass;
+    pipelineDesc.resourceLayout = resourceLayout;
+
+    // 셰이더 설정
+    pipelineDesc.shader.program = program;
+    pipelineDesc.shader.shaders[0] = vertexShader;
+    pipelineDesc.shader.shaders[1] = fragmentShader;
+    pipelineDesc.shader.shaderCount = 2;
 
     // 블렌딩 설정
     pipelineDesc.colorBlend.attachments[0].blendEnable = true;
@@ -191,9 +272,19 @@ void OgImguiRenderer::setupImGuiPipeline()
     pipelineDesc.rasterize.frontFace = OgFrontFace::COUNTER_CLOCKWISE;
     pipelineDesc.rasterize.polygonMode = OgPolygonMode::FILL;
     pipelineDesc.rasterize.primitiveType = OgPrimitiveType::TRIANGLE_LIST;
+    pipelineDesc.rasterize.scissorTest = true;
+
+    // 뎁스 스텐실 설정
+    pipelineDesc.depthStencil.depthTest = false;
+    pipelineDesc.depthStencil.depthWrite = false;
+    pipelineDesc.depthStencil.stencilTest = false;
 
     // 파이프라인 생성
     _pipeline = _renderContext->CreatePipeline(pipelineDesc);
+
+    // 리소스 정리
+    _renderContext->DestroyShader(vertexShader);
+    _renderContext->DestroyShader(fragmentShader);
 }
 
 void OgImguiRenderer::cleanupImGuiPipeline()

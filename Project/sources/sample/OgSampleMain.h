@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef _OG_SAMPLE_H__
 #define _OG_SAMPLE_H__
 #include "OgPrecompile.h"
@@ -17,7 +17,7 @@
 #include "render/OgRenderContext.h"
 #include "system/OgNativeWindow.h"
 #include "system/OgNativeEvent.h"
-#include "sample/public/editor/OgPlayWindow.h"
+#include "public/editor/OgPlayWindow.h"  // 경로 수정
 
 
 OG_NAMESPACE_SAMPLE_BEGIN
