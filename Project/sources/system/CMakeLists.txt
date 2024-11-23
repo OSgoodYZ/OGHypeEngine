@@ -63,6 +63,8 @@ file(GLOB GLM_SOURCE_FILES
 # 변수를 프로젝트에 추가  
 source_group("thirdparty\\glm" FILES ${GLM_SOURCE_FILES})
 list(APPEND TOTAL_FILE ${GLM_SOURCE_FILES})
+include_directories(${GLM_INCLUDE_DIR})
+
 
 
 set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/sources/system/thirdparty/imgui)

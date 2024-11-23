@@ -2,7 +2,7 @@
 #ifndef _OG_RENDER_UTIL_H__
 #define _OG_RENDER_UTIL_H__
 #include "OgPrecompile.h"
-
+#include "glm/glm.hpp"
 /* #include "render/OgRenderDefinitions.h" */ namespace Render { struct OgSwapChain; }
 /**
 * @file Render에 필요한 유틸리티 클래스를 모아 놓습니다.
