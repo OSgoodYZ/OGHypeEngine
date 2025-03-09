@@ -16,7 +16,6 @@ static void imgui_context_setting(ImGuiContext* context, bool loadDefaultFont)
 
 	if (loadDefaultFont)
 	{
-		
 		io.Fonts->AddFontFromFileTTF(og_path_combine(og_system_get_context()->executableDirectoryPath, "fonts/NotoSansCJKkr-Regular.otf").c_str(), 18, nullptr, io.Fonts->GetGlyphRangesKorean());
 
 		ImFontConfig config;
