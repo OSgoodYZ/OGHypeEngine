@@ -1,4 +1,4 @@
-#include "OgPrecompile.h"
+ï»¿#include "OgPrecompile.h"
 #include "OgDeviceVulkan.h"
 
 OG_NAMESPACE_RENDER_BEGIN
@@ -262,6 +262,15 @@ VkResult OgDeviceVulkan::CreateLogicalDevice(VkPhysicalDeviceFeatures enabledFea
 		enableDebugMarkers = true;
 	}
 
+	// @NOTE: @osgood 25.03.09 
+	// GLSLë¡œ VULKANì„ ì‚¬ìš©í•  ë•Œ ì„ì‹œì ìœ¼ë¡œ VK_NV_glsl_shaderì„ í™•ì¥í•´ì„œ ì‚¬ìš©í•œë‹¤.
+	// ì´ í™•ì‘ì€ NVIDIAì˜ í™•ì¥ì´ë¯€ë¡œ NVIDIAë§Œ ì‚¬ìš©í•  ìˆ˜ ìˆë‹¤.
+	// ë”°ë¼ì„œ ì‰ì´ë” ì‹œìŠ¤í…œì„ ê°œë°œí•˜ëŠ” ìˆœê°„ ì´ í™•ì¥ì€ ì œê±°ë˜ì–´ì•¼ í•œë‹¤.
+	if (HasExtension(VK_NV_GLSL_SHADER_EXTENSION_NAME))
+	{
+		deviceExtensions.push_back(VK_NV_GLSL_SHADER_EXTENSION_NAME);
+	}
+
 	if (deviceExtensions.size() > 0)
 	{
 		deviceCreateInfo.enabledExtensionCount = (uint32_t)deviceExtensions.size();
@@ -394,11 +403,11 @@ VkResult OgDeviceVulkan::CreateBuffer(VkBufferUsageFlags usageFlags, VkMemoryPro
 			mappedRange.size = size;
 
 			// vkFlushMappedRanges 
-			// GPU¿¡ º¸³»¾ß ÇÏ´Â µ¥ÀÌÅÍ°¡ CPU ¾²±â ÀÛ¾÷ÀÌ ³¡³ª¸é È£ÃâÀÌ ÇÊ¿äÇÏ°í È£Ãâ ÈÄ 
-			// CPU ¿¡¼­ ¸Ê¸Ş¸ğ¸®°¡ Ä³½Ã¶óÀÎ¿¡¼­ Áö¿öÁø´Ù.
+			// GPUì— ë³´ë‚´ì•¼ í•˜ëŠ” ë°ì´í„°ê°€ CPU ì“°ê¸° ì‘ì—…ì´ ëë‚˜ë©´ í˜¸ì¶œì´ í•„ìš”í•˜ê³  í˜¸ì¶œ í›„ 
+			// CPU ì—ì„œ ë§µë©”ëª¨ë¦¬ê°€ ìºì‹œë¼ì¸ì—ì„œ ì§€ì›Œì§„ë‹¤.
 
 			// vkInvalidateMappedRanges 
-			// GPU ¿¡¼­ ÀÇÇØ ¾²¿©Áø µ¥ÀÌÅÍ¸¦ ¾ÈÀüÇÏ°Ô ÀĞÀ» ¶§ È£ÃâÀÌ ÇÊ¿äÇÏ´Ù.
+			// GPU ì—ì„œ ì˜í•´ ì“°ì—¬ì§„ ë°ì´í„°ë¥¼ ì•ˆì „í•˜ê²Œ ì½ì„ ë•Œ í˜¸ì¶œì´ í•„ìš”í•˜ë‹¤.
 
 			vkFlushMappedMemoryRanges(logicalDevice, 1, &mappedRange);
 		}
@@ -438,8 +447,8 @@ VkResult OgDeviceVulkan::CreateBuffer(VkBufferUsageFlags usageFlags, VkMemoryPro
 
 	VkMemoryType type = this->memoryProperties.memoryTypes[memAlloc.memoryTypeIndex];
 
-	// Bifrost(Mali) GPU VK_MEMORY_PROPERTY_HOST_COHERENT_BIT & VK_MEMORY_PROPERTY_HOST_CACHED_BIT ¿É¼ÇÀÌ µÑ´Ù Áö¿øµÇ¾î¾ß 
-	// Hardware Cache Coherent ÀÌ´Ù.
+	// Bifrost(Mali) GPU VK_MEMORY_PROPERTY_HOST_COHERENT_BIT & VK_MEMORY_PROPERTY_HOST_CACHED_BIT ì˜µì…˜ì´ ë‘˜ë‹¤ ì§€ì›ë˜ì–´ì•¼ 
+	// Hardware Cache Coherent ì´ë‹¤.
 	isCoherent = false;
 	if ((type.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
 	{
