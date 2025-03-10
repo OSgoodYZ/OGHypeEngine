@@ -195,7 +195,7 @@ void OgRenderContextVulkan::initInstance()
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = "Og";
 	appInfo.pEngineName = "Og Engine";
-	appInfo.apiVersion = VK_API_VERSION_1_1;
+	appInfo.apiVersion = VK_API_VERSION_1_4;
 
 	bool surfaceExtFound = false;
 	bool platformSurfaceExtFound = false;
