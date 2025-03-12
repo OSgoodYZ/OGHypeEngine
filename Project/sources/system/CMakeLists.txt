@@ -92,6 +92,15 @@ LIST(APPEND TOTAL_FILE ${PUBLIC_FONT})
 add_library(imgui STATIC ${SOURCES_IMGUI})
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
 
+######################## SLANG ########################
+set(SLANG_DIR "${PROJECT_SOURCE_DIR}/deps/include/slang")
+add_library(slang STATIC IMPORTED)
+set_target_properties(slang PROPERTIES
+    IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/deps/lib/slang.lib"
+    INTERFACE_INCLUDE_DIRECTORIES "${SLANG_DIR}"
+)
+
+######################## SLANG ########################
 
 IF(ANDROID)
 	#TODO
@@ -100,7 +109,7 @@ ELSE()
 ENDIF()
 
 link_directories(${LIB_DIR})
-target_link_libraries(system PUBLIC ${GLFW3} imgui)
+target_link_libraries(system PUBLIC ${GLFW3} imgui slang)
 
 # target_compile_options(render PUBLIC -Wall)
 IF(OG_ENGINE_SHARED_LIB)

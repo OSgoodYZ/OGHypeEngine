@@ -145,6 +145,7 @@ void OgImguiRenderer::NextFrame(Render::OgSwapChain* swapChain)
 
 void OgImguiRenderer::setupImGuiPipeline()
 {
+
     // 셰이더 코드 정의
     const char* vertexShaderCode = R"(
         #version 450
