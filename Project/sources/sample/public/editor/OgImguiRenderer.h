@@ -28,8 +28,8 @@ public:
     OgImguiRenderer& operator=(const OgImguiRenderer&) = delete;
 
     // Main rendering functions
-    void RenderGUI(const OgRenderParam& param);
-    void NextFrame(Render::OgSwapChain* swapChain);
+    void RenderGUI(Render::OgCommandEncoderHandle* encoder, const OgRenderParam& param);
+    void NextFrame(Render::OgCommandEncoderHandle* encoder, Render::OgSwapChain* swapChain);
 
 private:
     // Pipeline setup and cleanup
@@ -42,8 +42,8 @@ private:
     Render::OgSwapChain* _currentSwapChain{ nullptr };
 
     // Command encoders for triple buffering
-    std::vector<Render::OgCommandEncoderHandle*> _encoders;
-    uint32 _submitIndex;
+    //std::vector<Render::OgCommandEncoderHandle*> _encoders;
+    //uint32 _submitIndex;
 
     // Pipeline resources
     Render::OgPipelineHandle* _pipeline{ nullptr };

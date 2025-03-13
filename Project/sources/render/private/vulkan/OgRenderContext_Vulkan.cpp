@@ -1863,10 +1863,11 @@ void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
 	const OgRenderPassInfo& rInfo = r->info;
 
 	VkImageLayout colorFinalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
+	VkImageLayout depthFinalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 	if (rInfo.isSwapchainRenderPass)
 	{
 		colorFinalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;// VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		depthFinalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;// VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	}
 
 	int outputColorAttachmentCount = rInfo.outputColorAttachmentCount;
@@ -1892,7 +1893,7 @@ void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
 		{
 
 			// NOTE: load시에는 무조건 layout이 맞아야 제대로 load 할 수 있다.
-			attachmentDescriptors[i].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			attachmentDescriptors[i].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		}
 		attachmentDescriptors[i].finalLayout = colorFinalLayout;
 	}
@@ -1906,12 +1907,11 @@ void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
 		depthDescriptor.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		depthDescriptor.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		if (rInfo.outputDepthStencilAttachment.load == OgRenderBufferLoadAction::LOAD)
-			depthDescriptor.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-		// TODO !!!: depth output을 sample하고 싶다면 VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-		// 그냥 그대로 쓸거면  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-		// 여튼 이걸 옵션을 주거나 그냥 READ로 통일하거나 해야 한다.
-		// 나중에 고려해서 수정할 것.
-		depthDescriptor.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		{
+			depthDescriptor.initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+		}
+		
+		depthDescriptor.finalLayout = depthFinalLayout;
 	}
 
 	OgVector<VkAttachmentReference> colorReference;
@@ -2703,18 +2703,17 @@ void OgRenderContextVulkan::Present(OgSwapChain* swapchain)
 		uint32 hashKey = System::PointerHash(swapchain);
 		SwapchainWrapper& sw = *_swapChainTables[hashKey];
 
-		OgVector<VkSubmitInfo> submits;
-		submits.Reserve(32);
-
+		OgVector<OgCommandEncoderVK*> encoders;
+		
+		VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
 		while (!sw.encoderQueue.empty())
 		{
 			OgCommandEncoderVK* encoder = reinterpret_cast<OgCommandEncoderVK*>(sw.encoderQueue.back());
 			sw.encoderQueue.pop();
-
 			// The submit info structure specifices a command buffer queue submission batch
 			VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-			VkSubmitInfo submitInfo = { VK_STRUCTURE_TYPE_SUBMIT_INFO };
+			
 			submitInfo.pWaitDstStageMask = &waitStageMask;										// Pointer to the list of pipeline stages that the semaphore waits will occur at
 			submitInfo.pWaitSemaphores = &sw.syncObject.imageReadys[sw.syncObject.submissionIndex];		// Semaphore(s) to wait upon before the submitted command buffer starts executing
 			submitInfo.waitSemaphoreCount = 1;													// One wait semaphore																				
@@ -2722,12 +2721,15 @@ void OgRenderContextVulkan::Present(OgSwapChain* swapchain)
 			submitInfo.signalSemaphoreCount = 1;												// One signal semaphore
 			submitInfo.pCommandBuffers = &encoder->cmdBufferVK;								// Command buffers(s) to execute in this batch (submission)
 			submitInfo.commandBufferCount = 1;													// One command buffer
-			submits.Add(submitInfo);
 		}
+		
 
-		if (submits.Size() > 0)
+
+
+
+		if (submitInfo.commandBufferCount > 0)
 		{
-			VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueueVK, static_cast<uint32_t>(submits.Size()), submits.Data(), sw.syncObject.fences[sw.syncObject.submissionIndex]));
+			VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueueVK, static_cast<uint32_t>(submitInfo.commandBufferCount), &submitInfo, sw.syncObject.fences[sw.syncObject.submissionIndex]));
 
 			VkResult err = sw.swapchainVK.QueuePresent(sw.presentQueueVK, sw.syncObject.swapchainIndex, sw.syncObject.renderDones[sw.syncObject.swapchainIndex]);
 			if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)

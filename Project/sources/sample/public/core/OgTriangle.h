@@ -18,7 +18,7 @@ class OG_API OgTriangle
 public:
 	OgTriangle(Render::OgRenderContext* renderContext)
 		:_renderContext(renderContext)
-		, _submitIndex{0}
+		//, _submitIndex{0}
 	{
 	};
 
@@ -29,7 +29,7 @@ public:
 
 	void OnInit(Render::OgSwapChain* swapchain);
 
-	void OnRender(Render::OgSwapChain* swapchain);
+	void OnRender(Render::OgCommandEncoderHandle* encoder, Render::OgSwapChain* swapchain);
 
 	void OnSuspend(Render::OgSwapChain* swapchain);
 
@@ -62,8 +62,8 @@ private:
 
 
 	Render::OgRenderContext* _renderContext = nullptr;
-	std::vector<Render::OgCommandEncoderHandle*> _encoders;
-	uint8 _submitIndex;
+	//std::vector<Render::OgCommandEncoderHandle*> _encoders;
+	//uint8 _submitIndex;
 };
 
 OG_NAMESPACE_SAMPLE_END

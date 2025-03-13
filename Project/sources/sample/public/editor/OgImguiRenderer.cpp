@@ -137,13 +137,13 @@ bool compileGLSLtoSPIRV(
 
 OgImguiRenderer::OgImguiRenderer(Render::OgRenderContext* renderContext)
     : _renderContext(renderContext)
-    , _submitIndex(0)
+    //, _submitIndex(0)
 {
     // Command Encoder 초기화
-    _encoders.resize(3); // Triple buffering 가정
-    for (auto& encoder : _encoders) {
-        encoder = _renderContext->CreateCommandEncoder();
-    }
+    //_encoders.resize(3); // Triple buffering 가정
+    //for (auto& encoder : _encoders) {
+    //    encoder = _renderContext->CreateCommandEncoder();
+    //}
 
     // ImGui 렌더링을 위한 파이프라인 설정
     setupImGuiPipeline();
@@ -151,22 +151,20 @@ OgImguiRenderer::OgImguiRenderer(Render::OgRenderContext* renderContext)
 
 OgImguiRenderer::~OgImguiRenderer()
 {
-    // Command Encoder 정리
-    for (auto encoder : _encoders) {
-        _renderContext->DestroyCommandEncoder(encoder);
-    }
-    _encoders.clear();
+    //// Command Encoder 정리
+    //for (auto encoder : _encoders) {
+    //    _renderContext->DestroyCommandEncoder(encoder);
+    //}
+    //_encoders.clear();
 
     // 파이프라인 및 리소스 정리
     cleanupImGuiPipeline();
 }
 
-void OgImguiRenderer::RenderGUI(const OgRenderParam& param)
+void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const OgRenderParam& param)
 {
     if (!param.drawList || param.drawList->CmdListsCount == 0)
         return;
-
-    auto encoder = _encoders[_submitIndex];
 
     // 버텍스 및 인덱스 버퍼 업데이트
     updateBuffers(param.drawList);
@@ -194,6 +192,7 @@ void OgImguiRenderer::RenderGUI(const OgRenderParam& param)
     depthClear.depthStencil.depth = 1.0f;
     depthClear.depthStencil.stencil = 0;
 
+    
     encoder->BeginRenderPass(
         _renderPass,           // renderPass
         frameBuffer,           // frameBuffer
@@ -204,9 +203,31 @@ void OgImguiRenderer::RenderGUI(const OgRenderParam& param)
         nullptr,              // resolveAttachmentClear
         &depthClear          // depthAttachmentClear
     );
+    OgCommandEncoderHandle::Area area(0, 0, frameBuffer->width, frameBuffer->height);
+    encoder->SetViewport(static_cast<float>(area.x), static_cast<float>(area.y), static_cast<float>(area.width), static_cast<float>(area.height));
+
+    encoder->SetScissor(area.x, area.y, area.width, area.height);
 
     // Pipeline 바인딩 추가
     encoder->BindPipeline(_pipeline);
+
+    if (pcmd->TextureId != nullptr)
+    {
+        Render::LvTextureHandle* tex = (Render::LvTextureHandle*)pcmd->TextureId;
+        _resourceSet[0] = getGUITextureResourceSet(*guiRes, tex, res->uniformBufferHandles);
+        encoder->BindResourceSets(_resourceSet, 0, _dynamicOffset);
+        isTextureORFont = -1;
+    }
+
+    ++isTextureORFont;
+
+    if (isTextureORFont == 1)
+    {
+        _resourceSet[0] = getGUITextureResourceSet(*guiRes, guiRes->fontTextureHandle, res->uniformBufferHandles);
+        encoder->BindResourceSets(_resourceSet, 0, _dynamicOffset);
+    }
+
+    encoder->BindResourceSet(_resourceSet);
 
     // 버텍스/인덱스 버퍼 바인딩 추가
     uint32 vertexOffset = 0;
@@ -254,14 +275,14 @@ void OgImguiRenderer::RenderGUI(const OgRenderParam& param)
     encoder->EndRenderPass();
 }
 
-void OgImguiRenderer::NextFrame(Render::OgSwapChain* swapChain)
+void OgImguiRenderer::NextFrame(Render::OgCommandEncoderHandle* encoder, Render::OgSwapChain* swapChain)
 {
     _currentSwapChain = swapChain;
     // 현재 인코더 제출
-    _renderContext->Submit(swapChain, _encoders[_submitIndex]);
+    _renderContext->Submit(swapChain, encoder);
 
     // 다음 프레임을 위한 인덱스 업데이트
-    _submitIndex = (_submitIndex + 1) % _encoders.size();
+    //_submitIndex = (_submitIndex + 1) % _encoders.size();
 }
 
 void OgImguiRenderer::setupImGuiPipeline()
@@ -379,11 +400,18 @@ void OgImguiRenderer::setupImGuiPipeline()
 
     // 렌더 패스 설정
     OgRenderPassInfo renderPassInfo;
-    renderPassInfo.outputColorAttachments = new OgAttachment[1];
-    renderPassInfo.outputColorAttachments[0].format = OgRenderTextureFormat::DEFAULT_COLOR;
+    OgAttachment colorAttachment;
+    colorAttachment.format = OgRenderTextureFormat::B8G8R8A8;
+    renderPassInfo.outputColorAttachments = &colorAttachment;
+    renderPassInfo.outputColorAttachments[0].format = OgRenderTextureFormat::B8G8R8A8;
     renderPassInfo.outputColorAttachments[0].load = OgRenderBufferLoadAction::LOAD;
     renderPassInfo.outputColorAttachments[0].store = OgRenderBufferStoreAction::STORE;
     renderPassInfo.outputColorAttachmentCount = 1;
+    OgAttachment depthAttachment;
+    depthAttachment.format = OgRenderTextureFormat::DEFAULT_DEPTH;
+    depthAttachment.isDepthStencilAttachment = true;
+    renderPassInfo.outputDepthStencilAttachment = depthAttachment;
+    renderPassInfo.useDepthStencilAttachment = true;
     renderPassInfo.isSwapchainRenderPass = true;
 
     _renderPass = _renderContext->CreateRenderPass(renderPassInfo);
@@ -428,6 +456,57 @@ void OgImguiRenderer::setupImGuiPipeline()
     // 리소스 정리
     _renderContext->DestroyShader(vertexShader);
     _renderContext->DestroyShader(fragmentShader);
+
+    // 버텍스 및 인덱스 버퍼 초기화
+    const size_t initialVertexBufferSize = 10000 * sizeof(ImGuiVertex);  // 충분한 초기 크기 설정
+    const size_t initialIndexBufferSize = 20000 * sizeof(ImDrawIdx);    // 충분한 초기 크기 설정
+
+    // 버텍스 버퍼 생성
+    _vertexBuffer = _renderContext->CreateBuffer(
+        nullptr,                        // 초기 데이터 없음
+        initialVertexBufferSize,        // 크기
+        OgBufferUsage::VERTEX,          // 버퍼 용도
+        OgMemoryOption::MAP_MANAGED     // 메모리 옵션
+    );
+
+    // 인덱스 버퍼 생성
+    _indexBuffer = _renderContext->CreateBuffer(
+        nullptr,                        // 초기 데이터 없음
+        initialIndexBufferSize,         // 크기
+        OgBufferUsage::INDEX,           // 버퍼 용도
+        OgMemoryOption::MAP_MANAGED     // 메모리 옵션
+    );
+
+    // 리소스 레이아웃을 사용해 리소스 세트 생성
+    OgResourceSetDescriptor resourceSetDesc;
+    resourceSetDesc.layout = resourceLayout;
+
+    // 유니폼 버퍼 리소스 설정
+    // 여기서 projection matrix를 위한 버퍼 생성 및 설정 필요
+    OgBufferHandle* uniformBuffer = _renderContext->CreateBuffer(
+        nullptr,
+        sizeof(glm::mat4),
+        OgBufferUsage::UNIFORM,
+        OgMemoryOption::MAP_MANAGED
+    );
+
+    // 폰트 텍스처 및 샘플러 설정 필요
+    // ImGui 폰트 텍스처를 생성하고 업로드하는 코드 필요
+
+    // 리소스 세트에 리소스 연결
+    resourceSetDesc.resources[0].type = OgResourceType::UNIFORM_BUFFER;
+    resourceSetDesc.resources[0].binding = 0;
+    resourceSetDesc.resources[0].buffer = uniformBuffer;
+
+    resourceSetDesc.resources[1].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+    resourceSetDesc.resources[1].binding = 1;
+    resourceSetDesc.resources[1].texture = fontTexture;
+    resourceSetDesc.resources[1].sampler = fontSampler;
+
+    resourceSetDesc.resourceCount = 2;
+
+    // 리소스 세트 생성
+    _resourceSet = _renderContext->CreateResourceSet(resourceSetDesc);
 }
 
 void OgImguiRenderer::cleanupImGuiPipeline()
@@ -440,6 +519,21 @@ void OgImguiRenderer::cleanupImGuiPipeline()
     if (_renderPass) {
         _renderContext->DestroyRenderPass(_renderPass);
         _renderPass = nullptr;
+    }
+    // 버퍼 정리 추가
+    if (_vertexBuffer) {
+        _renderContext->DestroyBuffer(_vertexBuffer);
+        _vertexBuffer = nullptr;
+    }
+
+    if (_indexBuffer) {
+        _renderContext->DestroyBuffer(_indexBuffer);
+        _indexBuffer = nullptr;
+    }
+
+    if (_resourceSet) {
+        _renderContext->DestroyResourceSet(_resourceSet);
+        _resourceSet = nullptr;
     }
 }
 

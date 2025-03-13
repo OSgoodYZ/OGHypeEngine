@@ -264,11 +264,27 @@ protected:
 
 		_swapchain = _renderContext->CreateSwapchain(_handle, scInfo);
 		_triangleSample.OnInit(_swapchain);
+		//_renderContext->AcquireNextImageIndex(_swapchain);
+		_submitIndex = 0;
+		_encoders.resize(_renderContext->maxSubmitCount);
+		for (int i = 0; i < _renderContext->maxSubmitCount; ++i)
+		{
+			_encoders[i]= _renderContext->CreateCommandEncoder();
+			
+		}
 
+		
 	}
 
 	void onDestroy()
 	{
+		for (int i = 0; i < _renderContext->maxSubmitCount; ++i)
+		{
+			_renderContext->DestroyCommandEncoder(_encoders[i]);
+		}
+
+		_encoders.clear();
+
 		if (_imguiRenderer)
 		{
 			delete _imguiRenderer;
@@ -347,6 +363,7 @@ protected:
 
 	void onRender(float deltaTime)
 	{
+		_encoders[_submitIndex]->Begin();
 		ImGui::Render();
 
 		ImDrawData* drawData = ImGui::GetDrawData();
@@ -355,23 +372,26 @@ protected:
 			OgRenderParam param;
 			param.drawList = drawData;
 			param.guiContextKey = 0;  // 메인 컨텍스트는 0
-			_imguiRenderer->RenderGUI(param);
+			_imguiRenderer->RenderGUI(_encoders[_submitIndex], param);
 		}
 		
-		_triangleSample.OnRender(_swapchain);
+		_triangleSample.OnRender(_encoders[_submitIndex], _swapchain);
+
+		_encoders[_submitIndex]->End();
 	}
 
 	void onPresent()
 	{
+		//_renderContext->AcquireNextImageIndex(_swapchain);
 		_triangleSample.OnPresent(_swapchain,_presentable);
+		
 	}
 
 	void onNextFrame()
 	{
 		_triangleSample.OnNextFrame(_presentable);
-		_imguiRenderer->NextFrame(_swapchain);
-
-		_renderContext->AcquireNextImageIndex(_swapchain);
+		_imguiRenderer->NextFrame(_encoders[_submitIndex], _swapchain);
+		_submitIndex = (_submitIndex + 1) % _encoders.size();
 
 	}
 
@@ -442,7 +462,9 @@ protected:
 	bool _updatable;
 	bool _presentable;
 	bool _shouldCloseNextFrame;
-
+	// Command encoders for triple buffering
+	std::vector<Render::OgCommandEncoderHandle*> _encoders;
+	uint32 _submitIndex;
 	// TODO
 	//LvAssetBundle::Finder _finder;
 };

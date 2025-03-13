@@ -7,20 +7,20 @@ OG_NAMESPACE_SAMPLE_BEGIN
 
 void OgTriangle::OnInit(Render::OgSwapChain* swapchain)
 {
-	for (size_t i = 0; i < _renderContext->maxSubmitCount; ++i)
-	{
-		_encoders.push_back(_renderContext->CreateCommandEncoder());
-	}
+	//for (size_t i = 0; i < _renderContext->maxSubmitCount; ++i)
+	//{
+	//	_encoders.push_back(_renderContext->CreateCommandEncoder());
+	//}
 
 	createResourceHandles(swapchain);
 
 }
 
-void OgTriangle::OnRender(Render::OgSwapChain* swapchain)
+void OgTriangle::OnRender(Render::OgCommandEncoderHandle* encoder, Render::OgSwapChain* swapchain)
 {
 
-	Render::OgCommandEncoderHandle* encoder = _encoders[_submitIndex];
-	encoder->Begin();
+	//Render::OgCommandEncoderHandle* encoder = _encoders[_submitIndex];
+	//encoder->Begin();
 
 	float passColor[]{ 0.0f, 1.0f, 0.0f, 1.0f };
 
@@ -57,7 +57,7 @@ void OgTriangle::OnRender(Render::OgSwapChain* swapchain)
 	encoder->EndRenderPass();
 
 
-	encoder->End();
+	//encoder->End();
 
 	_renderContext->Submit(swapchain, encoder);
 	
@@ -77,7 +77,7 @@ void OgTriangle::OnNextFrame(bool presentable)
 {
 	if (presentable)
 	{
-		_submitIndex = (_submitIndex + 1) % _renderContext->maxSubmitCount;
+		//_submitIndex = (_submitIndex + 1) % _renderContext->maxSubmitCount;
 	}
 }
 
@@ -93,12 +93,12 @@ void OgTriangle::OnDestroy()
 {
 	destroyResourceHandles();
 
-	for (int i = 0; i < _renderContext->maxSubmitCount; ++i)
-	{
-		_renderContext->DestroyCommandEncoder(_encoders[i]);
-	}
+	//for (int i = 0; i < _renderContext->maxSubmitCount; ++i)
+	//{
+	//	_renderContext->DestroyCommandEncoder(_encoders[i]);
+	//}
 
-	_encoders.clear();
+	//_encoders.clear();
 
 }
 

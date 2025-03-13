@@ -218,11 +218,11 @@ private:
 		{
 			bool isInitialized = false;
 
-			uint32 submissionIndex;
-			uint32 swapchainIndex;
-			VkFence* fences;
-			VkSemaphore* imageReadys;
-			VkSemaphore* renderDones;
+			uint32 submissionIndex = 0;
+			uint32 swapchainIndex = 0;
+			VkFence* fences = nullptr;
+			VkSemaphore* imageReadys = nullptr;
+			VkSemaphore* renderDones = nullptr;
 		} syncObject;
 
 		// For User Interaction
