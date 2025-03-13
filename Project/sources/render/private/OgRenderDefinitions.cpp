@@ -2855,7 +2855,7 @@ OgResourceLayoutHandle::OgResourceLayoutHandle()
 {
 }
 
-OgResourceLayoutHandle::OgResourceLayoutHandle(OgResourceBinding* bindings, uint8 count)
+OgResourceLayoutHandle::OgResourceLayoutHandle(OgResourceBinding* inputBindings, uint8 count)
 	: OgHandle(OgHandleType::RESOURCE_LAYOUT)
 	, bindings(nullptr)
 	, bindingCount(count)
@@ -2867,7 +2867,7 @@ OgResourceLayoutHandle::OgResourceLayoutHandle(OgResourceBinding* bindings, uint
 	if (count > 0)
 	{
 		bindings = new OgResourceBinding[count];
-		memcpy(bindings, bindings, sizeof(OgResourceBinding) * count);
+		memcpy(bindings, inputBindings, sizeof(OgResourceBinding) * count);
 
 		for (uint8 i = 0; i < count; ++i)
 		{
