@@ -1,6 +1,7 @@
 #include "OgImguiRenderer.h"
 #include "render/OgRenderDefinitions.h"
 #include "imgui.h"
+#include "slang.h"
 
 using namespace Og::Render;
 OG_NAMESPACE_SAMPLE_BEGIN
@@ -13,6 +14,122 @@ namespace {
         uint32_t col;
     };
 }
+
+// Slang을 사용하여 GLSL을 SPIR-V로 컴파일하는 함수
+bool compileGLSLtoSPIRV(
+    const char* shaderCode,
+    OgShaderType shaderType,
+    std::vector<uint32_t>& spirvOut)
+{
+    // Slang 세션 생성
+    slang::IGlobalSession* slangSession = nullptr;
+    if (SLANG_FAILED(slang_createGlobalSession(SLANG_API_VERSION, &slangSession)))
+    {
+        std::cerr << "Failed to create Slang session" << std::endl;
+        return false;
+    }
+
+    // 세션 생성
+    slang::SessionDesc sessionDesc = {};
+    slang::ISession* session = nullptr;
+    if (SLANG_FAILED(slangSession->createSession(sessionDesc, &session)))
+    {
+        std::cerr << "Failed to create session" << std::endl;
+        slangSession->release();
+        return false;
+    }
+
+    // 컴파일 요청 생성
+    SlangCompileRequest* slangRequest = nullptr;
+    if (SLANG_FAILED(session->createCompileRequest(&slangRequest)))
+    {
+        std::cerr << "Failed to create compile request" << std::endl;
+        session->release();
+        slangSession->release();
+        return false;
+    }
+
+    // 셰이더 타입에 따른 프로파일 설정
+	SlangStage slangStage = SLANG_STAGE_NONE;
+    
+    switch (shaderType)
+    {
+    case OgShaderType::VERTEX:
+		slangStage = SLANG_STAGE_VERTEX;
+        break;
+    case OgShaderType::FRAGMENT:
+        slangStage = SLANG_STAGE_FRAGMENT;
+        break;
+    case OgShaderType::COMPUTE:
+        slangStage = SLANG_STAGE_COMPUTE;
+        break;
+    default:
+        std::cerr << "Unsupported shader type" << std::endl;
+        spDestroyCompileRequest(slangRequest);
+        session->release();
+        slangSession->release();
+        return false;
+    }
+
+    // SPIR-V 타겟 추가
+    spAddCodeGenTarget(slangRequest, SLANG_SPIRV);
+
+    // GLSL 소스코드 추가
+    int translationUnitIndex = spAddTranslationUnit(slangRequest, SLANG_SOURCE_LANGUAGE_GLSL, nullptr);
+    spAddTranslationUnitSourceString(
+        slangRequest,
+        translationUnitIndex,
+        "shader.glsl",
+        shaderCode
+    );
+
+    // 진입점 추가
+    spAddEntryPoint(
+        slangRequest,
+        translationUnitIndex,
+        "main",
+        slangStage
+    );
+
+    // 컴파일 실행
+    int compileResult = spCompile(slangRequest);
+    if (compileResult != 0)
+    {
+        // 컴파일 오류 출력
+        const char* diagnostics = spGetDiagnosticOutput(slangRequest);
+        std::cerr << "Shader compilation failed: " << diagnostics << std::endl;
+        spDestroyCompileRequest(slangRequest);
+        session->release();
+        slangSession->release();
+        return false;
+    }
+
+    // SPIR-V 코드 추출
+    size_t codeSize = 0;
+    void const* spirvCode = spGetEntryPointCode(slangRequest, 0, &codeSize);
+    if (!spirvCode || codeSize == 0)
+    {
+        std::cerr << "Failed to get compiled SPIR-V code" << std::endl;
+        spDestroyCompileRequest(slangRequest);
+        session->release();
+        slangSession->release();
+        return false;
+    }
+
+    // 결과를 출력 버퍼에 복사
+    size_t wordCount = codeSize / sizeof(uint32_t);
+    const uint32_t* spirvWords = reinterpret_cast<const uint32_t*>(spirvCode);
+    spirvOut.resize(wordCount);
+    memcpy(spirvOut.data(), spirvWords, codeSize);
+
+    // 리소스 정리
+    spDestroyCompileRequest(slangRequest);
+    session->release();
+    slangSession->release();
+
+    return true;
+}
+
 
 OgImguiRenderer::OgImguiRenderer(Render::OgRenderContext* renderContext)
     : _renderContext(renderContext)
@@ -181,18 +298,39 @@ void OgImguiRenderer::setupImGuiPipeline()
         }
     )";
 
-    // 셰이더 생성
+    // GLSL을 SPIR-V로 컴파일
+    std::vector<uint32_t> vertexSpirvCode;
+    std::vector<uint32_t> fragmentSpirvCode;
+
+    bool vertexCompileSuccess = compileGLSLtoSPIRV(
+        vertexShaderCode,
+        OgShaderType::VERTEX,
+        vertexSpirvCode
+    );
+
+    bool fragmentCompileSuccess = compileGLSLtoSPIRV(
+        fragmentShaderCode,
+        OgShaderType::FRAGMENT,
+        fragmentSpirvCode
+    );
+
+    if (!vertexCompileSuccess || !fragmentCompileSuccess) {
+        std::cerr << "Failed to compile shaders to SPIR-V" << std::endl;
+        return;
+    }
+
+    // 컴파일된 SPIR-V 코드로 셰이더 생성
     OgShaderHandle* vertexShader = _renderContext->CreateShader(
         OgShaderType::VERTEX,
-        vertexShaderCode,
-        strlen(vertexShaderCode),
+        reinterpret_cast<const char*>(vertexSpirvCode.data()),
+        vertexSpirvCode.size() * sizeof(uint32_t),
         "main"
     );
 
     OgShaderHandle* fragmentShader = _renderContext->CreateShader(
         OgShaderType::FRAGMENT,
-        fragmentShaderCode,
-        strlen(fragmentShaderCode),
+        reinterpret_cast<const char*>(fragmentSpirvCode.data()),
+        fragmentSpirvCode.size() * sizeof(uint32_t),
         "main"
     );
 

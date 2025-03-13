@@ -93,13 +93,43 @@ add_library(imgui STATIC ${SOURCES_IMGUI})
 target_include_directories(imgui PUBLIC ${IMGUI_DIR})
 
 ######################## SLANG ########################
+# Slang 라이브러리 경로 설정
 set(SLANG_DIR "${PROJECT_SOURCE_DIR}/deps/include/slang")
-add_library(slang STATIC IMPORTED)
+set(SLANG_LIB_DIR "${PROJECT_SOURCE_DIR}/deps/libs/win/x64/Debug")
+
+# Slang 헤더 파일 포함
+include_directories(${SLANG_DIR})
+
+# Slang 라이브러리 파일 찾기
+find_library(SLANG_LIBRARY NAMES slang PATHS ${SLANG_LIB_DIR})
+
+# 라이브러리를 찾지 못하면 경고 메시지 출력
+if(NOT SLANG_LIBRARY)
+    message(WARNING "Slang 라이브러리를 찾을 수 없습니다. 경로를 확인하세요: ${SLANG_LIB_DIR}")
+    # 대체 경로 설정
+    set(SLANG_LIBRARY "${SLANG_LIB_DIR}/slang.lib")
+endif()
+
+# Slang의 정적 라이브러리 등록
+add_library(slang STATIC IMPORTED GLOBAL)
 set_target_properties(slang PROPERTIES
-    IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/deps/lib/slang.lib"
+    IMPORTED_LOCATION "${SLANG_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${SLANG_DIR}"
 )
 
+# 라이브러리 존재 여부 확인
+if(EXISTS "${SLANG_LIBRARY}")
+    message(STATUS "Slang 라이브러리를 찾았습니다: ${SLANG_LIBRARY}")
+else()
+    message(WARNING "Slang 라이브러리 파일이 존재하지 않습니다: ${SLANG_LIBRARY}")
+endif()
+
+# Slang 디렉토리 존재 여부 확인
+if(EXISTS "${SLANG_DIR}")
+    message(STATUS "Slang 헤더 디렉토리를 찾았습니다: ${SLANG_DIR}")
+else()
+    message(WARNING "Slang 헤더 디렉토리가 존재하지 않습니다: ${SLANG_DIR}")
+endif()
 ######################## SLANG ########################
 
 IF(ANDROID)
