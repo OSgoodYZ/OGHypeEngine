@@ -262,6 +262,14 @@ VkResult OgDeviceVulkan::CreateLogicalDevice(VkPhysicalDeviceFeatures enabledFea
 		enableDebugMarkers = true;
 	}
 
+	// @NOTE: @osgood 25.03.09 
+	// GLSL로 VULKAN을 사용할 때 임시적으로 VK_NV_glsl_shader을 확장해서 사용한다.
+	// 이 확작은 NVIDIA의 확장이므로 NVIDIA만 사용할 수 있다.
+	// 따라서 쉐이더 시스템을 개발하는 순간 이 확장은 제거되어야 한다.
+	if (HasExtension(VK_NV_GLSL_SHADER_EXTENSION_NAME))
+	{
+		deviceExtensions.push_back(VK_NV_GLSL_SHADER_EXTENSION_NAME);
+	}
 
 	if (deviceExtensions.size() > 0)
 	{

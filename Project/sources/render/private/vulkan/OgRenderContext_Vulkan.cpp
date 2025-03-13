@@ -408,6 +408,26 @@ void OgRenderContextVulkan::initDevice(void)
 	available_extensions.resize(extCount);
 	vkEnumerateDeviceExtensionProperties(_gpuDeviceVK, nullptr, &extCount, &available_extensions[0]);
 
+	// @NOTE: @osgood 25.03.09 
+	// GLSL로 VULKAN을 사용할 때 임시적으로 VK_NV_glsl_shader을 확장해서 사용한다.
+	// 이 확작은 NVIDIA의 확장이므로 NVIDIA만 사용할 수 있다.
+	// 따라서 쉐이더 시스템을 개발하는 순간 이 확장은 제거되어야 한다.
+	// VK_NV_glsl_shader 확장 지원 확인
+	bool glslShaderSupported = false;
+	for (const auto& extension : available_extensions)
+	{
+		if (strcmp(extension.extensionName, VK_NV_GLSL_SHADER_EXTENSION_NAME) == 0)
+		{
+			glslShaderSupported = true;
+			break;
+		}
+	}
+
+	if (!glslShaderSupported)
+	{
+		LOGE(OG_ID, "Until we develop our shader system, you will need to use VK_NV_GLSL_SHADER_EXTENSION_NAME to use the OG Engine.");
+	}
+
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
 	// TODO : neeed to impl for Android
 #endif
