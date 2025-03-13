@@ -22,8 +22,12 @@ bool compileGLSLtoSPIRV(
     std::vector<uint32_t>& spirvOut)
 {
     // Slang 세션 생성
+    // Slang 세션 생성
+    SlangGlobalSessionDesc globalSessionDesc = {};
+    globalSessionDesc.enableGLSL = true;  // GLSL 지원 활성화
+
     slang::IGlobalSession* slangSession = nullptr;
-    if (SLANG_FAILED(slang_createGlobalSession(SLANG_API_VERSION, &slangSession)))
+    if (SLANG_FAILED(slang::createGlobalSession(&globalSessionDesc, &slangSession)))
     {
         std::cerr << "Failed to create Slang session" << std::endl;
         return false;

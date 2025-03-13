@@ -371,6 +371,8 @@ protected:
 		_triangleSample.OnNextFrame(_presentable);
 		_imguiRenderer->NextFrame(_swapchain);
 
+		_renderContext->AcquireNextImageIndex(_swapchain);
+
 	}
 
 	void onRestore()
