@@ -166,8 +166,7 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     if (!param.drawList || param.drawList->CmdListsCount == 0)
         return;
 
-    // 버텍스 및 인덱스 버퍼 업데이트
-    updateBuffers(param.drawList);
+    const ImDrawData* drawList = param.drawList;
 
     // 현재 SwapChain의 FrameBuffer 얻기
     uint32 currentImageIndex = _renderContext->GetCurrentImageIndex(_currentSwapChain);
@@ -203,72 +202,110 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
         nullptr,              // resolveAttachmentClear
         &depthClear          // depthAttachmentClear
     );
-    OgCommandEncoderHandle::Area area(0, 0, frameBuffer->width, frameBuffer->height);
-    encoder->SetViewport(static_cast<float>(area.x), static_cast<float>(area.y), static_cast<float>(area.width), static_cast<float>(area.height));
 
-    encoder->SetScissor(area.x, area.y, area.width, area.height);
-
-    // Pipeline 바인딩 추가
-    encoder->BindPipeline(_pipeline);
-
-    if (pcmd->TextureId != nullptr)
+    if (drawList && drawList->TotalVtxCount > 0 && drawList->CmdListsCount > 0)
     {
-        Render::LvTextureHandle* tex = (Render::LvTextureHandle*)pcmd->TextureId;
-        _resourceSet[0] = getGUITextureResourceSet(*guiRes, tex, res->uniformBufferHandles);
-        encoder->BindResourceSets(_resourceSet, 0, _dynamicOffset);
-        isTextureORFont = -1;
-    }
+        OgCommandEncoderHandle::Area area(0, 0, frameBuffer->width, frameBuffer->height);
+        encoder->SetViewport(static_cast<float>(area.x), static_cast<float>(area.y), static_cast<float>(area.width), static_cast<float>(area.height));
 
-    ++isTextureORFont;
+        encoder->SetScissor(area.x, area.y, area.width, area.height);
 
-    if (isTextureORFont == 1)
-    {
-        _resourceSet[0] = getGUITextureResourceSet(*guiRes, guiRes->fontTextureHandle, res->uniformBufferHandles);
-        encoder->BindResourceSets(_resourceSet, 0, _dynamicOffset);
-    }
+        // Pipeline 바인딩 추가
+        encoder->BindPipeline(_pipeline);
 
-    encoder->BindResourceSet(_resourceSet);
+        // 포팅 중
+		//================================================================================================
+        //ImGuiIO& io = ImGui::GetIO();
+        //
+        //glm::vec2 scale(2.f / drawList->DisplaySize.x, 2.f / drawList->DisplaySize.y);
+        //glm::vec2 trans(-1.f - drawList->DisplayPos.x * scale[0], -1.f - drawList->DisplayPos.y * scale[1]);
+        //glm::vec4 transform(scale.x, scale.y, trans.x, trans.y);
 
-    // 버텍스/인덱스 버퍼 바인딩 추가
-    uint32 vertexOffset = 0;
-    encoder->BindVertexBuffers(&_vertexBuffer, &vertexOffset, 1);
-    encoder->BindIndexBuffer(_indexBuffer, OgIndexType::UInt16);  // ImGui는 uint16 인덱스 사용
+        //Render::OgUniformWriter uniWriter(_renderContext->platform, *_uniformBuffers[2], guiRes->layout);
+        //uniWriter.Start();
+        //uniWriter.WriteVec4(transform);
+        //uniWriter.End();
 
-    // 드로우 커맨드 기록
-    uint32_t indexBufferOffset = 0;
-    for (int i = 0; i < param.drawList->CmdListsCount; i++) {
-        const ImDrawList* cmd_list = param.drawList->CmdLists[i];
-        for (int j = 0; j < cmd_list->CmdBuffer.Size; j++) {
-            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
+        //uint32 vertexBufferSize = drawList->TotalVtxCount * sizeof(ImDrawVert);
+        //uint32 indexBufferSize = drawList->TotalIdxCount * sizeof(ImDrawIdx);
 
-            if (pcmd->UserCallback) {
-                pcmd->UserCallback(cmd_list, pcmd);
+        //if (_vertexBuffer->size < vertexBufferSize)
+        //{
+        //    _vertexBuffer->Release();
+        //    _vertexBuffer = _renderContext->CreateBuffer(nullptr, vertexBufferSize, Render::OgBufferUsage::VERTEX, Render::OgMemoryOption::MAP_MANAGED);
+        //    _vertexBuffer->Retain();
+        //    _vertexBuffer->name = "OgEditorGUIRenderer::ImGuiVertexBuffer";
+        //}
+
+        //if (_indexBuffer->size < indexBufferSize)
+        //{
+        //    _indexBuffer->Release();
+        //    _indexBuffer = _renderContext->CreateBuffer(nullptr, indexBufferSize, Render::OgBufferUsage::INDEX, Render::OgMemoryOption::MAP_MANAGED);
+        //    _indexBuffer->Retain();
+        //    _indexBuffer->name = "LvEditorGUIRenderer::ImGuiIndexBuffer";
+        //}
+
+        //{
+        //    ImDrawVert* vtxDst = (ImDrawVert*)_renderContext->MapBuffer(_vertexBuffer, vertexBufferSize, 0);
+        //    ImDrawIdx* idxDst = (ImDrawIdx*)_renderContext->MapBuffer(_indexBuffer, indexBufferSize, 0);
+
+        //    for (int n = 0; n < drawList->CmdListsCount; ++n)
+        //    {
+        //        const ImDrawList* cmdList = drawList->CmdLists[n];
+        //        memcpy(vtxDst, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.Size * sizeof(ImDrawVert));
+        //        memcpy(idxDst, cmdList->IdxBuffer.Data, cmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
+        //        vtxDst += cmdList->VtxBuffer.Size;
+        //        idxDst += cmdList->IdxBuffer.Size;
+        //    }
+
+        //    _renderContext->UnmapBuffer(_vertexBuffer);
+        //    _renderContext->UnmapBuffer(_indexBuffer);
+        //}
+		//================================================================================================
+
+        encoder->BindResourceSet(_resourceSet);
+
+        // 버텍스/인덱스 버퍼 바인딩 추가
+        uint32 vertexOffset = 0;
+        encoder->BindVertexBuffers(&_vertexBuffer, &vertexOffset, 1);
+        encoder->BindIndexBuffer(_indexBuffer, OgIndexType::UInt16);  // ImGui는 uint16 인덱스 사용
+
+        // 드로우 커맨드 기록
+        uint32_t indexBufferOffset = 0;
+        for (int i = 0; i < param.drawList->CmdListsCount; i++) {
+            const ImDrawList* cmd_list = param.drawList->CmdLists[i];
+            for (int j = 0; j < cmd_list->CmdBuffer.Size; j++) {
+                const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
+
+                if (pcmd->UserCallback) {
+                    pcmd->UserCallback(cmd_list, pcmd);
+                }
+                else {
+                    // 시저 영역 설정
+                    encoder->SetScissor(
+                        std::max((int32)pcmd->ClipRect.x, 0),      // x
+                        std::max((int32)pcmd->ClipRect.y, 0),      // y
+                        (uint32)(pcmd->ClipRect.z - pcmd->ClipRect.x),  // width
+                        (uint32)(pcmd->ClipRect.w - pcmd->ClipRect.y)   // height
+                    );
+
+                    // DrawIndexed 수정된 버전
+                    // firstIndex: 인덱스 버퍼 offset (바이트 단위)
+                    // indexCount: 그릴 인덱스 개수
+                    // instanceCount: 인스턴스 개수 (기본값 1)
+                    // vertexOffset: 버텍스 오프셋
+                    encoder->DrawIndexed(
+                        pcmd->IdxOffset * sizeof(ImDrawIdx),  // firstIndex (바이트 단위)
+                        pcmd->ElemCount,                      // indexCount
+                        1,                                    // instanceCount
+                        pcmd->VtxOffset                      // vertexOffset
+                    );
+                }
             }
-            else {
-                // 시저 영역 설정
-                encoder->SetScissor(
-                    std::max((int32)pcmd->ClipRect.x, 0),      // x
-                    std::max((int32)pcmd->ClipRect.y, 0),      // y
-                    (uint32)(pcmd->ClipRect.z - pcmd->ClipRect.x),  // width
-                    (uint32)(pcmd->ClipRect.w - pcmd->ClipRect.y)   // height
-                );
 
-                // DrawIndexed 수정된 버전
-                // firstIndex: 인덱스 버퍼 offset (바이트 단위)
-                // indexCount: 그릴 인덱스 개수
-                // instanceCount: 인스턴스 개수 (기본값 1)
-                // vertexOffset: 버텍스 오프셋
-                encoder->DrawIndexed(
-                    pcmd->IdxOffset * sizeof(ImDrawIdx),  // firstIndex (바이트 단위)
-                    pcmd->ElemCount,                      // indexCount
-                    1,                                    // instanceCount
-                    pcmd->VtxOffset                      // vertexOffset
-                );
-            }
+            // 다음 드로우콜을 위한 오프셋 업데이트
+            indexBufferOffset += cmd_list->IdxBuffer.Size;
         }
-
-        // 다음 드로우콜을 위한 오프셋 업데이트
-        indexBufferOffset += cmd_list->IdxBuffer.Size;
     }
 
     // 렌더 패스 종료
@@ -477,36 +514,6 @@ void OgImguiRenderer::setupImGuiPipeline()
         OgMemoryOption::MAP_MANAGED     // 메모리 옵션
     );
 
-    // 리소스 레이아웃을 사용해 리소스 세트 생성
-    OgResourceSetDescriptor resourceSetDesc;
-    resourceSetDesc.layout = resourceLayout;
-
-    // 유니폼 버퍼 리소스 설정
-    // 여기서 projection matrix를 위한 버퍼 생성 및 설정 필요
-    OgBufferHandle* uniformBuffer = _renderContext->CreateBuffer(
-        nullptr,
-        sizeof(glm::mat4),
-        OgBufferUsage::UNIFORM,
-        OgMemoryOption::MAP_MANAGED
-    );
-
-    // 폰트 텍스처 및 샘플러 설정 필요
-    // ImGui 폰트 텍스처를 생성하고 업로드하는 코드 필요
-
-    // 리소스 세트에 리소스 연결
-    resourceSetDesc.resources[0].type = OgResourceType::UNIFORM_BUFFER;
-    resourceSetDesc.resources[0].binding = 0;
-    resourceSetDesc.resources[0].buffer = uniformBuffer;
-
-    resourceSetDesc.resources[1].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
-    resourceSetDesc.resources[1].binding = 1;
-    resourceSetDesc.resources[1].texture = fontTexture;
-    resourceSetDesc.resources[1].sampler = fontSampler;
-
-    resourceSetDesc.resourceCount = 2;
-
-    // 리소스 세트 생성
-    _resourceSet = _renderContext->CreateResourceSet(resourceSetDesc);
 }
 
 void OgImguiRenderer::cleanupImGuiPipeline()
