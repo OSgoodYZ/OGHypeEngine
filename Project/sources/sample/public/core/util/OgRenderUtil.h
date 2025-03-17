@@ -80,19 +80,6 @@ struct OG_API OgRect
 };
 #pragma endregion
 
-#pragma region OgSurface
-
-struct OG_API OgSurface
-{
-	uint32 handle;
-
-	OgRect rect;
-
-	Render::OgSwapChain* swapchain;
-
-	OgSurface(float width, float height);
-};
-#pragma endregion
 
 OG_NAMESPACE_SAMPLE_END
 

@@ -2,6 +2,7 @@
 #include "render/OgRenderDefinitions.h"
 #include "imgui.h"
 #include "slang.h"
+#include <functional>
 
 using namespace Og::Render;
 OG_NAMESPACE_SAMPLE_BEGIN
@@ -159,6 +160,152 @@ OgImguiRenderer::~OgImguiRenderer()
 
     // 파이프라인 및 리소스 정리
     cleanupImGuiPipeline();
+}
+
+
+void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
+{
+    std::hash<ImGuiContext*> hash_fn;
+    size_t hash_value = hash_fn(context);
+    const bool exist = _guiContextResources.find(hash_value) != _guiContextResources.end();
+    if (exist)
+    {
+        // 이미 존재하는 GUI Context 리소스 업데이트
+        OgGUIContextResource& res = _guiContextResources[hash_value];
+
+        // 기존 폰트 텍스처 해제
+        res.fontTextureHandle->Release();
+
+        // 폰트 데이터 가져오기
+        unsigned char* fontData;
+        int texWidth, texHeight;
+        context->IO.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
+
+        // 텍스처 정보 설정
+        Render::OgTextureInfo texInfo;
+        texInfo.type = Render::OgTextureType::TEX_2D;
+        texInfo.format = Render::OgPixelFormat::R8G8B8A8_SRGB;
+        texInfo.extent.width = static_cast<uint16>(texWidth);
+        texInfo.extent.height = static_cast<uint16>(texHeight);
+        texInfo.byteSize = texWidth * texHeight * 4 * sizeof(char);
+        texInfo.usage = Render::OgTextureUsage::STAGING | Render::OgTextureUsage::SAMPLED;
+
+        // 새 폰트 텍스처 생성
+        res.fontTextureHandle = _renderContext->CreateTexture(reinterpret_cast<void**>(&fontData), texInfo, _fontSampler);
+        res.fontTextureHandle->Retain();
+        res.fontTextureHandle->name = "EditorRDBFont";
+    }
+    else
+    {
+        // 새 GUI Context 리소스 생성
+        OgGUIContextResource res;
+
+        // 폰트 데이터 및 텍스처 생성
+        unsigned char* fontData;
+        int texWidth, texHeight;
+        context->IO.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
+
+        Render::OgTextureInfo texInfo;
+        texInfo.type = Render::OgTextureType::TEX_2D;
+        texInfo.format = Render::OgPixelFormat::R8G8B8A8_SRGB;
+        texInfo.extent.width = static_cast<uint16>(texWidth);
+        texInfo.extent.height = static_cast<uint16>(texHeight);
+        texInfo.byteSize = texWidth * texHeight * 4 * sizeof(char);
+        texInfo.usage = Render::OgTextureUsage::STAGING | Render::OgTextureUsage::SAMPLED;
+
+        res.fontTextureHandle = _renderContext->CreateTexture(reinterpret_cast<void**>(&fontData), texInfo, _fontSampler);
+        res.fontTextureHandle->Retain();
+        res.fontTextureHandle->name = "EditorRDBFont";
+
+        // 리소스 맵에 추가
+        _guiContextResources[hash_value] = res;
+    }
+}
+
+void OgImguiRenderer::RemoveGPUContext(ImGuiContext* surface)
+{
+	// TODO : 구현 필요
+}
+
+void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
+{
+    const bool exist = _surfaceResources.find(swapchain) != _surfaceResources.end();
+    if (exist)
+    {
+        // 이미 존재하는 Surface 리소스 업데이트
+        OgSurfaceResource& res = _surfaceResources[swapchain];
+
+        // 현재 서브밋 인덱스 가져오기
+        uint32 submitIndex = _renderContext->GetCurrentImageIndex(swapchain);
+        if (submitIndex != _renderContext->SUBMISSION_INDEX_NONE)
+        {
+            res.frameBufferHandle = _renderContext->GetSwapChainFrameBuffer(swapchain, submitIndex);
+        }
+    }
+    else
+    {
+
+        // 새 Surface 리소스 생성
+        OgSurfaceResource res;
+
+        // 버텍스 버퍼 생성
+        for (uint32 i = 0; i < _renderContext->maxSubmitCount; ++i)
+        {
+            Render::OgBufferHandle* vertex = _renderContext->CreateBuffer(nullptr, 1, Render::OgBufferUsage::VERTEX, Render::OgMemoryOption::MAP_MANAGED);
+            vertex->Retain();
+            vertex->name = "SurfaceVert";
+            res.vertexBufferHandles.push_back(vertex);
+        }
+
+        // 인덱스 버퍼 생성
+        for (uint32 i = 0; i < _renderContext->maxSubmitCount; ++i)
+        {
+            Render::OgBufferHandle* index = _renderContext->CreateBuffer(nullptr, 1, Render::OgBufferUsage::INDEX, Render::OgMemoryOption::MAP_MANAGED);
+            index->Retain();
+            index->name = "SurfaceIndex";
+            res.indexBufferHandles.push_back(index);
+        }
+
+        // 렌더패스 생성
+        Render::OgAttachment color;
+        color.isDepthStencilAttachment = false;
+        color.format = swapchain->colorRenderFormat;
+        color.load = Render::OgRenderBufferLoadAction::CLEAR;
+        color.store = Render::OgRenderBufferStoreAction::STORE;
+
+        Render::OgAttachment depth;
+        depth.isDepthStencilAttachment = true;
+        depth.format = swapchain->depthRenderFormat;
+        depth.load = Render::OgRenderBufferLoadAction::CLEAR;
+        depth.store = Render::OgRenderBufferStoreAction::STORE;
+
+        Render::OgRenderPassInfo rpInfo;
+        rpInfo.isSwapchainRenderPass = true;
+        rpInfo.useDepthStencilAttachment = true;
+        rpInfo.outputColorAttachments = &color;
+        rpInfo.outputColorAttachmentCount = 1;
+        rpInfo.outputDepthStencilAttachment = depth;
+
+        res.renderPassHandle = _renderContext->CreateRenderPass(rpInfo);
+        res.renderPassHandle->Retain();
+
+        // 유니폼 버퍼 생성 (GUI Context가 없으므로 나중에 연결 시 생성)
+
+        // 현재 서브밋 인덱스 가져오기
+        uint32 submitIndex = _renderContext->GetCurrentImageIndex(swapchain);
+        if (submitIndex != _renderContext->SUBMISSION_INDEX_NONE)
+        {
+            res.frameBufferHandle = _renderContext->GetSwapChainFrameBuffer(swapchain, submitIndex);
+        }
+
+        // 리소스 맵에 추가
+        _surfaceResources[swapchain] = res;
+    }
+}
+
+void OgImguiRenderer::RemoveSurface(Render::OgSwapChain* surface)
+{
+	// TODO : 구현 필요
 }
 
 void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const OgRenderParam& param)
@@ -513,6 +660,17 @@ void OgImguiRenderer::setupImGuiPipeline()
         OgBufferUsage::INDEX,           // 버퍼 용도
         OgMemoryOption::MAP_MANAGED     // 메모리 옵션
     );
+
+    // 샘플러 설정
+    Render::OgSamplerInfo samplerInfo;
+    samplerInfo.type = Render::OgSamplerType::TEX_2D;
+    samplerInfo.addressU = Render::OgSamplerAddressMode::REPEAT;
+    samplerInfo.addressV = Render::OgSamplerAddressMode::REPEAT;
+    samplerInfo.magFilter = Render::OgFilter::LINEAR;
+    samplerInfo.minFilter = Render::OgFilter::LINEAR;
+
+    
+    _fontSampler = _renderContext->CreateSampler(samplerInfo);
 
 }
 

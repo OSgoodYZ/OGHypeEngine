@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "render/OgRenderContext.h"
 #include "sample/public/core/util/OgRenderUtil.h"
+#include "system/OgImGUIManager.h"
 
 
 struct ImDrawData;
@@ -90,7 +91,7 @@ struct OG_API OgSurfaceResource
 struct OG_API OgRenderParam
 {
     uint32 guiContextKey;
-    const OgSurface* surface;
+    const Render::OgSwapChain* surface;
     const ImDrawData* drawList;
 };
 
@@ -103,6 +104,12 @@ public:
     // Delete copy constructors
     OgImguiRenderer(const OgImguiRenderer&) = delete;
     OgImguiRenderer& operator=(const OgImguiRenderer&) = delete;
+
+    
+    void UpdateGPUContext(ImGuiContext* surface);
+	void RemoveGPUContext(ImGuiContext* surface);
+	void UpdateSurface(Render::OgSwapChain* surface);
+	void RemoveSurface(Render::OgSwapChain* surface);
 
     // Main rendering functions
     void RenderGUI(Render::OgCommandEncoderHandle* encoder, const OgRenderParam& param);
@@ -141,11 +148,10 @@ private:
     OG_DEPRECATED
     Render::OgBufferHandle* _uniformBuffer;  // projection matrix를 위한 유니폼 버퍼
     
-	std::unordered_map<uint32, OgGUIContextResource> _guiContextResources;
-	std::unordered_map<OgSurface*, OgSurfaceResource> _surfaceResources;
+	std::unordered_map<size_t, OgGUIContextResource> _guiContextResources;
+	std::unordered_map<Render::OgSwapChain*, OgSurfaceResource> _surfaceResources;
 
     // Font texture resources
-    Render::OgTextureHandle* _fontTexture{ nullptr };
     Render::OgSamplerHandle* _fontSampler{ nullptr };
 
     // Constants

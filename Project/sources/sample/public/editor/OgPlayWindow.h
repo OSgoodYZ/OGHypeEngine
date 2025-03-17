@@ -357,7 +357,8 @@ protected:
 		ImGui::Text("Hello, Centered Text!");
 		ImGui::End();
 		
-		
+		_imguiRenderer->UpdateGPUContext(context);
+		_imguiRenderer->UpdateSurface(_swapchain);
 		
 	}
 
