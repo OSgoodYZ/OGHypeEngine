@@ -1908,7 +1908,7 @@ void OgRenderContextVulkan::buildRenderPass(OgRenderPassVK* r)
 		depthDescriptor.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		if (rInfo.outputDepthStencilAttachment.load == OgRenderBufferLoadAction::LOAD)
 		{
-			depthDescriptor.initialLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+			depthDescriptor.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		}
 		
 		depthDescriptor.finalLayout = depthFinalLayout;
