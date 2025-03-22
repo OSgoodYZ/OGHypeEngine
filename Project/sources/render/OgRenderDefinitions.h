@@ -1325,13 +1325,13 @@ public:
 		case OgRenderTextureFormat::DEFAULT_DEPTH:
 		case OgRenderTextureFormat::DEPTH32:
 			return OgPixelFormat::D32_SFLOAT;
-
+		
 		case OgRenderTextureFormat::DEPTH16_STENCIL8:
 			return OgPixelFormat::D16_UNORM_S8_UINT;
 
 		case OgRenderTextureFormat::DEPTH24_STENCIL8:
 			return OgPixelFormat::D24_UNORM_S8_UINT;
-
+		case OgRenderTextureFormat::DEFAULT_DEPTH_STENCIL:
 		case OgRenderTextureFormat::DEPTH32_STENCIL8:
 			return OgPixelFormat::D32_SFLOAT_S8_UINT;
 

@@ -8,10 +8,18 @@
 #include "sample/public/core/util/OgRenderUtil.h"
 #include "system/OgImGUIManager.h"
 
-
 struct ImDrawData;
+struct ImGuiContext;
 
 OG_NAMESPACE_SAMPLE_BEGIN
+
+// ImGui vertex 구조체 정의
+struct ImGuiVertex {
+    float pos[2];
+    float uv[2];
+    uint32_t col;
+};
+
 #pragma region RendererResource
 struct OG_API OgGUIContextResource
 {
@@ -67,23 +75,22 @@ struct OG_API OgSurfaceResource
         , frameBufferHandle(o.frameBufferHandle)
         , pipelineHandle(o.pipelineHandle)
     {
-        uniformBufferHandles[0] = o.uniformBufferHandles[0];
-        uniformBufferHandles[1] = o.uniformBufferHandles[1];
-        uniformBufferHandles[2] = o.uniformBufferHandles[2];
+        for (int i = 0; i < 3; ++i) {
+            uniformBufferHandles[i] = o.uniformBufferHandles[i];
+        }
     }
 
     ~OgSurfaceResource()
     {
-        printf("");
+        // Resource cleanup should be handled by the renderer
     }
 
-    vector<Render::OgBufferHandle*> vertexBufferHandles;
-    vector<Render::OgBufferHandle*> indexBufferHandles;
-    vector<Render::OgBufferHandle*> uniformBufferHandles[3];
+    std::vector<Render::OgBufferHandle*> vertexBufferHandles;
+    std::vector<Render::OgBufferHandle*> indexBufferHandles;
+    std::vector<Render::OgBufferHandle*> uniformBufferHandles[3];
     Render::OgRenderPassHandle* renderPassHandle;
     Render::OgFrameBufferHandle* frameBufferHandle;
     Render::OgPipelineHandle* pipelineHandle;
-
 };
 
 #pragma endregion
@@ -105,11 +112,11 @@ public:
     OgImguiRenderer(const OgImguiRenderer&) = delete;
     OgImguiRenderer& operator=(const OgImguiRenderer&) = delete;
 
-    
-    void UpdateGPUContext(ImGuiContext* surface);
-	void RemoveGPUContext(ImGuiContext* surface);
-	void UpdateSurface(Render::OgSwapChain* surface);
-	void RemoveSurface(Render::OgSwapChain* surface);
+    // Context management
+    void UpdateGPUContext(ImGuiContext* context);
+    void RemoveGPUContext(ImGuiContext* context);
+    void UpdateSurface(Render::OgSwapChain* surface);
+    void RemoveSurface(Render::OgSwapChain* surface);
 
     // Main rendering functions
     void RenderGUI(Render::OgCommandEncoderHandle* encoder, const OgRenderParam& param);
@@ -121,35 +128,27 @@ private:
     void cleanupImGuiPipeline();
     void updateBuffers(const ImDrawData* drawData);
 
+    // Helper function for shader compilation
+    bool compileGLSLtoSPIRV(const char* shaderCode, Render::OgShaderType shaderType, std::vector<uint32_t>& spirvOut);
+
     // Render context
     Render::OgRenderContext* _renderContext;
     Render::OgSwapChain* _currentSwapChain{ nullptr };
 
-    // Command encoders for triple buffering
-    //std::vector<Render::OgCommandEncoderHandle*> _encoders;
-    //uint32 _submitIndex;
-
     // Pipeline resources
     Render::OgPipelineHandle* _pipeline{ nullptr };
     Render::OgRenderPassHandle* _renderPass{ nullptr };
+    Render::OgResourceLayoutHandle* _resourceLayout{ nullptr };
+    Render::OgResourceSetHandle* _resourceSet{ nullptr };
 
     // Buffers
-    Render::OgBufferHandle* _uniformBuffers[3] = { nullptr, };
     Render::OgBufferHandle* _vertexBuffer{ nullptr };
     Render::OgBufferHandle* _indexBuffer{ nullptr };
+    Render::OgBufferHandle* _uniformBuffer{ nullptr };  // for projection matrix
 
-
-	
-    // Resource layout and sets
-    OG_DEPRECATED
-    Render::OgResourceLayoutHandle* _resourceLayout{ nullptr };
-    OG_DEPRECATED
-    Render::OgResourceSetHandle* _resourceSet{ nullptr };
-    OG_DEPRECATED
-    Render::OgBufferHandle* _uniformBuffer;  // projection matrix를 위한 유니폼 버퍼
-    
-	std::unordered_map<size_t, OgGUIContextResource> _guiContextResources;
-	std::unordered_map<Render::OgSwapChain*, OgSurfaceResource> _surfaceResources;
+    // Resource maps for context and surfaces
+    std::unordered_map<size_t, OgGUIContextResource> _guiContextResources;
+    std::unordered_map<Render::OgSwapChain*, OgSurfaceResource> _surfaceResources;
 
     // Font texture resources
     Render::OgSamplerHandle* _fontSampler{ nullptr };

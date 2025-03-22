@@ -7,22 +7,13 @@
 using namespace Og::Render;
 OG_NAMESPACE_SAMPLE_BEGIN
 
-namespace {
-    // ImGui vertex 구조체 정의
-    struct ImGuiVertex {
-        float pos[2];
-        float uv[2];
-        uint32_t col;
-    };
-}
 
 // Slang을 사용하여 GLSL을 SPIR-V로 컴파일하는 함수
-bool compileGLSLtoSPIRV(
+bool OgImguiRenderer::compileGLSLtoSPIRV(
     const char* shaderCode,
     OgShaderType shaderType,
     std::vector<uint32_t>& spirvOut)
 {
-    // Slang 세션 생성
     // Slang 세션 생성
     SlangGlobalSessionDesc globalSessionDesc = {};
     globalSessionDesc.enableGLSL = true;  // GLSL 지원 활성화
@@ -55,12 +46,12 @@ bool compileGLSLtoSPIRV(
     }
 
     // 셰이더 타입에 따른 프로파일 설정
-	SlangStage slangStage = SLANG_STAGE_NONE;
-    
+    SlangStage slangStage = SLANG_STAGE_NONE;
+
     switch (shaderType)
     {
     case OgShaderType::VERTEX:
-		slangStage = SLANG_STAGE_VERTEX;
+        slangStage = SLANG_STAGE_VERTEX;
         break;
     case OgShaderType::FRAGMENT:
         slangStage = SLANG_STAGE_FRAGMENT;
@@ -135,33 +126,18 @@ bool compileGLSLtoSPIRV(
     return true;
 }
 
-
 OgImguiRenderer::OgImguiRenderer(Render::OgRenderContext* renderContext)
     : _renderContext(renderContext)
-    //, _submitIndex(0)
 {
-    // Command Encoder 초기화
-    //_encoders.resize(3); // Triple buffering 가정
-    //for (auto& encoder : _encoders) {
-    //    encoder = _renderContext->CreateCommandEncoder();
-    //}
-
     // ImGui 렌더링을 위한 파이프라인 설정
     setupImGuiPipeline();
 }
 
 OgImguiRenderer::~OgImguiRenderer()
 {
-    //// Command Encoder 정리
-    //for (auto encoder : _encoders) {
-    //    _renderContext->DestroyCommandEncoder(encoder);
-    //}
-    //_encoders.clear();
-
     // 파이프라인 및 리소스 정리
     cleanupImGuiPipeline();
 }
-
 
 void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
 {
@@ -174,7 +150,8 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
         OgGUIContextResource& res = _guiContextResources[hash_value];
 
         // 기존 폰트 텍스처 해제
-        res.fontTextureHandle->Release();
+        if (res.fontTextureHandle)
+            _renderContext->DestroyTexture(res.fontTextureHandle);
 
         // 폰트 데이터 가져오기
         unsigned char* fontData;
@@ -182,18 +159,17 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
         context->IO.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
 
         // 텍스처 정보 설정
-        Render::OgTextureInfo texInfo;
-        texInfo.type = Render::OgTextureType::TEX_2D;
-        texInfo.format = Render::OgPixelFormat::R8G8B8A8_SRGB;
+        OgTextureInfo texInfo{};
+        texInfo.type = OgTextureType::TEX_2D;
+        texInfo.format = OgPixelFormat::R8G8B8A8_SRGB;
         texInfo.extent.width = static_cast<uint16>(texWidth);
         texInfo.extent.height = static_cast<uint16>(texHeight);
         texInfo.byteSize = texWidth * texHeight * 4 * sizeof(char);
-        texInfo.usage = Render::OgTextureUsage::STAGING | Render::OgTextureUsage::SAMPLED;
+        texInfo.usage = OgTextureUsage::STAGING | OgTextureUsage::SAMPLED;
 
         // 새 폰트 텍스처 생성
-        res.fontTextureHandle = _renderContext->CreateTexture(reinterpret_cast<void**>(&fontData), texInfo, _fontSampler);
-        res.fontTextureHandle->Retain();
-        res.fontTextureHandle->name = "EditorRDBFont";
+        res.fontTextureHandle = _renderContext->CreateTexture((void*)fontData, texInfo.format, texInfo.extent.width, texInfo.extent.height, _fontSampler);
+        res.fontTextureHandle->name = "ImGuiFont";
     }
     else
     {
@@ -205,26 +181,37 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
         int texWidth, texHeight;
         context->IO.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
 
-        Render::OgTextureInfo texInfo;
-        texInfo.type = Render::OgTextureType::TEX_2D;
-        texInfo.format = Render::OgPixelFormat::R8G8B8A8_SRGB;
+        OgTextureInfo texInfo{};
+        texInfo.type = OgTextureType::TEX_2D;
+        texInfo.format = OgPixelFormat::R8G8B8A8_SRGB;
         texInfo.extent.width = static_cast<uint16>(texWidth);
         texInfo.extent.height = static_cast<uint16>(texHeight);
         texInfo.byteSize = texWidth * texHeight * 4 * sizeof(char);
-        texInfo.usage = Render::OgTextureUsage::STAGING | Render::OgTextureUsage::SAMPLED;
+        texInfo.usage = OgTextureUsage::STAGING | OgTextureUsage::SAMPLED;
 
-        res.fontTextureHandle = _renderContext->CreateTexture(reinterpret_cast<void**>(&fontData), texInfo, _fontSampler);
-        res.fontTextureHandle->Retain();
-        res.fontTextureHandle->name = "EditorRDBFont";
+        res.fontTextureHandle = _renderContext->CreateTexture((void*)fontData, texInfo.format, texInfo.extent.width, texInfo.extent.height, _fontSampler);
+        res.fontTextureHandle->name = "ImGuiFont";
 
         // 리소스 맵에 추가
         _guiContextResources[hash_value] = res;
     }
 }
 
-void OgImguiRenderer::RemoveGPUContext(ImGuiContext* surface)
+void OgImguiRenderer::RemoveGPUContext(ImGuiContext* context)
 {
-	// TODO : 구현 필요
+    std::hash<ImGuiContext*> hash_fn;
+    size_t hash_value = hash_fn(context);
+    auto it = _guiContextResources.find(hash_value);
+    if (it != _guiContextResources.end()) {
+        OgGUIContextResource& res = it->second;
+
+        // 리소스 해제
+        if (res.fontTextureHandle)
+            _renderContext->DestroyTexture(res.fontTextureHandle);
+
+        // 맵에서 제거
+        _guiContextResources.erase(it);
+    }
 }
 
 void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
@@ -244,42 +231,49 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
     }
     else
     {
-
         // 새 Surface 리소스 생성
         OgSurfaceResource res;
 
         // 버텍스 버퍼 생성
         for (uint32 i = 0; i < _renderContext->maxSubmitCount; ++i)
         {
-            Render::OgBufferHandle* vertex = _renderContext->CreateBuffer(nullptr, 1, Render::OgBufferUsage::VERTEX, Render::OgMemoryOption::MAP_MANAGED);
-            vertex->Retain();
-            vertex->name = "SurfaceVert";
+            OgBufferHandle* vertex = _renderContext->CreateBuffer(nullptr, VERTEX_BUFFER_INITIAL_SIZE * sizeof(ImGuiVertex), OgBufferUsage::VERTEX, OgMemoryOption::MAP_MANAGED);
+            vertex->name = "ImGui_VertexBuffer";
             res.vertexBufferHandles.push_back(vertex);
         }
 
         // 인덱스 버퍼 생성
         for (uint32 i = 0; i < _renderContext->maxSubmitCount; ++i)
         {
-            Render::OgBufferHandle* index = _renderContext->CreateBuffer(nullptr, 1, Render::OgBufferUsage::INDEX, Render::OgMemoryOption::MAP_MANAGED);
-            index->Retain();
-            index->name = "SurfaceIndex";
+            OgBufferHandle* index = _renderContext->CreateBuffer(nullptr, INDEX_BUFFER_INITIAL_SIZE * sizeof(ImDrawIdx), OgBufferUsage::INDEX, OgMemoryOption::MAP_MANAGED);
+            index->name = "ImGui_IndexBuffer";
             res.indexBufferHandles.push_back(index);
         }
 
+        // 유니폼 버퍼 생성
+        for (uint32 i = 0; i < 3; ++i) {
+            res.uniformBufferHandles[i].resize(_renderContext->maxSubmitCount);
+            for (uint32 j = 0; j < _renderContext->maxSubmitCount; ++j) {
+                OgBufferHandle* uniform = _renderContext->CreateBuffer(nullptr, 64, OgBufferUsage::UNIFORM, OgMemoryOption::MAP_MANAGED);
+                uniform->name = "ImGui_UniformBuffer";
+                res.uniformBufferHandles[i][j] = uniform;
+            }
+        }
+
         // 렌더패스 생성
-        Render::OgAttachment color;
+        OgAttachment color{};
         color.isDepthStencilAttachment = false;
         color.format = swapchain->colorRenderFormat;
-        color.load = Render::OgRenderBufferLoadAction::CLEAR;
-        color.store = Render::OgRenderBufferStoreAction::STORE;
+        color.load = OgRenderBufferLoadAction::LOAD;
+        color.store = OgRenderBufferStoreAction::STORE;
 
-        Render::OgAttachment depth;
+        OgAttachment depth{};
         depth.isDepthStencilAttachment = true;
         depth.format = swapchain->depthRenderFormat;
-        depth.load = Render::OgRenderBufferLoadAction::CLEAR;
-        depth.store = Render::OgRenderBufferStoreAction::STORE;
+        depth.load = OgRenderBufferLoadAction::LOAD;
+        depth.store = OgRenderBufferStoreAction::STORE;
 
-        Render::OgRenderPassInfo rpInfo;
+        OgRenderPassInfo rpInfo{};
         rpInfo.isSwapchainRenderPass = true;
         rpInfo.useDepthStencilAttachment = true;
         rpInfo.outputColorAttachments = &color;
@@ -287,9 +281,7 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
         rpInfo.outputDepthStencilAttachment = depth;
 
         res.renderPassHandle = _renderContext->CreateRenderPass(rpInfo);
-        res.renderPassHandle->Retain();
-
-        // 유니폼 버퍼 생성 (GUI Context가 없으므로 나중에 연결 시 생성)
+        res.renderPassHandle->name = "ImGui_RenderPass";
 
         // 현재 서브밋 인덱스 가져오기
         uint32 submitIndex = _renderContext->GetCurrentImageIndex(swapchain);
@@ -303,9 +295,36 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
     }
 }
 
-void OgImguiRenderer::RemoveSurface(Render::OgSwapChain* surface)
+void OgImguiRenderer::RemoveSurface(Render::OgSwapChain* swapchain)
 {
-	// TODO : 구현 필요
+    auto it = _surfaceResources.find(swapchain);
+    if (it != _surfaceResources.end()) {
+        OgSurfaceResource& res = it->second;
+
+        // 버텍스 버퍼 해제
+        for (auto& buffer : res.vertexBufferHandles) {
+            if (buffer) _renderContext->DestroyBuffer(buffer);
+        }
+
+        // 인덱스 버퍼 해제
+        for (auto& buffer : res.indexBufferHandles) {
+            if (buffer) _renderContext->DestroyBuffer(buffer);
+        }
+
+        // 유니폼 버퍼 해제
+        for (int i = 0; i < 3; i++) {
+            for (auto& buffer : res.uniformBufferHandles[i]) {
+                if (buffer) _renderContext->DestroyBuffer(buffer);
+            }
+        }
+
+        // 렌더패스 해제
+        if (res.renderPassHandle)
+            _renderContext->DestroyRenderPass(res.renderPassHandle);
+
+        // 맵에서 제거
+        _surfaceResources.erase(it);
+    }
 }
 
 void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const OgRenderParam& param)
@@ -313,145 +332,147 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     if (!param.drawList || param.drawList->CmdListsCount == 0)
         return;
 
-    const ImDrawData* drawList = param.drawList;
+    const ImDrawData* drawData = param.drawList;
 
-    // 현재 SwapChain의 FrameBuffer 얻기
-    uint32 currentImageIndex = _renderContext->GetCurrentImageIndex(_currentSwapChain);
-    auto frameBuffer = _renderContext->GetSwapChainFrameBuffer(_currentSwapChain, currentImageIndex);
+    // 현재 SwapChain 업데이트
+    _currentSwapChain = const_cast<OgSwapChain*>(param.surface);
+
+    // 현재 Surface 리소스 가져오기
+    auto surfaceIt = _surfaceResources.find(_currentSwapChain);
+    if (surfaceIt == _surfaceResources.end()) {
+        return; // Surface 리소스가 없음
+    }
+
+    OgSurfaceResource& surfaceRes = surfaceIt->second;
+
+    // 현재 ImGui Context 리소스 가져오기
+    std::hash<ImGuiContext*> hash_fn;
+    size_t contextHash = param.guiContextKey;
+    auto contextIt = _guiContextResources.find(contextHash);
+    if (contextIt == _guiContextResources.end()) {
+        return; // GUI Context 리소스가 없음
+    }
+
+    OgGUIContextResource& contextRes = contextIt->second;
+
+    // 현재 이미지 인덱스 가져오기
+    uint32 imageIndex = _renderContext->GetCurrentImageIndex(_currentSwapChain);
+    if (imageIndex == _renderContext->SUBMISSION_INDEX_NONE) {
+        return; // 유효한 이미지 인덱스가 없음
+    }
+
+    // 버퍼 업데이트
+    updateBuffers(drawData);
 
     // 렌더 패스 시작
     OgCommandEncoderHandle::Area renderArea{
-        0,                          // x
-        0,                          // y
-        (uint16)param.drawList->DisplaySize.x,  // width
-        (uint16)param.drawList->DisplaySize.y   // height
+        0,                              // x
+        0,                              // y
+        (uint16)drawData->DisplaySize.x,  // width
+        (uint16)drawData->DisplaySize.y   // height
     };
 
     // Clear values
-    OgCommandEncoderHandle::ClearValue colorClear;
+    OgCommandEncoderHandle::ClearValue colorClear{};
     colorClear.color.value[0] = 0.0f;
     colorClear.color.value[1] = 0.0f;
     colorClear.color.value[2] = 0.0f;
     colorClear.color.value[3] = 0.0f;
 
-    OgCommandEncoderHandle::ClearValue depthClear;
+    OgCommandEncoderHandle::ClearValue depthClear{};
     depthClear.depthStencil.depth = 1.0f;
     depthClear.depthStencil.stencil = 0;
 
-    
     encoder->BeginRenderPass(
-        _renderPass,           // renderPass
-        frameBuffer,           // frameBuffer
-        renderArea,           // area
-        1,                    // colorAttachClearCount
-        &colorClear,          // colorAttachmentClear
-        0,                    // resolveAttachClearCount
-        nullptr,              // resolveAttachmentClear
-        &depthClear          // depthAttachmentClear
+        _renderPass,
+        surfaceRes.frameBufferHandle,
+        renderArea,
+        1,
+        &colorClear,
+        0,
+        nullptr,
+        &depthClear
     );
 
-    if (drawList && drawList->TotalVtxCount > 0 && drawList->CmdListsCount > 0)
+    if (drawData && drawData->TotalVtxCount > 0 && drawData->CmdListsCount > 0)
     {
-        OgCommandEncoderHandle::Area area(0, 0, frameBuffer->width, frameBuffer->height);
-        encoder->SetViewport(static_cast<float>(area.x), static_cast<float>(area.y), static_cast<float>(area.width), static_cast<float>(area.height));
+        // 뷰포트 및 시저 설정
+        encoder->SetViewport(0.0f, 0.0f, drawData->DisplaySize.x, drawData->DisplaySize.y);
+        encoder->SetScissor(0, 0, (uint32)drawData->DisplaySize.x, (uint32)drawData->DisplaySize.y);
 
-        encoder->SetScissor(area.x, area.y, area.width, area.height);
-
-        // Pipeline 바인딩 추가
+        // 파이프라인 바인딩
         encoder->BindPipeline(_pipeline);
 
-        // 포팅 중
-		//================================================================================================
-        //ImGuiIO& io = ImGui::GetIO();
-        //
-        //glm::vec2 scale(2.f / drawList->DisplaySize.x, 2.f / drawList->DisplaySize.y);
-        //glm::vec2 trans(-1.f - drawList->DisplayPos.x * scale[0], -1.f - drawList->DisplayPos.y * scale[1]);
-        //glm::vec4 transform(scale.x, scale.y, trans.x, trans.y);
+        // 프로젝션 매트릭스 계산 및 유니폼 버퍼 업데이트
+        float L = drawData->DisplayPos.x;
+        float R = drawData->DisplayPos.x + drawData->DisplaySize.x;
+        float T = drawData->DisplayPos.y;
+        float B = drawData->DisplayPos.y + drawData->DisplaySize.y;
 
-        //Render::OgUniformWriter uniWriter(_renderContext->platform, *_uniformBuffers[2], guiRes->layout);
-        //uniWriter.Start();
-        //uniWriter.WriteVec4(transform);
-        //uniWriter.End();
+        // Projection matrix (orthographic)
+        float projection[4][4] = {
+            { 2.0f / (R - L),   0.0f,         0.0f,   0.0f },
+            { 0.0f,         2.0f / (T - B),   0.0f,   0.0f },
+            { 0.0f,         0.0f,        -1.0f,   0.0f },
+            { (R + L) / (L - R),  (T + B) / (B - T),  0.0f,   1.0f },
+        };
 
-        //uint32 vertexBufferSize = drawList->TotalVtxCount * sizeof(ImDrawVert);
-        //uint32 indexBufferSize = drawList->TotalIdxCount * sizeof(ImDrawIdx);
+        OgBufferHandle* uniformBuffer = surfaceRes.uniformBufferHandles[0][imageIndex];
+        void* uniformData = _renderContext->MapBuffer(uniformBuffer, sizeof(projection));
+        if (uniformData) {
+            memcpy(uniformData, projection, sizeof(projection));
+            _renderContext->UnmapBuffer(uniformBuffer);
+        }
 
-        //if (_vertexBuffer->size < vertexBufferSize)
-        //{
-        //    _vertexBuffer->Release();
-        //    _vertexBuffer = _renderContext->CreateBuffer(nullptr, vertexBufferSize, Render::OgBufferUsage::VERTEX, Render::OgMemoryOption::MAP_MANAGED);
-        //    _vertexBuffer->Retain();
-        //    _vertexBuffer->name = "OgEditorGUIRenderer::ImGuiVertexBuffer";
-        //}
-
-        //if (_indexBuffer->size < indexBufferSize)
-        //{
-        //    _indexBuffer->Release();
-        //    _indexBuffer = _renderContext->CreateBuffer(nullptr, indexBufferSize, Render::OgBufferUsage::INDEX, Render::OgMemoryOption::MAP_MANAGED);
-        //    _indexBuffer->Retain();
-        //    _indexBuffer->name = "LvEditorGUIRenderer::ImGuiIndexBuffer";
-        //}
-
-        //{
-        //    ImDrawVert* vtxDst = (ImDrawVert*)_renderContext->MapBuffer(_vertexBuffer, vertexBufferSize, 0);
-        //    ImDrawIdx* idxDst = (ImDrawIdx*)_renderContext->MapBuffer(_indexBuffer, indexBufferSize, 0);
-
-        //    for (int n = 0; n < drawList->CmdListsCount; ++n)
-        //    {
-        //        const ImDrawList* cmdList = drawList->CmdLists[n];
-        //        memcpy(vtxDst, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.Size * sizeof(ImDrawVert));
-        //        memcpy(idxDst, cmdList->IdxBuffer.Data, cmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
-        //        vtxDst += cmdList->VtxBuffer.Size;
-        //        idxDst += cmdList->IdxBuffer.Size;
-        //    }
-
-        //    _renderContext->UnmapBuffer(_vertexBuffer);
-        //    _renderContext->UnmapBuffer(_indexBuffer);
-        //}
-		//================================================================================================
-
+        // 리소스 세트 바인딩
         encoder->BindResourceSet(_resourceSet);
 
-        // 버텍스/인덱스 버퍼 바인딩 추가
+        // 버텍스/인덱스 버퍼 바인딩
+        OgBufferHandle* vertexBuffer = surfaceRes.vertexBufferHandles[imageIndex];
         uint32 vertexOffset = 0;
-        encoder->BindVertexBuffers(&_vertexBuffer, &vertexOffset, 1);
-        encoder->BindIndexBuffer(_indexBuffer, OgIndexType::UInt16);  // ImGui는 uint16 인덱스 사용
+        encoder->BindVertexBuffers(&vertexBuffer, &vertexOffset, 1);
 
-        // 드로우 커맨드 기록
-        uint32_t indexBufferOffset = 0;
-        for (int i = 0; i < param.drawList->CmdListsCount; i++) {
-            const ImDrawList* cmd_list = param.drawList->CmdLists[i];
-            for (int j = 0; j < cmd_list->CmdBuffer.Size; j++) {
-                const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[j];
+        OgBufferHandle* indexBuffer = surfaceRes.indexBufferHandles[imageIndex];
+        encoder->BindIndexBuffer(indexBuffer, sizeof(ImDrawIdx) == 2 ? OgIndexType::UInt16 : OgIndexType::UInt32);
 
-                if (pcmd->UserCallback) {
-                    pcmd->UserCallback(cmd_list, pcmd);
+        // 드로우 커맨드 처리
+        int indexOffset = 0;
+        //int vertexOffset = 0;
+
+        for (int n = 0; n < drawData->CmdListsCount; n++)
+        {
+            const ImDrawList* cmdList = drawData->CmdLists[n];
+
+            for (int cmd_i = 0; cmd_i < cmdList->CmdBuffer.Size; cmd_i++)
+            {
+                const ImDrawCmd* pcmd = &cmdList->CmdBuffer[cmd_i];
+
+                if (pcmd->UserCallback)
+                {
+                    pcmd->UserCallback(cmdList, pcmd);
                 }
-                else {
-                    // 시저 영역 설정
+                else
+                {
+                    // 시저 설정
                     encoder->SetScissor(
-                        std::max((int32)pcmd->ClipRect.x, 0),      // x
-                        std::max((int32)pcmd->ClipRect.y, 0),      // y
-                        (uint32)(pcmd->ClipRect.z - pcmd->ClipRect.x),  // width
-                        (uint32)(pcmd->ClipRect.w - pcmd->ClipRect.y)   // height
+                        (int32)pcmd->ClipRect.x,
+                        (int32)pcmd->ClipRect.y,
+                        (uint32)(pcmd->ClipRect.z - pcmd->ClipRect.x),
+                        (uint32)(pcmd->ClipRect.w - pcmd->ClipRect.y)
                     );
 
-                    // DrawIndexed 수정된 버전
-                    // firstIndex: 인덱스 버퍼 offset (바이트 단위)
-                    // indexCount: 그릴 인덱스 개수
-                    // instanceCount: 인스턴스 개수 (기본값 1)
-                    // vertexOffset: 버텍스 오프셋
+                    // 드로우 인덱스
                     encoder->DrawIndexed(
-                        pcmd->IdxOffset * sizeof(ImDrawIdx),  // firstIndex (바이트 단위)
-                        pcmd->ElemCount,                      // indexCount
-                        1,                                    // instanceCount
-                        pcmd->VtxOffset                      // vertexOffset
+                        (pcmd->IdxOffset + indexOffset) * sizeof(ImDrawIdx),
+                        pcmd->ElemCount,
+                        1,
+                        pcmd->VtxOffset + vertexOffset
                     );
                 }
             }
 
-            // 다음 드로우콜을 위한 오프셋 업데이트
-            indexBufferOffset += cmd_list->IdxBuffer.Size;
+            indexOffset += cmdList->IdxBuffer.Size;
+            vertexOffset += cmdList->VtxBuffer.Size;
         }
     }
 
@@ -462,16 +483,13 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
 void OgImguiRenderer::NextFrame(Render::OgCommandEncoderHandle* encoder, Render::OgSwapChain* swapChain)
 {
     _currentSwapChain = swapChain;
-    // 현재 인코더 제출
-    _renderContext->Submit(swapChain, encoder);
 
-    // 다음 프레임을 위한 인덱스 업데이트
-    //_submitIndex = (_submitIndex + 1) % _encoders.size();
+    // 커맨드 인코더 제출
+    _renderContext->Submit(swapChain, encoder);
 }
 
 void OgImguiRenderer::setupImGuiPipeline()
 {
-
     // 셰이더 코드 정의
     const char* vertexShaderCode = R"(
         #version 450
@@ -564,13 +582,46 @@ void OgImguiRenderer::setupImGuiPipeline()
     bindings[1].arrayCount = 0;
     bindings[1].name = "fontSampler";
 
-    OgResourceLayoutHandle* resourceLayout = _renderContext->CreateResourceLayout(bindings, 2);
+    _resourceLayout = _renderContext->CreateResourceLayout(bindings, 2);
 
-    OgPipelineDescriptor pipelineDesc;
+    // 샘플러 설정
+    OgSamplerInfo samplerInfo{};
+    samplerInfo.type = OgSamplerType::TEX_2D;
+    samplerInfo.addressU = OgSamplerAddressMode::REPEAT;
+    samplerInfo.addressV = OgSamplerAddressMode::REPEAT;
+    samplerInfo.magFilter = OgFilter::LINEAR;
+    samplerInfo.minFilter = OgFilter::LINEAR;
+
+    _fontSampler = _renderContext->CreateSampler(samplerInfo);
+
+    // 렌더 패스 설정
+    OgRenderPassInfo renderPassInfo{};
+    OgAttachment colorAttachment{};
+    colorAttachment.format = OgRenderTextureFormat::B8G8R8A8;
+    colorAttachment.load = OgRenderBufferLoadAction::LOAD;
+    colorAttachment.store = OgRenderBufferStoreAction::STORE;
+
+    renderPassInfo.outputColorAttachments = &colorAttachment;
+    renderPassInfo.outputColorAttachmentCount = 1;
+
+    OgAttachment depthAttachment{};
+    depthAttachment.format = OgRenderTextureFormat::DEFAULT_DEPTH;
+    depthAttachment.isDepthStencilAttachment = true;
+    depthAttachment.load = OgRenderBufferLoadAction::LOAD;
+    depthAttachment.store = OgRenderBufferStoreAction::STORE;
+
+    renderPassInfo.outputDepthStencilAttachment = depthAttachment;
+    renderPassInfo.useDepthStencilAttachment = true;
+    renderPassInfo.isSwapchainRenderPass = true;
+
+    _renderPass = _renderContext->CreateRenderPass(renderPassInfo);
+
+    // 파이프라인 설정
+    OgPipelineDescriptor pipelineDesc{};
 
     // 버텍스 입력 설정
     OgVertexBufferLayoutDescriptor vertexLayout(0, sizeof(ImGuiVertex));
-    std::vector<OgVertexAttributeDescriptor> attributes = {
+    OgVertexAttributeDescriptor attributes[3] = {
         OgVertexAttributeDescriptor(0, 0, OgVertexFormat::FLOAT2, offsetof(ImGuiVertex, pos)),    // position
         OgVertexAttributeDescriptor(0, 1, OgVertexFormat::FLOAT2, offsetof(ImGuiVertex, uv)),     // uv
         OgVertexAttributeDescriptor(0, 2, OgVertexFormat::BYTE4_NORM, offsetof(ImGuiVertex, col)) // color
@@ -579,32 +630,13 @@ void OgImguiRenderer::setupImGuiPipeline()
     // 버텍스 입력 descriptor 설정
     pipelineDesc.vertexInput.layouts = &vertexLayout;
     pipelineDesc.vertexInput.layoutCount = 1;
-    pipelineDesc.vertexInput.attributes = attributes.data();
-    pipelineDesc.vertexInput.attributeCount = attributes.size();
+    pipelineDesc.vertexInput.attributes = attributes;
+    pipelineDesc.vertexInput.attributeCount = 3;
 
-    // 렌더 패스 설정
-    OgRenderPassInfo renderPassInfo;
-    OgAttachment colorAttachment;
-    colorAttachment.format = OgRenderTextureFormat::B8G8R8A8;
-    renderPassInfo.outputColorAttachments = &colorAttachment;
-    renderPassInfo.outputColorAttachments[0].format = OgRenderTextureFormat::B8G8R8A8;
-    renderPassInfo.outputColorAttachments[0].load = OgRenderBufferLoadAction::LOAD;
-    renderPassInfo.outputColorAttachments[0].store = OgRenderBufferStoreAction::STORE;
-    renderPassInfo.outputColorAttachmentCount = 1;
-    OgAttachment depthAttachment;
-    depthAttachment.format = OgRenderTextureFormat::DEFAULT_DEPTH;
-    depthAttachment.isDepthStencilAttachment = true;
-    renderPassInfo.outputDepthStencilAttachment = depthAttachment;
-    renderPassInfo.useDepthStencilAttachment = true;
-    renderPassInfo.isSwapchainRenderPass = true;
-
-    _renderPass = _renderContext->CreateRenderPass(renderPassInfo);
-
-    // 파이프라인 설정
     pipelineDesc.type = OgPipelineType::GRAPHICS_PIPELINE;
     pipelineDesc.name = "ImGui Pipeline";
     pipelineDesc.renderPass = _renderPass;
-    pipelineDesc.resourceLayout = resourceLayout;
+    pipelineDesc.resourceLayout = _resourceLayout;
 
     // 셰이더 설정
     pipelineDesc.shader.program = program;
@@ -637,13 +669,9 @@ void OgImguiRenderer::setupImGuiPipeline()
     // 파이프라인 생성
     _pipeline = _renderContext->CreatePipeline(pipelineDesc);
 
-    // 리소스 정리
-    _renderContext->DestroyShader(vertexShader);
-    _renderContext->DestroyShader(fragmentShader);
-
     // 버텍스 및 인덱스 버퍼 초기화
-    const size_t initialVertexBufferSize = 10000 * sizeof(ImGuiVertex);  // 충분한 초기 크기 설정
-    const size_t initialIndexBufferSize = 20000 * sizeof(ImDrawIdx);    // 충분한 초기 크기 설정
+    const size_t initialVertexBufferSize = VERTEX_BUFFER_INITIAL_SIZE * sizeof(ImGuiVertex);
+    const size_t initialIndexBufferSize = INDEX_BUFFER_INITIAL_SIZE * sizeof(ImDrawIdx);
 
     // 버텍스 버퍼 생성
     _vertexBuffer = _renderContext->CreateBuffer(
@@ -661,21 +689,50 @@ void OgImguiRenderer::setupImGuiPipeline()
         OgMemoryOption::MAP_MANAGED     // 메모리 옵션
     );
 
-    // 샘플러 설정
-    Render::OgSamplerInfo samplerInfo;
-    samplerInfo.type = Render::OgSamplerType::TEX_2D;
-    samplerInfo.addressU = Render::OgSamplerAddressMode::REPEAT;
-    samplerInfo.addressV = Render::OgSamplerAddressMode::REPEAT;
-    samplerInfo.magFilter = Render::OgFilter::LINEAR;
-    samplerInfo.minFilter = Render::OgFilter::LINEAR;
+    // 유니폼 버퍼 생성
+    _uniformBuffer = _renderContext->CreateBuffer(
+        nullptr,                        // 초기 데이터 없음
+        64,                             // 크기 (4x4 매트릭스)
+        OgBufferUsage::UNIFORM,         // 버퍼 용도
+        OgMemoryOption::MAP_MANAGED     // 메모리 옵션
+    );
 
-    
-    _fontSampler = _renderContext->CreateSampler(samplerInfo);
+    // 초기 폰트 텍스처를 위한 더미 텍스처 생성
+    OgTextureInfo texInfo{};
+    texInfo.type = OgTextureType::TEX_2D;
+    texInfo.format = OgPixelFormat::R8G8B8A8_SRGB;
+    texInfo.extent.width = 1;
+    texInfo.extent.height = 1;
+    texInfo.usage = OgTextureUsage::SAMPLED;
 
+    uint32_t whitePixel = 0xFFFFFFFF;
+    OgTextureHandle* dummyTexture = _renderContext->CreateTexture((void*)&whitePixel, texInfo.format, texInfo.extent.width, texInfo.extent.height, _fontSampler);
+
+    // 리소스 세트 생성
+    OgResourceUsage resourceUsages[2]{};
+
+    static uint32 tempUniformSize = 64;
+    static uint32 tempUniformOffset = 0;
+
+    // 유니폼 버퍼
+    resourceUsages[0].binding = bindings[0];
+    resourceUsages[0].buffer.handle = &_uniformBuffer;
+    resourceUsages[0].buffer.offset = &tempUniformOffset;
+    resourceUsages[0].buffer.range = &tempUniformSize;  // 매트릭스 크기
+
+    // 폰트 텍스처
+    resourceUsages[1].binding = bindings[1];
+    resourceUsages[1].texture.handle = &dummyTexture;
+
+    _resourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 2);
+
+    // 리소스 정리
+    _renderContext->DestroyTexture(dummyTexture);
 }
 
 void OgImguiRenderer::cleanupImGuiPipeline()
 {
+    // 파이프라인 리소스 해제
     if (_pipeline) {
         _renderContext->DestroyPipeline(_pipeline);
         _pipeline = nullptr;
@@ -685,7 +742,18 @@ void OgImguiRenderer::cleanupImGuiPipeline()
         _renderContext->DestroyRenderPass(_renderPass);
         _renderPass = nullptr;
     }
-    // 버퍼 정리 추가
+
+    if (_resourceLayout) {
+        _renderContext->DestroyResourceLayout(_resourceLayout);
+        _resourceLayout = nullptr;
+    }
+
+    if (_resourceSet) {
+        _renderContext->DestroyResourceSet(_resourceSet);
+        _resourceSet = nullptr;
+    }
+
+    // 버퍼 정리
     if (_vertexBuffer) {
         _renderContext->DestroyBuffer(_vertexBuffer);
         _vertexBuffer = nullptr;
@@ -696,45 +764,80 @@ void OgImguiRenderer::cleanupImGuiPipeline()
         _indexBuffer = nullptr;
     }
 
-    if (_resourceSet) {
-        _renderContext->DestroyResourceSet(_resourceSet);
-        _resourceSet = nullptr;
+    if (_uniformBuffer) {
+        _renderContext->DestroyBuffer(_uniformBuffer);
+        _uniformBuffer = nullptr;
+    }
+
+    // 샘플러 정리
+    if (_fontSampler) {
+        _renderContext->DestroySampler(_fontSampler);
+        _fontSampler = nullptr;
     }
 }
 
 void OgImguiRenderer::updateBuffers(const ImDrawData* drawData)
 {
+    if (!drawData || drawData->TotalVtxCount == 0 || drawData->TotalIdxCount == 0)
+        return;
+
+    // 현재 SwapChain 및 이미지 인덱스 가져오기
+    if (!_currentSwapChain)
+        return;
+
+    uint32 imageIndex = _renderContext->GetCurrentImageIndex(_currentSwapChain);
+    if (imageIndex == _renderContext->SUBMISSION_INDEX_NONE)
+        return;
+
+    // Surface 리소스 가져오기
+    auto surfaceIt = _surfaceResources.find(_currentSwapChain);
+    if (surfaceIt == _surfaceResources.end())
+        return;
+
+    OgSurfaceResource& surfaceRes = surfaceIt->second;
+
+    // 버퍼 크기 확인 및 필요시 재할당
+    size_t vertexBufferSize = drawData->TotalVtxCount * sizeof(ImGuiVertex);
+    size_t indexBufferSize = drawData->TotalIdxCount * sizeof(ImDrawIdx);
+
+    OgBufferHandle* vertexBuffer = surfaceRes.vertexBufferHandles[imageIndex];
+    OgBufferHandle* indexBuffer = surfaceRes.indexBufferHandles[imageIndex];
+
+    // 필요시 버퍼 재할당 (여기서는 간단히 처리, 실제로는 더 복잡할 수 있음)
+    if (vertexBuffer->size < vertexBufferSize) {
+        _renderContext->DestroyBuffer(vertexBuffer);
+        vertexBuffer = _renderContext->CreateBuffer(nullptr, vertexBufferSize * 2, OgBufferUsage::VERTEX, OgMemoryOption::MAP_MANAGED);
+        vertexBuffer->name = "ImGui_VertexBuffer";
+        surfaceRes.vertexBufferHandles[imageIndex] = vertexBuffer;
+    }
+
+    if (indexBuffer->size < indexBufferSize) {
+        _renderContext->DestroyBuffer(indexBuffer);
+        indexBuffer = _renderContext->CreateBuffer(nullptr, indexBufferSize * 2, OgBufferUsage::INDEX, OgMemoryOption::MAP_MANAGED);
+        indexBuffer->name = "ImGui_IndexBuffer";
+        surfaceRes.indexBufferHandles[imageIndex] = indexBuffer;
+    }
+
     // 버텍스 버퍼 업데이트
-    const size_t vertexSize = drawData->TotalVtxCount * sizeof(ImGuiVertex);
-    if (vertexSize > 0) {
-        void* vertexDest = _renderContext->MapBuffer(_vertexBuffer, vertexSize);
-        if (vertexDest) {
-            for (int i = 0; i < drawData->CmdListsCount; i++) {
-                const ImDrawList* cmdList = drawData->CmdLists[i];
-                memcpy(vertexDest, cmdList->VtxBuffer.Data,
-                    cmdList->VtxBuffer.Size * sizeof(ImGuiVertex));
-                vertexDest = (char*)vertexDest +
-                    cmdList->VtxBuffer.Size * sizeof(ImGuiVertex);
-            }
-            _renderContext->UnmapBuffer(_vertexBuffer);
+    ImGuiVertex* vertexDest = static_cast<ImGuiVertex*>(_renderContext->MapBuffer(vertexBuffer, vertexBufferSize));
+    if (vertexDest) {
+        for (int n = 0; n < drawData->CmdListsCount; n++) {
+            const ImDrawList* cmdList = drawData->CmdLists[n];
+            memcpy(vertexDest, cmdList->VtxBuffer.Data, cmdList->VtxBuffer.Size * sizeof(ImGuiVertex));
+            vertexDest += cmdList->VtxBuffer.Size;
         }
+        _renderContext->UnmapBuffer(vertexBuffer);
     }
 
     // 인덱스 버퍼 업데이트
-    const size_t indexSize = drawData->TotalIdxCount * sizeof(ImDrawIdx);
-    if (indexSize > 0) {
-        void* indexDest = _renderContext->MapBuffer(_indexBuffer, indexSize);
-        if (indexDest) {
-            for (int i = 0; i < drawData->CmdListsCount; i++) {
-                const ImDrawList* cmdList = drawData->CmdLists[i];
-                memcpy(indexDest, cmdList->IdxBuffer.Data,
-                    cmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
-                indexDest = (char*)indexDest +
-                    cmdList->IdxBuffer.Size * sizeof(ImDrawIdx);
-            }
-            _renderContext->UnmapBuffer(_indexBuffer);
+    ImDrawIdx* indexDest = static_cast<ImDrawIdx*>(_renderContext->MapBuffer(indexBuffer, indexBufferSize));
+    if (indexDest) {
+        for (int n = 0; n < drawData->CmdListsCount; n++) {
+            const ImDrawList* cmdList = drawData->CmdLists[n];
+            memcpy(indexDest, cmdList->IdxBuffer.Data, cmdList->IdxBuffer.Size * sizeof(ImDrawIdx));
+            indexDest += cmdList->IdxBuffer.Size;
         }
+        _renderContext->UnmapBuffer(indexBuffer);
     }
 }
-
 OG_NAMESPACE_SAMPLE_END
