@@ -364,19 +364,23 @@ protected:
 
 	void onRender(float deltaTime)
 	{
+		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
 		_encoders[_submitIndex]->Begin();
 		ImGui::Render();
-
+		_triangleSample.OnRender(_encoders[_submitIndex], _swapchain);
 		ImDrawData* drawData = ImGui::GetDrawData();
 		if (drawData)
 		{
 			OgRenderParam param;
 			param.drawList = drawData;
-			param.guiContextKey = 0;  // 메인 컨텍스트는 0
+			param.surface = _swapchain;
+			std::hash<ImGuiContext*> hash_fn;
+			size_t hash_value = hash_fn(context);
+			param.guiContextKey = hash_value;  // 메인 컨텍스트는 0
 			_imguiRenderer->RenderGUI(_encoders[_submitIndex], param);
 		}
 		
-		_triangleSample.OnRender(_encoders[_submitIndex], _swapchain);
+		
 
 		_encoders[_submitIndex]->End();
 	}

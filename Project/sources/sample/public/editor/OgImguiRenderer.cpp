@@ -151,7 +151,8 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
 
         // 기존 폰트 텍스처 해제
         if (res.fontTextureHandle)
-            _renderContext->DestroyTexture(res.fontTextureHandle);
+			res.fontTextureHandle->Release();
+            
 
         // 폰트 데이터 가져오기
         unsigned char* fontData;
@@ -169,6 +170,7 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
 
         // 새 폰트 텍스처 생성
         res.fontTextureHandle = _renderContext->CreateTexture((void*)fontData, texInfo.format, texInfo.extent.width, texInfo.extent.height, _fontSampler);
+        res.fontTextureHandle->Retain();
         res.fontTextureHandle->name = "ImGuiFont";
     }
     else
@@ -195,6 +197,9 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
         // 리소스 맵에 추가
         _guiContextResources[hash_value] = res;
     }
+
+
+
 }
 
 void OgImguiRenderer::RemoveGPUContext(ImGuiContext* context)
@@ -264,13 +269,13 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
         OgAttachment color{};
         color.isDepthStencilAttachment = false;
         color.format = swapchain->colorRenderFormat;
-        color.load = OgRenderBufferLoadAction::LOAD;
+        color.load = OgRenderBufferLoadAction::CLEAR;
         color.store = OgRenderBufferStoreAction::STORE;
 
         OgAttachment depth{};
         depth.isDepthStencilAttachment = true;
         depth.format = swapchain->depthRenderFormat;
-        depth.load = OgRenderBufferLoadAction::LOAD;
+        depth.load = OgRenderBufferLoadAction::CLEAR;
         depth.store = OgRenderBufferStoreAction::STORE;
 
         OgRenderPassInfo rpInfo{};
@@ -346,7 +351,6 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     OgSurfaceResource& surfaceRes = surfaceIt->second;
 
     // 현재 ImGui Context 리소스 가져오기
-    std::hash<ImGuiContext*> hash_fn;
     size_t contextHash = param.guiContextKey;
     auto contextIt = _guiContextResources.find(contextHash);
     if (contextIt == _guiContextResources.end()) {
@@ -357,6 +361,7 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
 
     // 현재 이미지 인덱스 가져오기
     uint32 imageIndex = _renderContext->GetCurrentImageIndex(_currentSwapChain);
+    imageIndex = imageIndex % _renderContext->maxSubmitCount;
     if (imageIndex == _renderContext->SUBMISSION_INDEX_NONE) {
         return; // 유효한 이미지 인덱스가 없음
     }
@@ -383,8 +388,9 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     depthClear.depthStencil.depth = 1.0f;
     depthClear.depthStencil.stencil = 0;
 
+	
     encoder->BeginRenderPass(
-        _renderPass,
+        surfaceRes.renderPassHandle,
         surfaceRes.frameBufferHandle,
         renderArea,
         1,
@@ -425,7 +431,8 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
         }
 
         // 리소스 세트 바인딩
-        encoder->BindResourceSet(_resourceSet);
+		Render::OgResourceSetHandle* resourceSet = getResourceSet(contextRes.fontTextureHandle, surfaceRes.uniformBufferHandles[0][imageIndex]);
+        encoder->BindResourceSet(resourceSet);
 
         // 버텍스/인덱스 버퍼 바인딩
         OgBufferHandle* vertexBuffer = surfaceRes.vertexBufferHandles[imageIndex];
@@ -598,7 +605,7 @@ void OgImguiRenderer::setupImGuiPipeline()
     OgRenderPassInfo renderPassInfo{};
     OgAttachment colorAttachment{};
     colorAttachment.format = OgRenderTextureFormat::B8G8R8A8;
-    colorAttachment.load = OgRenderBufferLoadAction::LOAD;
+    colorAttachment.load = OgRenderBufferLoadAction::CLEAR;
     colorAttachment.store = OgRenderBufferStoreAction::STORE;
 
     renderPassInfo.outputColorAttachments = &colorAttachment;
@@ -607,12 +614,15 @@ void OgImguiRenderer::setupImGuiPipeline()
     OgAttachment depthAttachment{};
     depthAttachment.format = OgRenderTextureFormat::DEFAULT_DEPTH;
     depthAttachment.isDepthStencilAttachment = true;
-    depthAttachment.load = OgRenderBufferLoadAction::LOAD;
+    depthAttachment.load = OgRenderBufferLoadAction::CLEAR;
     depthAttachment.store = OgRenderBufferStoreAction::STORE;
 
     renderPassInfo.outputDepthStencilAttachment = depthAttachment;
     renderPassInfo.useDepthStencilAttachment = true;
     renderPassInfo.isSwapchainRenderPass = true;
+
+
+
 
     _renderPass = _renderContext->CreateRenderPass(renderPassInfo);
 
@@ -786,6 +796,7 @@ void OgImguiRenderer::updateBuffers(const ImDrawData* drawData)
         return;
 
     uint32 imageIndex = _renderContext->GetCurrentImageIndex(_currentSwapChain);
+    imageIndex = imageIndex % _renderContext->maxSubmitCount;
     if (imageIndex == _renderContext->SUBMISSION_INDEX_NONE)
         return;
 
@@ -840,4 +851,50 @@ void OgImguiRenderer::updateBuffers(const ImDrawData* drawData)
         _renderContext->UnmapBuffer(indexBuffer);
     }
 }
+Render::OgResourceSetHandle* OgImguiRenderer::getResourceSet(Render::OgTextureHandle* texture, Render::OgBufferHandle* uniform)
+{
+    // 텍스처와 유니폼 버퍼의 포인터를 합쳐서 해시값 생성
+    size_t textureAddr = reinterpret_cast<size_t>(texture);
+    size_t uniformAddr = reinterpret_cast<size_t>(uniform);
+    size_t combinedHash = textureAddr ^ (uniformAddr << 1);
+
+    // 캐시에서 기존 리소스 세트 검색
+    auto it = _guiResourceSetHandleMap.find(combinedHash);
+    if (it != _guiResourceSetHandleMap.end()) {
+        return it->second;
+    }
+
+    // 리소스 세트가 없으면 새로 생성
+    OgResourceUsage resourceUsages[2]{};
+
+    static uint32 tempUniformSize = 64; // 4x4 매트릭스 크기
+    static uint32 tempUniformOffset = 0;
+
+    // 유니폼 버퍼 설정
+    resourceUsages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
+    resourceUsages[0].binding.stage = OgShaderType::VERTEX;
+    resourceUsages[0].binding.binding = 0;
+    resourceUsages[0].binding.arrayCount = 0;
+    resourceUsages[0].binding.name = "UniformBufferObject";
+    resourceUsages[0].buffer.handle = &uniform;
+    resourceUsages[0].buffer.offset = &tempUniformOffset;
+    resourceUsages[0].buffer.range = &tempUniformSize;
+
+    // 텍스처 설정
+    resourceUsages[1].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+    resourceUsages[1].binding.stage = OgShaderType::FRAGMENT;
+    resourceUsages[1].binding.binding = 1;
+    resourceUsages[1].binding.arrayCount = 0;
+    resourceUsages[1].binding.name = "fontSampler";
+    resourceUsages[1].texture.handle = &texture;
+
+    // 리소스 세트 생성
+    OgResourceSetHandle* resourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 2);
+
+    // 캐시에 저장
+    _guiResourceSetHandleMap[combinedHash] = resourceSet;
+
+    return resourceSet;
+}
+
 OG_NAMESPACE_SAMPLE_END

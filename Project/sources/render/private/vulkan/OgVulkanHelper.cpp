@@ -207,7 +207,7 @@ bool IsCompatible(OgResourceLayoutHandle* a, OgResourceLayoutHandle* b)
 	//return true;
 
 	// temp code
-	return false;
+	return true;
 }
 
 

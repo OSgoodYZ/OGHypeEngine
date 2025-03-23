@@ -97,7 +97,7 @@ struct OG_API OgSurfaceResource
 
 struct OG_API OgRenderParam
 {
-    uint32 guiContextKey;
+    size_t guiContextKey;
     const Render::OgSwapChain* surface;
     const ImDrawData* drawList;
 };
@@ -127,6 +127,8 @@ private:
     void setupImGuiPipeline();
     void cleanupImGuiPipeline();
     void updateBuffers(const ImDrawData* drawData);
+    Render::OgResourceSetHandle* getResourceSet(Render::OgTextureHandle* texture, Render::OgBufferHandle* uniform);
+    
 
     // Helper function for shader compilation
     bool compileGLSLtoSPIRV(const char* shaderCode, Render::OgShaderType shaderType, std::vector<uint32_t>& spirvOut);
@@ -149,6 +151,9 @@ private:
     // Resource maps for context and surfaces
     std::unordered_map<size_t, OgGUIContextResource> _guiContextResources;
     std::unordered_map<Render::OgSwapChain*, OgSurfaceResource> _surfaceResources;
+
+
+    std::unordered_map<size_t, Render::OgResourceSetHandle*> _guiResourceSetHandleMap;
 
     // Font texture resources
     Render::OgSamplerHandle* _fontSampler{ nullptr };
