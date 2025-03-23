@@ -78,7 +78,7 @@ void OgSampleMain::mainLoop()
 
 		if (nullptr != _handle)
 		{
-			_renderContext->Collect();
+			
 
 //			for (size_t i = 0; i < windows.Count(); ++i)
 			{
@@ -88,6 +88,7 @@ void OgSampleMain::mainLoop()
 					window.NextFrame();
 					window.Update();
 					window.Present();
+					_renderContext->Collect();
 				}
 			}
 

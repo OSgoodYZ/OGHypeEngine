@@ -145,6 +145,9 @@ private:
 	void buildRenderPass(OgRenderPassVK* renderPass);
 	void releaseRenderPass(OgRenderPassVK* renderPass);
 
+	VkCommandBuffer beginSingleTimeCommands();
+	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
 private:
 	VkInstance _instance;
 

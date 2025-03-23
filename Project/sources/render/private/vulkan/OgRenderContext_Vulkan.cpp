@@ -1464,7 +1464,7 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 	view.subresourceRange.layerCount = info.arrayLayers;
 	view.image = texture->image;
 	VK_CHECK_RESULT(vkCreateImageView(_logicalDeviceVK, &view, nullptr, &texture->view));
-
+	
 	// GPULocal이 아니라면, 다른 곳에서 Sampling 될 수 있다는 것이기에, image layout을 미리 변환해준다.
 	// Sampling하려면, shader read할 수 있는 layout이여야 하기 때문이다.
 	// GPULocal이라면, RenderPass에서 Undefined -> any Layout으로 바꾸기 때문에 크게 상관없다.
@@ -1474,7 +1474,8 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 	{
 		OG_CHECK(info.isGenerateMipmaps == false, "%s", "Not Implemented yet on generating mipmap on a rendertarget");
 
-		VkCommandBuffer transitionCmd = _stagingCommandBuffer[_stagingSubmitIndex];
+		
+		VkCommandBuffer transitionCmd = beginSingleTimeCommands();
 		vkSetImageLayout
 		(
 			transitionCmd,
@@ -1485,6 +1486,8 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT
 		);
+
+		endSingleTimeCommands(transitionCmd);
 	}
 
 	if (useStaging) // Sampling Image
@@ -1493,6 +1496,7 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 		
 		OgBufferVK* ref = nullptr;
 		ref = new OgBufferVK(*_vulkanDevice, info.byteSize, OgBufferUsage::UNIFORM, OgMemoryOption::MAP_MANAGED);
+		ref->Retain();
 		ref->Build
 		(
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -1520,7 +1524,7 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 			ref->Flush();
 		}
 
-		VkCommandBuffer copyCmd = _stagingCommandBuffer[_stagingSubmitIndex];
+		VkCommandBuffer copyCmd = beginSingleTimeCommands();
 
 		vkSetImageLayout(
 			copyCmd,
@@ -1685,8 +1689,8 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 		}
 
+		endSingleTimeCommands(copyCmd);
 		ref->Destroy();
-
 	}
 
 	// TODO : Research on Linear Tiliing.
@@ -1993,6 +1997,41 @@ void OgRenderContextVulkan::releaseRenderPass(OgRenderPassVK* renderPass)
 		vkDestroyRenderPass(this->_logicalDeviceVK, renderPass->renderPassVK, nullptr);
 	}
 }
+VkCommandBuffer OgRenderContextVulkan::beginSingleTimeCommands()
+{
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = _cmdPoolVK;
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer commandBuffer;
+	vkAllocateCommandBuffers(_logicalDeviceVK, &allocInfo, &commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	return commandBuffer;
+}
+
+void OgRenderContextVulkan::endSingleTimeCommands(VkCommandBuffer commandBuffer)
+{
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(_graphicsQueueVK, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(_graphicsQueueVK);
+
+	vkFreeCommandBuffers(_logicalDeviceVK, _cmdPoolVK, 1, &commandBuffer);
+}
+
 void OgRenderContextVulkan::DestroyRenderPass(OgRenderPassHandle* renderPass)
 {
 	if (renderPass == nullptr) LOGE(OG_ID, "LvRenderPassHandle is nullptr");
