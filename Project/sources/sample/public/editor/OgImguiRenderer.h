@@ -121,6 +121,10 @@ public:
     // Main rendering functions
     void RenderGUI(Render::OgCommandEncoderHandle* encoder, const OgRenderParam& param);
     void NextFrame(Render::OgCommandEncoderHandle* encoder, Render::OgSwapChain* swapChain);
+    
+    // 새로 추가한 함수: 외부 텍스쳐를 이미지로 사용할 수 있도록 설정
+    void SetExternalTexture(Render::OgTextureHandle* texture);
+    Render::OgTextureHandle* GetExternalTexture() const { return _externalTexture; }
 
 private:
     // Pipeline setup and cleanup
@@ -157,6 +161,10 @@ private:
 
     // Font texture resources
     Render::OgSamplerHandle* _fontSampler{ nullptr };
+    
+    // 외부 텍스쳐 (삼각형 렌더 타겟)
+    Render::OgTextureHandle* _externalTexture{ nullptr };
+    Render::OgResourceSetHandle* _externalTextureResourceSet{ nullptr };
 
     // Constants
     static constexpr uint32 VERTEX_BUFFER_INITIAL_SIZE = 5000;

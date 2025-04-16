@@ -273,7 +273,8 @@ protected:
 			
 		}
 
-		
+		// ImGui 렌더러 초기화
+		_imguiRenderer = new OgImguiRenderer(_renderContext);
 	}
 
 	void onDestroy()
@@ -357,9 +358,13 @@ protected:
 		ImGui::Text("Hello, Centered Text!");
 		ImGui::End();
 		
+		// ImGui 업데이트
 		_imguiRenderer->UpdateGPUContext(context);
 		_imguiRenderer->UpdateSurface(_swapchain);
 		
+		// 삼각형 렌더 타겟 텍스쳐를 ImGui 렌더러에 외부 텍스쳐로 설정
+		// 이제 삼각형이 스왑 체인이 아닌 렌더 타겟에 그려지고, 렌더 타겟은 ImGui에 텍스쳐로 표시됩니다
+		_imguiRenderer->SetExternalTexture(_triangleSample.GetRenderTargetTexture());
 	}
 
 	void onRender(float deltaTime)

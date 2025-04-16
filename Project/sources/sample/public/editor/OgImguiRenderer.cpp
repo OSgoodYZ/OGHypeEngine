@@ -128,6 +128,8 @@ bool OgImguiRenderer::compileGLSLtoSPIRV(
 
 OgImguiRenderer::OgImguiRenderer(Render::OgRenderContext* renderContext)
     : _renderContext(renderContext)
+    , _externalTexture(nullptr)
+    , _externalTextureResourceSet(nullptr)
 {
     // ImGui 렌더링을 위한 파이프라인 설정
     setupImGuiPipeline();
@@ -137,6 +139,16 @@ OgImguiRenderer::~OgImguiRenderer()
 {
     // 파이프라인 및 리소스 정리
     cleanupImGuiPipeline();
+    
+    // 외부 텍스쳐 리소스셋 정리
+    if (_externalTextureResourceSet)
+    {
+        _renderContext->DestroyResourceSet(_externalTextureResourceSet);
+        _externalTextureResourceSet = nullptr;
+    }
+    
+    // 외부 텍스쳐는 정리하지 않음 (OgTriangle에서 정리함)
+    _externalTexture = nullptr;
 }
 
 void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
@@ -402,6 +414,39 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     }
 
     OgGUIContextResource& contextRes = contextIt->second;
+    
+    // 외부 텍스쳐가 있는 경우, ImGui에 이미지로 사용하도록 추가
+    if (_externalTexture && drawData->CmdListsCount > 0) {
+        // ImGui의 인터페이스에 삼각형 렌더 타겟을 표시하는 코드 추가
+        ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        
+        // 이미지 크기 계산
+        ImVec2 imageSize;
+        
+        imageSize.x = static_cast<float>(_externalTexture->info.extent.width);
+        imageSize.y = static_cast<float>(_externalTexture->info.extent.height);
+        
+        // 창 크기에 맞게 이미지 사이즈 조정
+        const float maxSize = 500.0f;
+        if (imageSize.x > maxSize || imageSize.y > maxSize) {
+            float ratio = imageSize.y / imageSize.x;
+            if (imageSize.x > imageSize.y) {
+                imageSize.x = maxSize;
+                imageSize.y = maxSize * ratio;
+            } else {
+                imageSize.y = maxSize;
+                imageSize.x = maxSize / ratio;
+            }
+        }
+        
+        // ImGui에 이미지로 텍스쳐 표시
+        ImGui::Image((ImTextureID)_externalTexture, imageSize);
+        ImGui::End();
+        
+        // 변경된 ImGui 커맨드 리스트로 DrawData 업데이트
+        ImGui::Render();
+        drawData = ImGui::GetDrawData();
+    }
 
     // 현재 이미지 인덱스 가져오기
     uint32 imageIndex = _renderContext->GetCurrentImageIndex(_currentSwapChain);
@@ -537,6 +582,34 @@ void OgImguiRenderer::NextFrame(Render::OgCommandEncoderHandle* encoder, Render:
 
     // 커맨드 인코더 제출
     _renderContext->Submit(swapChain, encoder);
+}
+
+void OgImguiRenderer::SetExternalTexture(Render::OgTextureHandle* texture)
+{
+    // 기존 리소스 세트가 있으면 먼저 정리
+    if (_externalTextureResourceSet) {
+        _renderContext->DestroyResourceSet(_externalTextureResourceSet);
+        _externalTextureResourceSet = nullptr;
+    }
+    
+    _externalTexture = texture;
+    
+    // 텍스쳐가 유효하지 않으면 더 이상 진행하지 않음
+    if (!_externalTexture) return;
+    
+    // 외부 텍스쳐를 위한 리소스 세트 생성
+    OgResourceUsage resourceUsages[1]{};
+
+    // 텍스쳐 바인딩
+    resourceUsages[0].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+    resourceUsages[0].binding.stage = OgShaderType::FRAGMENT;
+    resourceUsages[0].binding.binding = 1; // ImGui 폰트 텍스쳐와 같은 바인딩 사용
+    resourceUsages[0].binding.arrayCount = 0;
+    resourceUsages[0].binding.name = "externalTextureSampler";
+    resourceUsages[0].texture.handle = &_externalTexture;
+
+    // 리소스 세트 생성
+    _externalTextureResourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 1);
 }
 
 void OgImguiRenderer::setupImGuiPipeline()

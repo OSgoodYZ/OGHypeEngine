@@ -18,6 +18,9 @@ class OG_API OgTriangle
 public:
 	OgTriangle(Render::OgRenderContext* renderContext)
 		:_renderContext(renderContext)
+		, _renderTargetTexture(nullptr)
+		, _renderTargetFrameBuffer(nullptr)
+		, _renderTargetRenderPass(nullptr)
 		//, _submitIndex{0}
 	{
 	};
@@ -41,6 +44,9 @@ public:
 
 	void OnDestroy();
 
+	// 렌더 타겟 텍스쳐를 반환하는 함수
+	Render::OgTextureHandle* GetRenderTargetTexture() const { return _renderTargetTexture; }
+
 
 private:
 
@@ -58,6 +64,11 @@ private:
 	Render::OgRenderPassHandle* _renderPass;
 	Render::OgFrameBufferHandle* _frameBuffer;
 	Render::OgPipelineHandle* _pipeline;
+
+	// Render target texture resources
+	Render::OgTextureHandle* _renderTargetTexture;
+	Render::OgFrameBufferHandle* _renderTargetFrameBuffer;
+	Render::OgRenderPassHandle* _renderTargetRenderPass;
 
 
 

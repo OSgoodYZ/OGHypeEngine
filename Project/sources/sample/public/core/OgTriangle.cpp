@@ -18,9 +18,7 @@ void OgTriangle::OnInit(Render::OgSwapChain* swapchain)
 
 void OgTriangle::OnRender(Render::OgCommandEncoderHandle* encoder, Render::OgSwapChain* swapchain)
 {
-
-	//Render::OgCommandEncoderHandle* encoder = _encoders[_submitIndex];
-	//encoder->Begin();
+	// 이제 스왑체인이 아닌 렌더 타겟에 렌더링합니다
 
 	float passColor[]{ 0.0f, 1.0f, 0.0f, 1.0f };
 
@@ -34,15 +32,13 @@ void OgTriangle::OnRender(Render::OgCommandEncoderHandle* encoder, Render::OgSwa
 	depthStencilClear.depthStencil.depth = 1.f;
 	depthStencilClear.depthStencil.stencil = 0.f;
 
-	uint32 framebufferIndex = _renderContext->GetCurrentImageIndex(swapchain);
-	_frameBuffer = _renderContext->GetSwapChainFrameBuffer(swapchain, framebufferIndex);
+	// 렌더 타겟 프레임버퍼 사용 (스왑체인의 프레임버퍼 대신)
+	OgCommandEncoderHandle::Area area(0, 0, _renderTargetFrameBuffer->width, _renderTargetFrameBuffer->height);
 
-	
-	OgCommandEncoderHandle::Area area(0, 0, _frameBuffer->width, _frameBuffer->height);
+	encoder->BeginDebugMarker("Sample - TriangleRenderTarget", passColor);
 
-	encoder->BeginDebugMarker("Sample - LvBasicTriangle", passColor);
-
-	encoder->BeginRenderPass(_renderPass, _frameBuffer, area, 1, &colorClear, 0, nullptr, &depthStencilClear);
+	// 렌더 타겟에 렌더링
+	encoder->BeginRenderPass(_renderTargetRenderPass, _renderTargetFrameBuffer, area, 1, &colorClear, 0, nullptr, &depthStencilClear);
 
 	encoder->SetViewport(static_cast<float>(area.x), static_cast<float>(area.y), static_cast<float>(area.width), static_cast<float>(area.height));
 
@@ -56,9 +52,8 @@ void OgTriangle::OnRender(Render::OgCommandEncoderHandle* encoder, Render::OgSwa
 
 	encoder->EndRenderPass();
 
-
-	//encoder->End();
-
+	// 어슴보니까 템포러리하게 Submit을 해줘야했다!
+	// 이후에 ImGui 렌더러에서 해당 텍스쳐를 사용할 수 있다
 	_renderContext->Submit(swapchain, encoder);
 	
 }
@@ -113,6 +108,34 @@ void OgTriangle::createResourceHandles(Render::OgSwapChain* swapchain)
 
 	_vertexBuffer = _renderContext->CreateBuffer(vertices, sizeof(vertices), Render::OgBufferUsage::VERTEX, OgMemoryOption::MAP_MANAGED);
 	_vertexBuffer->Retain();
+	
+	// 렌더 타겟 텍스쳐 생성 (스왑체인과 같은 크기로)
+	OgSamplerInfo samplerInfo{};
+	samplerInfo.type = OgSamplerType::TEX_2D;
+	samplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE;
+	samplerInfo.addressV = OgSamplerAddressMode::CLAMP_TO_EDGE;
+	samplerInfo.magFilter = OgFilter::LINEAR;
+	samplerInfo.minFilter = OgFilter::LINEAR;
+	samplerInfo.mipmapMode = OgSamplerMipmapMode::NEAREST;
+	
+	OgSamplerHandle* sampler = _renderContext->CreateSampler(samplerInfo);
+	const uint16 w = _renderContext->GetSwapChainFrameBuffer(swapchain, 0)->width;
+	const uint16 h = _renderContext->GetSwapChainFrameBuffer(swapchain, 0)->height;
+	// 렌더 타겟 텍스쳐 생성
+
+
+	// 초기 폰트 텍스처를 위한 더미 텍스처 생성
+	OgTextureInfo texInfo{};
+	texInfo.type = OgTextureType::TEX_2D;
+	texInfo.format = OgPixelFormat::R8G8B8A8_UNORM; // SRGB 대신 UNORM 사용
+	texInfo.extent.width = w;
+	texInfo.extent.height = h;
+	texInfo.usage = OgTextureUsage::COLOR_ATTACHMENT | OgTextureUsage::SAMPLED;
+	texInfo.isGenerateMipmaps = false; // 밉맵 비활성화
+
+	_renderTargetTexture = _renderContext->CreateTexture((void*)nullptr, texInfo.format, texInfo.extent.width, texInfo.extent.height, sampler);
+	_renderTargetTexture->name = "TriangleRenderTarget";
+	_renderTargetTexture->Retain();
 
 
 	uint32 vs[]{
@@ -205,6 +228,7 @@ void OgTriangle::createResourceHandles(Render::OgSwapChain* swapchain)
 	_resourceLayout->name = "LvSampleResourceLayout";
 	_resourceLayout->Retain();
 
+	// 스왑체인을 위한 렌더 패스(이전과 동일) - 최종 화면 출력용
 	OgAttachment color{};
 	color.isDepthStencilAttachment = false;
 	color.format = swapchain->colorRenderFormat;
@@ -226,6 +250,67 @@ void OgTriangle::createResourceHandles(Render::OgSwapChain* swapchain)
 	_renderPass = _renderContext->CreateRenderPass(rpInfo);
 	_renderPass->name = "OgSampleRenderPass";
 	_renderPass->Retain();
+
+	// 렌더 타겟을 위한 렌더 패스 생성
+	OgAttachment rtColor{};
+	rtColor.isDepthStencilAttachment = false;
+	rtColor.format = OgRenderTextureFormat::R8G8B8A8_UNORM; // 렌더 타겟 포맷
+	rtColor.load = OgRenderBufferLoadAction::CLEAR;
+	rtColor.store = OgRenderBufferStoreAction::STORE;
+
+	OgAttachment rtDepth{};
+	rtDepth.isDepthStencilAttachment = true;
+	rtDepth.format = swapchain->depthRenderFormat;
+	rtDepth.load = OgRenderBufferLoadAction::CLEAR;
+	rtDepth.store = OgRenderBufferStoreAction::STORE;
+
+	OgRenderPassInfo rtRpInfo{};
+	rtRpInfo.isSwapchainRenderPass = false; // 오프스크린 렌더 패스
+	rtRpInfo.outputColorAttachmentCount = 1;
+	rtRpInfo.outputColorAttachments = &rtColor;
+	rtRpInfo.useDepthStencilAttachment = true;
+	rtRpInfo.outputDepthStencilAttachment = rtDepth;
+	rtRpInfo.resolveColorAttachmentCount = 0;
+
+	_renderTargetRenderPass = _renderContext->CreateRenderPass(rtRpInfo);
+	_renderTargetRenderPass->name = "TriangleRenderTargetPass";
+	_renderTargetRenderPass->Retain();
+
+	OgVector<OgTextureHandle*> rtTextures;
+	rtTextures.Add(_renderTargetTexture);
+	// 렌더 타겟을 위한 프레임버퍼 생성
+	OgFrameBufferInfo rtFbInfo{};
+	rtFbInfo.width = w;
+	rtFbInfo.height = h;
+	rtFbInfo.renderPass = _renderTargetRenderPass;
+	rtFbInfo.colorBuffers = rtTextures;
+	
+	// 렌더 타겟을 위한 데스 버퍼 생성
+	OgTextureInfo depthTexInfo{};
+	depthTexInfo.type = OgTextureType::TEX_2D;
+	
+	depthTexInfo.format = OgFormatSupplement::GetPixelFormat(swapchain->depthRenderFormat);
+	depthTexInfo.extent.width = w;
+	depthTexInfo.extent.height = h;
+	depthTexInfo.usage = OgTextureUsage::DEPTH_STENCIL_ATTACHMENT;
+	
+	OgSamplerInfo dSamplerInfo{};
+	dSamplerInfo.type = OgSamplerType::TEX_2D;
+	dSamplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE;
+	dSamplerInfo.addressV = OgSamplerAddressMode::CLAMP_TO_EDGE;
+	dSamplerInfo.magFilter = OgFilter::LINEAR;
+	dSamplerInfo.minFilter = OgFilter::LINEAR;
+	dSamplerInfo.mipmapMode = OgSamplerMipmapMode::NEAREST;
+
+	OgSamplerHandle* dSampler = _renderContext->CreateSampler(dSamplerInfo);
+
+	OgTextureHandle* depthTexture = _renderContext->CreateTexture(nullptr, depthTexInfo, dSampler);
+	depthTexture->name = "TriangleDepthBuffer";
+	rtFbInfo.depthStencilBuffer = depthTexture;
+	
+	_renderTargetFrameBuffer = _renderContext->CreateFrameBuffer(rtFbInfo);
+	_renderTargetFrameBuffer->name = "TriangleRenderTargetFrameBuffer";
+	_renderTargetFrameBuffer->Retain();
 
 	OgColorBlendDescriptor cbDesc{};
 	cbDesc.attachmentCount = 1;
@@ -317,6 +402,32 @@ void OgTriangle::destroyResourceHandles()
 	{
 		_renderContext->DestroyPipeline(_pipeline);
 		_pipeline = nullptr;
+	}
+	
+	// 렌더 타겟 리소스 해제
+	if (_renderTargetRenderPass)
+	{
+		_renderContext->DestroyRenderPass(_renderTargetRenderPass);
+		_renderTargetRenderPass = nullptr;
+	}
+	
+	if (_renderTargetFrameBuffer)
+	{
+		// 데스 버퍼 텍스쳐 해제
+		
+		if (_renderTargetFrameBuffer->framebufferInfo.depthStencilBuffer)
+		{
+			_renderContext->DestroyTexture(_renderTargetFrameBuffer->framebufferInfo.depthStencilBuffer);
+		}
+		
+		_renderContext->DestroyFrameBuffer(_renderTargetFrameBuffer);
+		_renderTargetFrameBuffer = nullptr;
+	}
+	
+	if (_renderTargetTexture)
+	{
+		_renderContext->DestroyTexture(_renderTargetTexture);
+		_renderTargetTexture = nullptr;
 	}
 
 }
