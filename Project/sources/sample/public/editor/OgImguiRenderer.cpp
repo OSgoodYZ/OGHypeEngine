@@ -459,12 +459,12 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
         float T = drawData->DisplayPos.y;
         float B = drawData->DisplayPos.y + drawData->DisplaySize.y;
 
-        // Projection matrix (orthographic)
+        // 상하만 뒤집힌 정사영 프로젝션 매트릭스
         float projection[4][4] = {
             { 2.0f / (R - L),   0.0f,         0.0f,   0.0f },
-            { 0.0f,         2.0f / (T - B),   0.0f,   0.0f },
+            { 0.0f,         -2.0f / (T - B),   0.0f,   0.0f },
             { 0.0f,         0.0f,        -1.0f,   0.0f },
-            { (R + L) / (L - R),  (T + B) / (B - T),  0.0f,   1.0f },
+            { (R + L) / (L - R),  (T + B) / (T - B),  0.0f,   1.0f },
         };
 
         OgBufferHandle* uniformBuffer = surfaceRes.uniformBufferHandles[0][imageIndex];
