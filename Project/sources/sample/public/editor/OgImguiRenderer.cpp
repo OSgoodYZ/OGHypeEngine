@@ -150,28 +150,43 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
         OgGUIContextResource& res = _guiContextResources[hash_value];
 
         // 기존 폰트 텍스처 해제
-        if (res.fontTextureHandle)
-			res.fontTextureHandle->Release();
+        //if (res.fontTextureHandle)
+        //{
+        //    res.fontTextureHandle->Release();
+        //}
+			
             
 
         // 폰트 데이터 가져오기
-        unsigned char* fontData;
+		unsigned char* fontData = nullptr;
         int texWidth, texHeight;
         context->IO.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
 
         // 텍스처 정보 설정
         OgTextureInfo texInfo{};
         texInfo.type = OgTextureType::TEX_2D;
-        texInfo.format = OgPixelFormat::R8G8B8A8_SRGB;
+        texInfo.format = OgPixelFormat::R8G8B8A8_UNORM; // SRGB 대신 UNORM 형식 사용
         texInfo.extent.width = static_cast<uint16>(texWidth);
         texInfo.extent.height = static_cast<uint16>(texHeight);
         texInfo.byteSize = texWidth * texHeight * 4 * sizeof(char);
         texInfo.usage = OgTextureUsage::STAGING | OgTextureUsage::SAMPLED;
+        texInfo.isGenerateMipmaps = false; // 명시적으로 밉맵 생성 비활성화
 
         // 새 폰트 텍스처 생성
-        res.fontTextureHandle = _renderContext->CreateTexture((void*)fontData, texInfo.format, texInfo.extent.width, texInfo.extent.height, _fontSampler);
+        OgSamplerInfo samplerInfo{};
+        samplerInfo.type = OgSamplerType::TEX_2D;
+        samplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE;
+        samplerInfo.addressV = OgSamplerAddressMode::CLAMP_TO_EDGE;
+        samplerInfo.magFilter = OgFilter::LINEAR;
+        samplerInfo.minFilter = OgFilter::LINEAR;
+        samplerInfo.mipmapMode = OgSamplerMipmapMode::NEAREST;
+
+        OgSamplerHandle* fontSampler = _renderContext->CreateSampler(samplerInfo);
+        res.fontTextureHandle = _renderContext->CreateTexture((void*)fontData, texInfo.format, texInfo.extent.width, texInfo.extent.height, fontSampler);
         res.fontTextureHandle->Retain();
         res.fontTextureHandle->name = "ImGuiFont";
+        // 폰트 텍스처가 생성된 후 ImGui에 세트
+        context->IO.Fonts->SetTexID((ImTextureID)res.fontTextureHandle);
     }
     else
     {
@@ -185,14 +200,28 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
 
         OgTextureInfo texInfo{};
         texInfo.type = OgTextureType::TEX_2D;
-        texInfo.format = OgPixelFormat::R8G8B8A8_SRGB;
+        texInfo.format = OgPixelFormat::R8G8B8A8_UNORM; // SRGB 대신 UNORM 형식 사용
         texInfo.extent.width = static_cast<uint16>(texWidth);
         texInfo.extent.height = static_cast<uint16>(texHeight);
         texInfo.byteSize = texWidth * texHeight * 4 * sizeof(char);
         texInfo.usage = OgTextureUsage::STAGING | OgTextureUsage::SAMPLED;
+        texInfo.isGenerateMipmaps = false; // 명시적으로 밉맵 생성 비활성화
 
-        res.fontTextureHandle = _renderContext->CreateTexture((void*)fontData, texInfo.format, texInfo.extent.width, texInfo.extent.height, _fontSampler);
+        OgSamplerInfo samplerInfo{};
+        samplerInfo.type = OgSamplerType::TEX_2D;
+        samplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE;
+        samplerInfo.addressV = OgSamplerAddressMode::CLAMP_TO_EDGE;
+        samplerInfo.magFilter = OgFilter::LINEAR;
+        samplerInfo.minFilter = OgFilter::LINEAR;
+        samplerInfo.mipmapMode = OgSamplerMipmapMode::NEAREST;
+
+        OgSamplerHandle* fontSampler = _renderContext->CreateSampler(samplerInfo);
+        res.fontTextureHandle = _renderContext->CreateTexture((void*)fontData, texInfo.format, texInfo.extent.width, texInfo.extent.height, fontSampler);
         res.fontTextureHandle->name = "ImGuiFont";
+        res.fontTextureHandle->Retain();
+        
+        // 폰트 텍스처가 생성된 후 ImGui에 세트
+        context->IO.Fonts->SetTexID((ImTextureID)res.fontTextureHandle);
 
         // 리소스 맵에 추가
         _guiContextResources[hash_value] = res;
@@ -212,7 +241,10 @@ void OgImguiRenderer::RemoveGPUContext(ImGuiContext* context)
 
         // 리소스 해제
         if (res.fontTextureHandle)
+        {
             _renderContext->DestroyTexture(res.fontTextureHandle);
+        }
+            
 
         // 맵에서 제거
         _guiContextResources.erase(it);
@@ -528,7 +560,11 @@ void OgImguiRenderer::setupImGuiPipeline()
         layout(location = 0) out vec4 outColor;
         
         void main() {
-            outColor = inColor * texture(fontSampler, inUV);
+            vec4 texColor = texture(fontSampler, inUV);
+            outColor = inColor * texColor;
+            // 투명도 처리를 위한 특별 처리
+            if(texColor.a <= 0.0)
+                discard;
         }
     )";
 
@@ -594,10 +630,11 @@ void OgImguiRenderer::setupImGuiPipeline()
     // 샘플러 설정
     OgSamplerInfo samplerInfo{};
     samplerInfo.type = OgSamplerType::TEX_2D;
-    samplerInfo.addressU = OgSamplerAddressMode::REPEAT;
-    samplerInfo.addressV = OgSamplerAddressMode::REPEAT;
+    samplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE; // REPEAT 대신 CLAMP_TO_EDGE 사용
+    samplerInfo.addressV = OgSamplerAddressMode::CLAMP_TO_EDGE; // REPEAT 대신 CLAMP_TO_EDGE 사용
     samplerInfo.magFilter = OgFilter::LINEAR;
     samplerInfo.minFilter = OgFilter::LINEAR;
+    samplerInfo.mipmapMode = OgSamplerMipmapMode::NEAREST; // 명시적으로 밉맵 모드 설정
 
     _fontSampler = _renderContext->CreateSampler(samplerInfo);
 
@@ -710,13 +747,15 @@ void OgImguiRenderer::setupImGuiPipeline()
     // 초기 폰트 텍스처를 위한 더미 텍스처 생성
     OgTextureInfo texInfo{};
     texInfo.type = OgTextureType::TEX_2D;
-    texInfo.format = OgPixelFormat::R8G8B8A8_SRGB;
+    texInfo.format = OgPixelFormat::R8G8B8A8_UNORM; // SRGB 대신 UNORM 사용
     texInfo.extent.width = 1;
     texInfo.extent.height = 1;
-    texInfo.usage = OgTextureUsage::SAMPLED;
+    texInfo.usage = OgTextureUsage::SAMPLED | OgTextureUsage::STAGING; // 스테이징 플래그 추가
+    texInfo.isGenerateMipmaps = false; // 밉맵 비활성화
 
     uint32_t whitePixel = 0xFFFFFFFF;
     OgTextureHandle* dummyTexture = _renderContext->CreateTexture((void*)&whitePixel, texInfo.format, texInfo.extent.width, texInfo.extent.height, _fontSampler);
+    dummyTexture->Retain(); // 레퍼런스 카운트 증가
 
     // 리소스 세트 생성
     OgResourceUsage resourceUsages[2]{};
@@ -737,7 +776,8 @@ void OgImguiRenderer::setupImGuiPipeline()
     _resourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 2);
 
     // 리소스 정리
-    _renderContext->DestroyTexture(dummyTexture);
+    dummyTexture->Release();
+    //_renderContext->DestroyTexture(dummyTexture);
 }
 
 void OgImguiRenderer::cleanupImGuiPipeline()
@@ -853,6 +893,12 @@ void OgImguiRenderer::updateBuffers(const ImDrawData* drawData)
 }
 Render::OgResourceSetHandle* OgImguiRenderer::getResourceSet(Render::OgTextureHandle* texture, Render::OgBufferHandle* uniform)
 {
+    // 텍스처가 유효한지 확인
+    if (!texture) {
+        LOGE(OG_ID, "Invalid texture handle for ImGui resource set!");
+        return nullptr;
+    }
+
     // 텍스처와 유니폼 버퍼의 포인터를 합쳐서 해시값 생성
     size_t textureAddr = reinterpret_cast<size_t>(texture);
     size_t uniformAddr = reinterpret_cast<size_t>(uniform);
