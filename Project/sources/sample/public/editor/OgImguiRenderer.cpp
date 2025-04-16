@@ -149,15 +149,18 @@ void OgImguiRenderer::UpdateGPUContext(ImGuiContext* context)
         // 이미 존재하는 GUI Context 리소스 업데이트
         OgGUIContextResource& res = _guiContextResources[hash_value];
 
-        // 기존 폰트 텍스처 해제
-        //if (res.fontTextureHandle)
-        //{
-        //    res.fontTextureHandle->Release();
-        //}
-			
-            
+        // 기존 폰트 텍스처가 있으면 재사용
+        // 중요: 폰트 텍스처는 Release 하지 않음 - 이 부분이 문제의 원인
+        if (res.fontTextureHandle)
+        {
+            // 이미 유효한 텍스처가 있으면 그대로 사용
+            // 텍스처를 업데이트할 필요가 없음
+            // 단지 ImGui Context에 현재 텍스처 ID를 다시 설정
+            context->IO.Fonts->SetTexID((ImTextureID)res.fontTextureHandle);
+            return; // 기존 텍스처 사용 시 여기서 반환
+        }
 
-        // 폰트 데이터 가져오기
+        // 폰트 데이터 가져오기 (기존 텍스처가 없는 경우에만 실행됨)
 		unsigned char* fontData = nullptr;
         int texWidth, texHeight;
         context->IO.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
@@ -239,13 +242,22 @@ void OgImguiRenderer::RemoveGPUContext(ImGuiContext* context)
     if (it != _guiContextResources.end()) {
         OgGUIContextResource& res = it->second;
 
+        // ImGui의 폰트 텍스처 ID 재설정
+        context->IO.Fonts->SetTexID(NULL);
+
         // 리소스 해제
+        // 중요: 폰트 텍스처를 DestroyTexture 하기 전에 반드시 Release를 충분히 호출해야 함
         if (res.fontTextureHandle)
         {
+            // 추가로 Release하여 레퍼런스 카운트가 0이 되도록 함
+            // Retain()을 호출한 만큼 Release()도 호출해야 함
+            res.fontTextureHandle->Release();
+            
+            // 이제 안전하게 텍스처 제거 가능
             _renderContext->DestroyTexture(res.fontTextureHandle);
+            res.fontTextureHandle = nullptr;
         }
             
-
         // 맵에서 제거
         _guiContextResources.erase(it);
     }
@@ -776,8 +788,10 @@ void OgImguiRenderer::setupImGuiPipeline()
     _resourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 2);
 
     // 리소스 정리
+    // dummyTexture를 사용한 후 Release를 해주어야 함
     dummyTexture->Release();
-    //_renderContext->DestroyTexture(dummyTexture);
+    // 참조 카운트가 0이 되는지 확인 후 삭제
+    _renderContext->DestroyTexture(dummyTexture);
 }
 
 void OgImguiRenderer::cleanupImGuiPipeline()
