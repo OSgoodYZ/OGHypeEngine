@@ -129,7 +129,6 @@ bool OgImguiRenderer::compileGLSLtoSPIRV(
 OgImguiRenderer::OgImguiRenderer(Render::OgRenderContext* renderContext)
     : _renderContext(renderContext)
     , _externalTexture(nullptr)
-    , _externalTextureResourceSet(nullptr)
 {
     // ImGui 렌더링을 위한 파이프라인 설정
     setupImGuiPipeline();
@@ -139,13 +138,7 @@ OgImguiRenderer::~OgImguiRenderer()
 {
     // 파이프라인 및 리소스 정리
     cleanupImGuiPipeline();
-    
-    // 외부 텍스쳐 리소스셋 정리
-    if (_externalTextureResourceSet)
-    {
-        _renderContext->DestroyResourceSet(_externalTextureResourceSet);
-        _externalTextureResourceSet = nullptr;
-    }
+
     
     // 외부 텍스쳐는 정리하지 않음 (OgTriangle에서 정리함)
     _externalTexture = nullptr;
@@ -554,7 +547,7 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
                     // 적절한 리소스 세트 선택 및 바인딩
                     Render::OgResourceSetHandle* resourceSet = nullptr;
 
-                    if (currentTexture == _externalTexture && _externalTextureResourceSet)
+                    if (currentTexture == _externalTexture)
                     {
                         // 외부 텍스처를 사용하는 경우
                         //resourceSet = _externalTextureResourceSet;
@@ -607,53 +600,7 @@ void OgImguiRenderer::NextFrame(Render::OgCommandEncoderHandle* encoder, Render:
 
 void OgImguiRenderer::SetExternalTexture(Render::OgTextureHandle* texture)
 {
-    
-    if (_externalTextureResourceSet)
-    {
-        if (_externalTexture != texture)
-        {
-            _externalTextureResourceSet->Release();
-            _externalTextureResourceSet = nullptr;
-        }
-        else
-        {
-			// 이미 같은 텍스쳐가 설정되어 있으면 아무 작업도 하지 않음
-			return;
-        }
-    }
-
     _externalTexture = texture;
-
-    // 텍스쳐가 유효하지 않으면 더 이상 진행하지 않음
-    if (!_externalTexture) return;
-
-    // 외부 텍스쳐를 위한 리소스 세트 생성
-    OgResourceUsage resourceUsages[2]{};
-
-    // 유니폼 버퍼 설정 (현재 사용중인 유니폼 버퍼 사용)
-    static uint32 tempUniformSize = 64;
-    static uint32 tempUniformOffset = 0;
-
-    resourceUsages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
-    resourceUsages[0].binding.stage = OgShaderType::VERTEX;
-    resourceUsages[0].binding.binding = 0;
-    resourceUsages[0].binding.arrayCount = 0;
-    resourceUsages[0].binding.name = "UniformBufferObject";
-    resourceUsages[0].buffer.handle = &_uniformBuffer;  // 공통 유니폼 버퍼 사용
-    resourceUsages[0].buffer.offset = &tempUniformOffset;
-    resourceUsages[0].buffer.range = &tempUniformSize;
-
-    // 외부 텍스쳐 바인딩
-    resourceUsages[1].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
-    resourceUsages[1].binding.stage = OgShaderType::FRAGMENT;
-    resourceUsages[1].binding.binding = 1;
-    resourceUsages[1].binding.arrayCount = 0;
-    resourceUsages[1].binding.name = "fontSampler";  // 같은 샘플러 슬롯 사용
-    resourceUsages[1].texture.handle = &_externalTexture;
-
-    // 리소스 세트 생성
-    _externalTextureResourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 2);
-    _externalTextureResourceSet->Retain();
 }
 void OgImguiRenderer::setupImGuiPipeline()
 {

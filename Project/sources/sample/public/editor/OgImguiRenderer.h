@@ -164,7 +164,6 @@ private:
     
     // 외부 텍스쳐 (삼각형 렌더 타겟)
     Render::OgTextureHandle* _externalTexture{ nullptr };
-    Render::OgResourceSetHandle* _externalTextureResourceSet{ nullptr };
 
     // Constants
     static constexpr uint32 VERTEX_BUFFER_INITIAL_SIZE = 5000;
