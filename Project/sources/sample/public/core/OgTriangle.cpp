@@ -133,7 +133,8 @@ void OgTriangle::createResourceHandles(Render::OgSwapChain* swapchain)
 	texInfo.usage = OgTextureUsage::COLOR_ATTACHMENT | OgTextureUsage::SAMPLED;
 	texInfo.isGenerateMipmaps = false; // 밉맵 비활성화
 
-	_renderTargetTexture = _renderContext->CreateTexture((void*)nullptr, texInfo.format, texInfo.extent.width, texInfo.extent.height, sampler);
+	
+	_renderTargetTexture = _renderContext->CreateTexture((void**)nullptr, texInfo, sampler);
 	_renderTargetTexture->name = "TriangleRenderTarget";
 	_renderTargetTexture->Retain();
 

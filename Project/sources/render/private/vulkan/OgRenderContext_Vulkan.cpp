@@ -1520,8 +1520,12 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 		}
 		else
 		{
-			memcpy(stagingBufferPtr, texture->data[0], info.byteSize);
-			ref->Flush();
+			if (texture->data[0])
+			{
+				memcpy(stagingBufferPtr, texture->data[0], info.byteSize);
+				ref->Flush();
+			}
+
 		}
 
 		VkCommandBuffer copyCmd = beginSingleTimeCommands();

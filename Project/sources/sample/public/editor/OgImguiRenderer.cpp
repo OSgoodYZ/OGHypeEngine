@@ -981,7 +981,8 @@ void OgImguiRenderer::updateBuffers(const ImDrawData* drawData)
 Render::OgResourceSetHandle* OgImguiRenderer::getResourceSet(Render::OgTextureHandle* texture, Render::OgBufferHandle* uniform)
 {
     // 텍스처가 유효한지 확인
-    if (!texture) {
+    if (!texture) 
+    {
         LOGE(OG_ID, "Invalid texture handle for ImGui resource set!");
         return nullptr;
     }
@@ -993,7 +994,8 @@ Render::OgResourceSetHandle* OgImguiRenderer::getResourceSet(Render::OgTextureHa
 
     // 캐시에서 기존 리소스 세트 검색
     auto it = _guiResourceSetHandleMap.find(combinedHash);
-    if (it != _guiResourceSetHandleMap.end()) {
+    if (it != _guiResourceSetHandleMap.end()) 
+    {
         return it->second;
     }
 
