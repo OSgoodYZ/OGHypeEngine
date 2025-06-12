@@ -418,7 +418,6 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     if (_externalTexture && drawData->CmdListsCount > 0)
     {
         ImGui::NewFrame();
-        // ImGui의 인터페이스에 삼각형 렌더 타겟을 표시하는 코드 추가
         ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
         // 이미지 크기 계산
@@ -558,7 +557,8 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
                     if (currentTexture == _externalTexture && _externalTextureResourceSet)
                     {
                         // 외부 텍스처를 사용하는 경우
-                        resourceSet = _externalTextureResourceSet;
+                        //resourceSet = _externalTextureResourceSet;
+                        resourceSet = getResourceSet(_externalTexture, uniformBuffer);
                     }
                     else
                     {
