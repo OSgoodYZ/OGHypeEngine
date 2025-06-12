@@ -132,7 +132,7 @@ private:
     void cleanupImGuiPipeline();
     void updateBuffers(const ImDrawData* drawData);
     Render::OgResourceSetHandle* getResourceSet(Render::OgTextureHandle* texture, Render::OgBufferHandle* uniform);
-    
+    void clearResourceSetCache();
 
     // Helper function for shader compilation
     bool compileGLSLtoSPIRV(const char* shaderCode, Render::OgShaderType shaderType, std::vector<uint32_t>& spirvOut);

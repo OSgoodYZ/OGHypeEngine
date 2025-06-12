@@ -61,7 +61,7 @@ private:
 	Render::OgShaderHandle* _fragmentShader;
 	Render::OgProgramHandle* _program;
 	Render::OgResourceLayoutHandle* _resourceLayout;
-	Render::OgRenderPassHandle* _renderPass;
+	//Render::OgRenderPassHandle* _renderPass;
 	Render::OgFrameBufferHandle* _frameBuffer;
 	Render::OgPipelineHandle* _pipeline;
 

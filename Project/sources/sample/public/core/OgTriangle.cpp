@@ -240,18 +240,6 @@ void OgTriangle::createResourceHandles(Render::OgSwapChain* swapchain)
 	depth.isDepthStencilAttachment = true;
 	depth.format = swapchain->depthRenderFormat;
 
-	OgRenderPassInfo rpInfo{};
-	rpInfo.isSwapchainRenderPass = true;
-	rpInfo.outputColorAttachmentCount = 1;
-	rpInfo.outputColorAttachments = &color;
-	rpInfo.useDepthStencilAttachment = true;
-	rpInfo.outputDepthStencilAttachment = depth;
-	rpInfo.resolveColorAttachmentCount = 0;
-
-	_renderPass = _renderContext->CreateRenderPass(rpInfo);
-	_renderPass->name = "OgSampleRenderPass";
-	_renderPass->Retain();
-
 	// 렌더 타겟을 위한 렌더 패스 생성
 	OgAttachment rtColor{};
 	rtColor.isDepthStencilAttachment = false;
@@ -357,7 +345,7 @@ void OgTriangle::createResourceHandles(Render::OgSwapChain* swapchain)
 	pipeDesc.depthStencil = dsDesc;
 	pipeDesc.rasterize = rsDesc;
 	pipeDesc.vertexInput = viDesc;
-	pipeDesc.renderPass = _renderPass;
+	pipeDesc.renderPass = _renderTargetRenderPass;
 	pipeDesc.shader = shDesc;
 	pipeDesc.resourceLayout = _resourceLayout;
 
@@ -394,11 +382,7 @@ void OgTriangle::destroyResourceHandles()
 		_renderContext->DestroyResourceLayout(_resourceLayout);
 		_resourceLayout = nullptr;
 	}
-	if (_renderPass)
-	{
-		_renderContext->DestroyRenderPass(_renderPass);
-		_renderPass = nullptr;
-	}
+
 	if (_pipeline)
 	{
 		_renderContext->DestroyPipeline(_pipeline);

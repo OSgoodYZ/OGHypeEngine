@@ -387,11 +387,10 @@ void OgImguiRenderer::RemoveSurface(Render::OgSwapChain* swapchain)
         _surfaceResources.erase(it);
     }
 }
-
 void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const OgRenderParam& param)
 {
-    if (!param.drawList || param.drawList->CmdListsCount == 0)
-        return;
+    //if (!param.drawList || param.drawList->CmdListsCount == 0)
+    //    return;
 
     const ImDrawData* drawData = param.drawList;
 
@@ -414,35 +413,40 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     }
 
     OgGUIContextResource& contextRes = contextIt->second;
-    
+
     // 외부 텍스쳐가 있는 경우, ImGui에 이미지로 사용하도록 추가
-    if (_externalTexture && drawData->CmdListsCount > 0) {
+    if (_externalTexture && drawData->CmdListsCount > 0)
+    {
+        ImGui::NewFrame();
         // ImGui의 인터페이스에 삼각형 렌더 타겟을 표시하는 코드 추가
         ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-        
+
         // 이미지 크기 계산
         ImVec2 imageSize;
-        
         imageSize.x = static_cast<float>(_externalTexture->info.extent.width);
         imageSize.y = static_cast<float>(_externalTexture->info.extent.height);
-        
+
         // 창 크기에 맞게 이미지 사이즈 조정
         const float maxSize = 500.0f;
-        if (imageSize.x > maxSize || imageSize.y > maxSize) {
+        if (imageSize.x > maxSize || imageSize.y > maxSize)
+        {
             float ratio = imageSize.y / imageSize.x;
-            if (imageSize.x > imageSize.y) {
+            if (imageSize.x > imageSize.y)
+            {
                 imageSize.x = maxSize;
                 imageSize.y = maxSize * ratio;
-            } else {
+            }
+            else
+            {
                 imageSize.y = maxSize;
                 imageSize.x = maxSize / ratio;
             }
         }
-        
-        // ImGui에 이미지로 텍스쳐 표시
+
+        // ImGui에 이미지로 텍스쳐 표시 - 외부 텍스처를 ImTextureID로 사용
         ImGui::Image((ImTextureID)_externalTexture, imageSize);
         ImGui::End();
-        
+
         // 변경된 ImGui 커맨드 리스트로 DrawData 업데이트
         ImGui::Render();
         drawData = ImGui::GetDrawData();
@@ -459,7 +463,8 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     updateBuffers(drawData);
 
     // 렌더 패스 시작
-    OgCommandEncoderHandle::Area renderArea{
+    OgCommandEncoderHandle::Area renderArea
+    {
         0,                              // x
         0,                              // y
         (uint16)drawData->DisplaySize.x,  // width
@@ -477,7 +482,6 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     depthClear.depthStencil.depth = 1.0f;
     depthClear.depthStencil.stencil = 0;
 
-	
     encoder->BeginRenderPass(
         surfaceRes.renderPassHandle,
         surfaceRes.frameBufferHandle,
@@ -514,14 +518,11 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
 
         OgBufferHandle* uniformBuffer = surfaceRes.uniformBufferHandles[0][imageIndex];
         void* uniformData = _renderContext->MapBuffer(uniformBuffer, sizeof(projection));
-        if (uniformData) {
+        if (uniformData)
+        {
             memcpy(uniformData, projection, sizeof(projection));
             _renderContext->UnmapBuffer(uniformBuffer);
         }
-
-        // 리소스 세트 바인딩
-		Render::OgResourceSetHandle* resourceSet = getResourceSet(contextRes.fontTextureHandle, surfaceRes.uniformBufferHandles[0][imageIndex]);
-        encoder->BindResourceSet(resourceSet);
 
         // 버텍스/인덱스 버퍼 바인딩
         OgBufferHandle* vertexBuffer = surfaceRes.vertexBufferHandles[imageIndex];
@@ -531,9 +532,8 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
         OgBufferHandle* indexBuffer = surfaceRes.indexBufferHandles[imageIndex];
         encoder->BindIndexBuffer(indexBuffer, sizeof(ImDrawIdx) == 2 ? OgIndexType::UInt16 : OgIndexType::UInt32);
 
-        // 드로우 커맨드 처리
+        // 드로우 커맨드 처리 - 텍스처별로 다른 리소스 세트 바인딩
         int indexOffset = 0;
-        //int vertexOffset = 0;
 
         for (int n = 0; n < drawData->CmdListsCount; n++)
         {
@@ -549,6 +549,28 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
                 }
                 else
                 {
+                    // 현재 드로우 커맨드가 사용하는 텍스처 확인
+                    OgTextureHandle* currentTexture = reinterpret_cast<OgTextureHandle*>(pcmd->TextureId);
+
+                    // 적절한 리소스 세트 선택 및 바인딩
+                    Render::OgResourceSetHandle* resourceSet = nullptr;
+
+                    if (currentTexture == _externalTexture && _externalTextureResourceSet)
+                    {
+                        // 외부 텍스처를 사용하는 경우
+                        resourceSet = _externalTextureResourceSet;
+                    }
+                    else
+                    {
+                        // 기본 폰트 텍스처를 사용하는 경우
+                        resourceSet = getResourceSet(contextRes.fontTextureHandle, uniformBuffer);
+                    }
+
+                    if (resourceSet)
+                    {
+                        encoder->BindResourceSet(resourceSet);
+                    }
+
                     // 시저 설정
                     encoder->SetScissor(
                         (int32)pcmd->ClipRect.x,
@@ -575,7 +597,6 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
     // 렌더 패스 종료
     encoder->EndRenderPass();
 }
-
 void OgImguiRenderer::NextFrame(Render::OgCommandEncoderHandle* encoder, Render::OgSwapChain* swapChain)
 {
     _currentSwapChain = swapChain;
@@ -586,32 +607,54 @@ void OgImguiRenderer::NextFrame(Render::OgCommandEncoderHandle* encoder, Render:
 
 void OgImguiRenderer::SetExternalTexture(Render::OgTextureHandle* texture)
 {
-    // 기존 리소스 세트가 있으면 먼저 정리
-    if (_externalTextureResourceSet) {
-        _renderContext->DestroyResourceSet(_externalTextureResourceSet);
-        _externalTextureResourceSet = nullptr;
+    
+    if (_externalTextureResourceSet)
+    {
+        if (_externalTexture != texture)
+        {
+            _externalTextureResourceSet->Release();
+            _externalTextureResourceSet = nullptr;
+        }
+        else
+        {
+			// 이미 같은 텍스쳐가 설정되어 있으면 아무 작업도 하지 않음
+			return;
+        }
     }
-    
+
     _externalTexture = texture;
-    
+
     // 텍스쳐가 유효하지 않으면 더 이상 진행하지 않음
     if (!_externalTexture) return;
-    
-    // 외부 텍스쳐를 위한 리소스 세트 생성
-    OgResourceUsage resourceUsages[1]{};
 
-    // 텍스쳐 바인딩
-    resourceUsages[0].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
-    resourceUsages[0].binding.stage = OgShaderType::FRAGMENT;
-    resourceUsages[0].binding.binding = 1; // ImGui 폰트 텍스쳐와 같은 바인딩 사용
+    // 외부 텍스쳐를 위한 리소스 세트 생성
+    OgResourceUsage resourceUsages[2]{};
+
+    // 유니폼 버퍼 설정 (현재 사용중인 유니폼 버퍼 사용)
+    static uint32 tempUniformSize = 64;
+    static uint32 tempUniformOffset = 0;
+
+    resourceUsages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
+    resourceUsages[0].binding.stage = OgShaderType::VERTEX;
+    resourceUsages[0].binding.binding = 0;
     resourceUsages[0].binding.arrayCount = 0;
-    resourceUsages[0].binding.name = "externalTextureSampler";
-    resourceUsages[0].texture.handle = &_externalTexture;
+    resourceUsages[0].binding.name = "UniformBufferObject";
+    resourceUsages[0].buffer.handle = &_uniformBuffer;  // 공통 유니폼 버퍼 사용
+    resourceUsages[0].buffer.offset = &tempUniformOffset;
+    resourceUsages[0].buffer.range = &tempUniformSize;
+
+    // 외부 텍스쳐 바인딩
+    resourceUsages[1].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+    resourceUsages[1].binding.stage = OgShaderType::FRAGMENT;
+    resourceUsages[1].binding.binding = 1;
+    resourceUsages[1].binding.arrayCount = 0;
+    resourceUsages[1].binding.name = "fontSampler";  // 같은 샘플러 슬롯 사용
+    resourceUsages[1].texture.handle = &_externalTexture;
 
     // 리소스 세트 생성
-    _externalTextureResourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 1);
+    _externalTextureResourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 2);
+    _externalTextureResourceSet->Retain();
 }
-
 void OgImguiRenderer::setupImGuiPipeline()
 {
     // 셰이더 코드 정의
@@ -981,7 +1024,7 @@ void OgImguiRenderer::updateBuffers(const ImDrawData* drawData)
 Render::OgResourceSetHandle* OgImguiRenderer::getResourceSet(Render::OgTextureHandle* texture, Render::OgBufferHandle* uniform)
 {
     // 텍스처가 유효한지 확인
-    if (!texture) 
+    if (!texture)
     {
         LOGE(OG_ID, "Invalid texture handle for ImGui resource set!");
         return nullptr;
@@ -994,7 +1037,7 @@ Render::OgResourceSetHandle* OgImguiRenderer::getResourceSet(Render::OgTextureHa
 
     // 캐시에서 기존 리소스 세트 검색
     auto it = _guiResourceSetHandleMap.find(combinedHash);
-    if (it != _guiResourceSetHandleMap.end()) 
+    if (it != _guiResourceSetHandleMap.end())
     {
         return it->second;
     }
@@ -1032,4 +1075,17 @@ Render::OgResourceSetHandle* OgImguiRenderer::getResourceSet(Render::OgTextureHa
     return resourceSet;
 }
 
+// 추가: 리소스 세트 캐시 정리 메소드
+void OgImguiRenderer::clearResourceSetCache()
+{
+    // 캐시된 모든 리소스 세트 정리
+    for (auto& pair : _guiResourceSetHandleMap)
+    {
+        if (pair.second)
+        {
+            _renderContext->DestroyResourceSet(pair.second);
+        }
+    }
+    _guiResourceSetHandleMap.clear();
+}
 OG_NAMESPACE_SAMPLE_END
