@@ -340,9 +340,10 @@ protected:
 
 		// TODO: 단지 테스트 코드!!
 		ImGui::NewFrame();
-
+		ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.8f, io.DisplaySize.y * 0.8f), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.1f, io.DisplaySize.y * 0.1f), ImGuiCond_FirstUseEver);
 		// ImGui 윈도우 시작
-		ImGui::Begin("Triangle Render Target", nullptr);
+		ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_None);
 
 		// 디버깅: ImGui 레이아웃 정보 수집 및 확인
 		ImVec2 windowSize = ImGui::GetWindowSize();
