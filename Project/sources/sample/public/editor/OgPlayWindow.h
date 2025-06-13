@@ -335,28 +335,11 @@ protected:
 		
 		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
 		ImGuiIO& io = context->IO;
-
 		io.DisplaySize.x = static_cast<float>(GetWidth());
 		io.DisplaySize.y = static_cast<float>(GetHeight());
 
 		// TODO: 단지 테스트 코드!!
 		ImGui::NewFrame();
-
-		// 중앙에 텍스트 표시
-		ImGui::SetNextWindowPos(
-			ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
-			ImGuiCond_Always,
-			ImVec2(0.5f, 0.5f)
-		);
-
-		ImGui::Begin("Center Text", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_AlwaysAutoResize);
-
-		ImGui::Text("Hello, Centered Text!");
-		ImGui::End();
 
 		ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
 
@@ -365,32 +348,13 @@ protected:
 		imageSize.x = io.DisplaySize.x;
 		imageSize.y = io.DisplaySize.y;
 
-		// 창 크기에 맞게 이미지 사이즈 조정
-		const float maxSize = 500.0f;
-		if (imageSize.x > maxSize || imageSize.y > maxSize)
-		{
-			float ratio = imageSize.y / imageSize.x;
-			if (imageSize.x > imageSize.y)
-			{
-				imageSize.x = maxSize;
-				imageSize.y = maxSize * ratio;
-			}
-			else
-			{
-				imageSize.y = maxSize;
-				imageSize.x = maxSize / ratio;
-			}
-		}
-
 		// ImGui에 이미지로 텍스쳐 표시 - 외부 텍스처를 ImTextureID로 사용
 		ImGui::Image((ImTextureID)_triangleSample.GetRenderTargetTexture(), imageSize);
 		ImGui::End();
 
 		// 변경된 ImGui 커맨드 리스트로 DrawData 업데이트
 		ImGui::Render();
-
-
-		
+				
 		// ImGui 업데이트
 		_imguiRenderer->UpdateGPUContext(context);
 		_imguiRenderer->UpdateSurface(_swapchain);
@@ -404,7 +368,7 @@ protected:
 	{
 		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
 		_encoders[_submitIndex]->Begin();
-		ImGui::Render();
+		//ImGui::Render();
 		_triangleSample.OnRender(_encoders[_submitIndex], _swapchain);
 		ImDrawData* drawData = ImGui::GetDrawData();
 		if (drawData)
