@@ -850,11 +850,7 @@ void OgImguiRenderer::setupImGuiPipeline()
 
     _resourceSet = _renderContext->CreateResourceSet(_resourceLayout, resourceUsages, 2);
 
-    // 리소스 정리
-    // dummyTexture를 사용한 후 Release를 해주어야 함
-    dummyTexture->Release();
-    // 참조 카운트가 0이 되는지 확인 후 삭제
-    _renderContext->DestroyTexture(dummyTexture);
+	dummyTexture->Release();
 }
 
 void OgImguiRenderer::cleanupImGuiPipeline()
