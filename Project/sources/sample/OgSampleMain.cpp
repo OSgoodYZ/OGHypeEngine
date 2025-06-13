@@ -8,8 +8,8 @@ OG_NAMESPACE_SAMPLE_BEGIN
 
 void OgSampleMain::Run(OgSystemContext* systemContext) {
 	initRenderContext(systemContext);
-	initImGUIContext();
 	initWindow();
+	initImGUIContext();
 	mainLoop();
 	finalWindow();
 	finalImGUIContext();

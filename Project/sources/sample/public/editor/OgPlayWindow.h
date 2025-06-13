@@ -98,7 +98,7 @@ public:
 		onInit();
 
 		// ImGui 렌더러 초기화
-		_imguiRenderer = new OgImguiRenderer(renderContext);
+		//_imguiRenderer = new OgImguiRenderer(renderContext);
 	}
 
 	~OgPlayWindow()
@@ -317,8 +317,6 @@ protected:
 
 	void onResize()
 	{
-
-
 		Position position = GetPosition();
 		//_surface->rect.x = static_cast<float>(position.x);
 		//_surface->rect.y = static_cast<float>(position.y);
@@ -326,6 +324,15 @@ protected:
 		//_surface->rect.height = static_cast<float>(GetHeight());
 
 		//s_inputHandler->UpdateArea(_surface->rect);
+		
+		// 윈도우 크기 변경 시 ImGui DisplaySize도 업데이트
+		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+		if (context) 
+		{
+			ImGuiIO& io = context->IO;
+			io.DisplaySize.x = static_cast<float>(GetWidth());
+			io.DisplaySize.y = static_cast<float>(GetHeight());
+		}
 
 		restore();
 	}
@@ -340,8 +347,8 @@ protected:
 
 		// TODO: 단지 테스트 코드!!
 		ImGui::NewFrame();
-		ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.8f, io.DisplaySize.y * 0.8f), ImGuiCond_FirstUseEver);
-		ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.1f, io.DisplaySize.y * 0.1f), ImGuiCond_FirstUseEver);
+		//ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.8f, io.DisplaySize.y * 0.8f), ImGuiCond_FirstUseEver);
+		//ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.1f, io.DisplaySize.y * 0.1f), ImGuiCond_FirstUseEver);
 		// ImGui 윈도우 시작
 		ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_None);
 
