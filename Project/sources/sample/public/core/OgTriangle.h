@@ -46,6 +46,10 @@ public:
 
 	// 렌더 타겟 텍스쳐를 반환하는 함수
 	Render::OgTextureHandle* GetRenderTargetTexture() const { return _renderTargetTexture; }
+	
+	// 렌더 타겟 크기를 반환하는 함수
+	uint16 GetRenderTargetWidth() const { return _renderTargetFrameBuffer ? _renderTargetFrameBuffer->width : 0; }
+	uint16 GetRenderTargetHeight() const { return _renderTargetFrameBuffer ? _renderTargetFrameBuffer->height : 0; }
 
 
 private:

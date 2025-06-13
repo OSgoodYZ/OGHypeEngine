@@ -341,12 +341,63 @@ protected:
 		// TODO: 단지 테스트 코드!!
 		ImGui::NewFrame();
 
-		ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+		// ImGui 윈도우 시작
+		ImGui::Begin("Triangle Render Target", nullptr);
 
-		// 이미지 크기 계산
+		// 디버깅: ImGui 레이아웃 정보 수집 및 확인
+		ImVec2 windowSize = ImGui::GetWindowSize();
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
+		ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
+		ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
+		ImGuiStyle& style = ImGui::GetStyle();
+		ImVec2 windowPadding = style.WindowPadding;
+		float titleBarHeight = ImGui::GetTextLineHeightWithSpacing();
+		
+		// 디버깅 정보 출력
+		ImGui::Text("Debug Info:");
+		ImGui::Text("Window Size: %.1f x %.1f", windowSize.x, windowSize.y);
+		ImGui::Text("Cursor Pos: %.1f, %.1f", cursorPos.x, cursorPos.y);
+		ImGui::Text("Content Avail: %.1f x %.1f", contentRegionAvail.x, contentRegionAvail.y);
+		ImGui::Text("Content Max: %.1f x %.1f", contentRegionMax.x, contentRegionMax.y);
+		ImGui::Text("Content Min: %.1f x %.1f", contentRegionMin.x, contentRegionMin.y);
+		ImGui::Text("Window Padding: %.1f x %.1f", windowPadding.x, windowPadding.y);
+		ImGui::Text("Title Bar Height: %.1f", titleBarHeight);
+		ImGui::Separator();
+		
+		// 렌더 타겟의 실제 크기
+		float renderTargetWidth = static_cast<float>(_triangleSample.GetRenderTargetWidth());
+		float renderTargetHeight = static_cast<float>(_triangleSample.GetRenderTargetHeight());
+		ImGui::Text("Render Target: %.0f x %.0f", renderTargetWidth, renderTargetHeight);
+		
+		// 사용 가능한 영역 계산 (간단한 방법 사용)
 		ImVec2 imageSize;
-		imageSize.x = io.DisplaySize.x;
-		imageSize.y = io.DisplaySize.y;
+		if (renderTargetWidth > 0 && renderTargetHeight > 0 && contentRegionAvail.x > 0 && contentRegionAvail.y > 0) {
+			// GetContentRegionAvail()로 간단하게 계산
+			float availWidth = contentRegionAvail.x - 20.0f; // 약간의 여백
+			float availHeight = contentRegionAvail.y - 100.0f; // 디버깅 텍스트를 위한 공간
+			
+			if (availWidth > 0 && availHeight > 0) {
+				float scaleX = availWidth / renderTargetWidth;
+				float scaleY = availHeight / renderTargetHeight;
+				float scale = std::min(scaleX, scaleY);
+				scale = std::min(scale, 1.0f); // 확대 방지
+				
+				imageSize.x = renderTargetWidth * scale;
+				imageSize.y = renderTargetHeight * scale;
+				
+				ImGui::Text("Scale: %.3f (X:%.3f, Y:%.3f)", scale, scaleX, scaleY);
+				ImGui::Text("Final Image Size: %.1f x %.1f", imageSize.x, imageSize.y);
+			} else {
+				imageSize.x = 200.0f;
+				imageSize.y = 150.0f;
+				ImGui::Text("Using fallback size (insufficient space)");
+			}
+		} else {
+			imageSize.x = 200.0f;
+			imageSize.y = 150.0f;
+			ImGui::Text("Using fallback size (not ready)");
+		}
 
 		// ImGui에 이미지로 텍스쳐 표시 - 외부 텍스처를 ImTextureID로 사용
 		ImGui::Image((ImTextureID)_triangleSample.GetRenderTargetTexture(), imageSize);
