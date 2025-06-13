@@ -357,6 +357,39 @@ protected:
 
 		ImGui::Text("Hello, Centered Text!");
 		ImGui::End();
+
+		ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+
+		// 이미지 크기 계산
+		ImVec2 imageSize;
+		imageSize.x = io.DisplaySize.x;
+		imageSize.y = io.DisplaySize.y;
+
+		// 창 크기에 맞게 이미지 사이즈 조정
+		const float maxSize = 500.0f;
+		if (imageSize.x > maxSize || imageSize.y > maxSize)
+		{
+			float ratio = imageSize.y / imageSize.x;
+			if (imageSize.x > imageSize.y)
+			{
+				imageSize.x = maxSize;
+				imageSize.y = maxSize * ratio;
+			}
+			else
+			{
+				imageSize.y = maxSize;
+				imageSize.x = maxSize / ratio;
+			}
+		}
+
+		// ImGui에 이미지로 텍스쳐 표시 - 외부 텍스처를 ImTextureID로 사용
+		ImGui::Image((ImTextureID)_triangleSample.GetRenderTargetTexture(), imageSize);
+		ImGui::End();
+
+		// 변경된 ImGui 커맨드 리스트로 DrawData 업데이트
+		ImGui::Render();
+
+
 		
 		// ImGui 업데이트
 		_imguiRenderer->UpdateGPUContext(context);
@@ -384,8 +417,6 @@ protected:
 			param.guiContextKey = hash_value;  // 메인 컨텍스트는 0
 			_imguiRenderer->RenderGUI(_encoders[_submitIndex], param);
 		}
-		
-		
 
 		_encoders[_submitIndex]->End();
 	}

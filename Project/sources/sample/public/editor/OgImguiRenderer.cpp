@@ -407,43 +407,6 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
 
     OgGUIContextResource& contextRes = contextIt->second;
 
-    // 외부 텍스쳐가 있는 경우, ImGui에 이미지로 사용하도록 추가
-    if (_externalTexture && drawData->CmdListsCount > 0)
-    {
-        ImGui::NewFrame();
-        ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-
-        // 이미지 크기 계산
-        ImVec2 imageSize;
-        imageSize.x = static_cast<float>(_externalTexture->info.extent.width);
-        imageSize.y = static_cast<float>(_externalTexture->info.extent.height);
-
-        // 창 크기에 맞게 이미지 사이즈 조정
-        const float maxSize = 500.0f;
-        if (imageSize.x > maxSize || imageSize.y > maxSize)
-        {
-            float ratio = imageSize.y / imageSize.x;
-            if (imageSize.x > imageSize.y)
-            {
-                imageSize.x = maxSize;
-                imageSize.y = maxSize * ratio;
-            }
-            else
-            {
-                imageSize.y = maxSize;
-                imageSize.x = maxSize / ratio;
-            }
-        }
-
-        // ImGui에 이미지로 텍스쳐 표시 - 외부 텍스처를 ImTextureID로 사용
-        ImGui::Image((ImTextureID)_externalTexture, imageSize);
-        ImGui::End();
-
-        // 변경된 ImGui 커맨드 리스트로 DrawData 업데이트
-        ImGui::Render();
-        drawData = ImGui::GetDrawData();
-    }
-
     // 현재 이미지 인덱스 가져오기
     uint32 imageIndex = _renderContext->GetCurrentImageIndex(_currentSwapChain);
     imageIndex = imageIndex % _renderContext->maxSubmitCount;
