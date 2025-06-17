@@ -54,7 +54,7 @@ void OgTriangle::OnRender(Render::OgCommandEncoderHandle* encoder, Render::OgSwa
 
 	// 어슴보니까 템포러리하게 Submit을 해줘야했다!
 	// 이후에 ImGui 렌더러에서 해당 텍스쳐를 사용할 수 있다
-	_renderContext->Submit(swapchain, encoder);
+	//_renderContext->Submit(swapchain, encoder);
 	
 }
 
