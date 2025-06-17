@@ -20,6 +20,8 @@
 #include <imm.h>
 #include <string>
 
+#include "system/OgImGUIManager.h"
+
 #if !defined(DIRECTORY_SEPARATOR_WCHAR)
 #define DIRECTORY_SEPARATOR_WCHAR L'\\'
 #endif
@@ -1216,8 +1218,15 @@ void og_platform_window_set_cursor_mode(OgNativeWindow* window, int mode)
 	}
 }
 
+// ImGui Win32 핸들러 선언
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 static LRESULT CALLBACK window_proc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+	// ImGui 이벤트 처리
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+		return true;
+	
 	OgNativeWindow* window = (OgNativeWindow*)GetPropW(hWnd, L"Og");
 
 	if (!window)

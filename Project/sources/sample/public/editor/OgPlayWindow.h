@@ -4,8 +4,8 @@
 #include "OgPrecompile.h"
 
 //#include <vulkan/vulkan.h>
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+//#define GLFW_INCLUDE_VULKAN
+//#include <GLFW/glfw3.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -18,6 +18,10 @@
 #include "system/OgNativeEvent.h"
 #include "system/OgImGUIManager.h"
 #include "system/thirdparty/imgui/imgui.h"
+#include "system/thirdparty/imgui/backends/imgui_impl_win32.h"
+
+// Forward declare message handler from imgui_impl_win32.cpp
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #include "render/OgRenderContext.h"
 #include "sample/public/editor/OgImguiRenderer.h"
@@ -96,9 +100,6 @@ public:
 		//OgInputManager::Bind(_handle);
 		//OgNativeEventHandler::Bind(&s_system);
 		onInit();
-
-		// ImGui 렌더러 초기화
-		_imguiRenderer = new OgImguiRenderer(renderContext);
 	}
 
 	~OgPlayWindow()
@@ -275,10 +276,45 @@ protected:
 
 		// ImGui 렌더러 초기화
 		_imguiRenderer = new OgImguiRenderer(_renderContext);
+		
+		// ImGui Win32 백엔드 초기화
+		// 기존 ImGui 컨텍스트 가져오기
+		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+		if (context)
+		{
+			// 현재 컨텍스트로 설정
+			ImGui::SetCurrentContext(context);
+			
+			// Win32 백엔드 초기화
+			if (ImGui_ImplWin32_Init(_handle->win32.handle))
+			{
+				_imguiWin32Initialized = true;
+			}
+			else
+			{
+				LOGE(OG_ID, "Failed to initialize ImGui Win32 backend");
+			}
+		}
+		else
+		{
+			LOGE(OG_ID, "ImGui context is not initialized. Please call OgImGuiContextManager::Initialize() first.");
+		}
 	}
 
 	void onDestroy()
 	{
+		// ImGui Win32 백엔드 정리
+		if (_imguiWin32Initialized)
+		{
+			ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+			if (context)
+			{
+				ImGui::SetCurrentContext(context);
+				ImGui_ImplWin32_Shutdown();
+			}
+			_imguiWin32Initialized = false;
+		}
+		
 		for (int i = 0; i < _renderContext->maxSubmitCount; ++i)
 		{
 			_renderContext->DestroyCommandEncoder(_encoders[i]);
@@ -317,8 +353,6 @@ protected:
 
 	void onResize()
 	{
-
-
 		Position position = GetPosition();
 		//_surface->rect.x = static_cast<float>(position.x);
 		//_surface->rect.y = static_cast<float>(position.y);
@@ -326,53 +360,115 @@ protected:
 		//_surface->rect.height = static_cast<float>(GetHeight());
 
 		//s_inputHandler->UpdateArea(_surface->rect);
+		
+		// 윈도우 크기 변경 시 ImGui DisplaySize도 업데이트
+		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+		if (context) 
+		{
+			ImGuiIO& io = context->IO;
+			io.DisplaySize.x = static_cast<float>(GetWidth());
+			io.DisplaySize.y = static_cast<float>(GetHeight());
+		}
 
 		restore();
 	}
 
 	void onPrepare(float deltaTime)
 	{
+	
+	ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+	if (!context)
+	{
+		LOGE(OG_ID, "ImGui context is null in onPrepare");
+		return;
+	}
+	
+	ImGui::SetCurrentContext(context);
+	
+	ImGuiIO& io = context->IO;
+	io.DisplaySize.x = static_cast<float>(GetWidth());
+	io.DisplaySize.y = static_cast<float>(GetHeight());
+
+	// ImGui Win32 프레임 시작 - 초기화가 되어 있는 경우에만
+	if (_imguiWin32Initialized)
+	{
+		ImGui_ImplWin32_NewFrame();
+	}
+	
+	// TODO: 단지 테스트 코드!!
+	ImGui::NewFrame();
+	
+	// ImGui 윈도우 크기를 화면의 절반 정도로 설정
+	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.6f, io.DisplaySize.y * 0.6f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.2f, io.DisplaySize.y * 0.2f), ImGuiCond_FirstUseEver);
 		
-		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
-		ImGuiIO& io = context->IO;
+	// ImGui 윈도우 시작
+	ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_None);
 
-		io.DisplaySize.x = static_cast<float>(GetWidth());
-		io.DisplaySize.y = static_cast<float>(GetHeight());
+	// 렌더 타겟의 실제 크기
+	float renderTargetWidth = static_cast<float>(_triangleSample.GetRenderTargetWidth());
+	float renderTargetHeight = static_cast<float>(_triangleSample.GetRenderTargetHeight());
+	
+	// 사용 가능한 영역 계산
+	ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
+	ImVec2 imageSize;
+	
+	if (renderTargetWidth > 0 && renderTargetHeight > 0 && contentRegionAvail.x > 0 && contentRegionAvail.y > 0) {
+	 // 비율을 유지하면서 창에 맞게 크기 조정
+	 float scaleX = contentRegionAvail.x / renderTargetWidth;
+	 float scaleY = contentRegionAvail.y / renderTargetHeight;
+	 float scale = std::min(scaleX, scaleY);
+	 
+	 // 크기 제한 (너무 작거나 크지 않도록)
+	 scale = std::max(scale, 0.1f);  // 최소 10%
+	 scale = std::min(scale, 2.0f);  // 최대 200%
+	 
+	 imageSize.x = renderTargetWidth * scale;
+	 imageSize.y = renderTargetHeight * scale;
+	 
+	 // 디버깅 정보
+	 ImGui::Text("Render Target: %.0f x %.0f", renderTargetWidth, renderTargetHeight);
+	 ImGui::Text("Available Space: %.0f x %.0f", contentRegionAvail.x, contentRegionAvail.y);
+	 ImGui::Text("Scale: %.2f%% (%.0f x %.0f)", scale * 100.0f, imageSize.x, imageSize.y);
+	 ImGui::Separator();
+	} else {
+	// 기본 크기 사용
+	imageSize.x = 400.0f;
+	imageSize.y = 300.0f;
+	ImGui::Text("Using default size");
+	}
 
-		// TODO: 단지 테스트 코드!!
-		ImGui::NewFrame();
+	// 이미지를 중앙에 배치
+	float centerX = (contentRegionAvail.x - imageSize.x) * 0.5f;
+	if (centerX > 0) {
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + centerX);
+	}
+	
+	// ImGui에 이미지로 텍스쳐 표시 - 외부 텍스처를 ImTextureID로 사용
+	ImGui::Image((ImTextureID)_triangleSample.GetRenderTargetTexture(), imageSize);
+	ImGui::End();
 
-		// 중앙에 텍스트 표시
-		ImGui::SetNextWindowPos(
-			ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
-			ImGuiCond_Always,
-			ImVec2(0.5f, 0.5f)
-		);
-
-		ImGui::Begin("Center Text", nullptr,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoResize |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_AlwaysAutoResize);
-
-		ImGui::Text("Hello, Centered Text!");
-		ImGui::End();
-		
-		// ImGui 업데이트
-		_imguiRenderer->UpdateGPUContext(context);
-		_imguiRenderer->UpdateSurface(_swapchain);
-		
-		// 삼각형 렌더 타겟 텍스쳐를 ImGui 렌더러에 외부 텍스쳐로 설정
+	// 변경된 ImGui 커맨드 리스트로 DrawData 업데이트
+	ImGui::Render();
+	 
+	// ImGui 업데이트
+	_imguiRenderer->UpdateGPUContext(context);
+	_imguiRenderer->UpdateSurface(_swapchain);
+	
+	// 삼각형 렌더 타겟 텍스쳐를 ImGui 렌더러에 외부 텍스쳐로 설정
 		// 이제 삼각형이 스왑 체인이 아닌 렌더 타겟에 그려지고, 렌더 타겟은 ImGui에 텍스쳐로 표시됩니다
-		_imguiRenderer->SetExternalTexture(_triangleSample.GetRenderTargetTexture());
+	_imguiRenderer->SetExternalTexture(_triangleSample.GetRenderTargetTexture());
 	}
 
 	void onRender(float deltaTime)
 	{
 		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
 		_encoders[_submitIndex]->Begin();
-		ImGui::Render();
+		
+		// 먼저 삼각형을 렌더 타겟에 렌더링
 		_triangleSample.OnRender(_encoders[_submitIndex], _swapchain);
+		
+		// 그 다음 ImGui를 스왑체인에 렌더링
 		ImDrawData* drawData = ImGui::GetDrawData();
 		if (drawData)
 		{
@@ -384,10 +480,11 @@ protected:
 			param.guiContextKey = hash_value;  // 메인 컨텍스트는 0
 			_imguiRenderer->RenderGUI(_encoders[_submitIndex], param);
 		}
-		
-		
 
 		_encoders[_submitIndex]->End();
+		
+		// 모든 렌더링 커맨드를 한 번에 Submit
+		_renderContext->Submit(_swapchain, _encoders[_submitIndex]);
 	}
 
 	void onPresent()
@@ -472,6 +569,7 @@ protected:
 	bool _updatable;
 	bool _presentable;
 	bool _shouldCloseNextFrame;
+	bool _imguiWin32Initialized = false;
 	// Command encoders for triple buffering
 	std::vector<Render::OgCommandEncoderHandle*> _encoders;
 	uint32 _submitIndex;

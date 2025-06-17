@@ -2,18 +2,6 @@
 #ifndef _OG_SAMPLE_H__
 #define _OG_SAMPLE_H__
 #include "OgPrecompile.h"
-
-//#include <vulkan/vulkan.h>
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-#include <iostream>
-#include <stdexcept>
-#include <cstdlib>
-#include <vector>
-#include <cstring>
-
-#include "system/OgSystemContext.h"
 #include "render/OgRenderContext.h"
 #include "system/OgNativeWindow.h"
 #include "system/OgNativeEvent.h"
