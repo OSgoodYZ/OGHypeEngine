@@ -82,6 +82,8 @@ set(SOURCES_IMGUI
 	${IMGUI_DIR}/imstb_truetype.h
 	${IMGUI_DIR}/backends/imgui_impl_vulkan.h
     ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+	${IMGUI_DIR}/backends/imgui_impl_win32.h
+    ${IMGUI_DIR}/backends/imgui_impl_win32.cpp
 )
 SOURCE_GROUP("thirdparty\\imgui" FILES ${SOURCES_IMGUI})
 LIST(APPEND TOTAL_FILE ${SOURCES_IMGUI})

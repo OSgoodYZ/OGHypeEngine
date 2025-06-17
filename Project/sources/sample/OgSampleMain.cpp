@@ -8,8 +8,8 @@ OG_NAMESPACE_SAMPLE_BEGIN
 
 void OgSampleMain::Run(OgSystemContext* systemContext) {
 	initRenderContext(systemContext);
-	initWindow();
-	initImGUIContext();
+	initImGUIContext();  // ImGui를 먼저 초기화
+	initWindow();         // 그 다음에 Window 생성
 	mainLoop();
 	finalWindow();
 	finalImGUIContext();

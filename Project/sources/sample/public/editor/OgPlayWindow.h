@@ -4,8 +4,8 @@
 #include "OgPrecompile.h"
 
 //#include <vulkan/vulkan.h>
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+//#define GLFW_INCLUDE_VULKAN
+//#include <GLFW/glfw3.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -18,6 +18,10 @@
 #include "system/OgNativeEvent.h"
 #include "system/OgImGUIManager.h"
 #include "system/thirdparty/imgui/imgui.h"
+#include "system/thirdparty/imgui/backends/imgui_impl_win32.h"
+
+// Forward declare message handler from imgui_impl_win32.cpp
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #include "render/OgRenderContext.h"
 #include "sample/public/editor/OgImguiRenderer.h"
@@ -96,9 +100,6 @@ public:
 		//OgInputManager::Bind(_handle);
 		//OgNativeEventHandler::Bind(&s_system);
 		onInit();
-
-		// ImGui 렌더러 초기화
-		//_imguiRenderer = new OgImguiRenderer(renderContext);
 	}
 
 	~OgPlayWindow()
@@ -275,10 +276,45 @@ protected:
 
 		// ImGui 렌더러 초기화
 		_imguiRenderer = new OgImguiRenderer(_renderContext);
+		
+		// ImGui Win32 백엔드 초기화
+		// 기존 ImGui 컨텍스트 가져오기
+		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+		if (context)
+		{
+			// 현재 컨텍스트로 설정
+			ImGui::SetCurrentContext(context);
+			
+			// Win32 백엔드 초기화
+			if (ImGui_ImplWin32_Init(_handle->win32.handle))
+			{
+				_imguiWin32Initialized = true;
+			}
+			else
+			{
+				LOGE(OG_ID, "Failed to initialize ImGui Win32 backend");
+			}
+		}
+		else
+		{
+			LOGE(OG_ID, "ImGui context is not initialized. Please call OgImGuiContextManager::Initialize() first.");
+		}
 	}
 
 	void onDestroy()
 	{
+		// ImGui Win32 백엔드 정리
+		if (_imguiWin32Initialized)
+		{
+			ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+			if (context)
+			{
+				ImGui::SetCurrentContext(context);
+				ImGui_ImplWin32_Shutdown();
+			}
+			_imguiWin32Initialized = false;
+		}
+		
 		for (int i = 0; i < _renderContext->maxSubmitCount; ++i)
 		{
 			_renderContext->DestroyCommandEncoder(_encoders[i]);
@@ -341,10 +377,24 @@ protected:
 	{
 	
 	ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+	if (!context)
+	{
+		LOGE(OG_ID, "ImGui context is null in onPrepare");
+		return;
+	}
+	
+	ImGui::SetCurrentContext(context);
+	
 	ImGuiIO& io = context->IO;
 	io.DisplaySize.x = static_cast<float>(GetWidth());
 	io.DisplaySize.y = static_cast<float>(GetHeight());
 
+	// ImGui Win32 프레임 시작 - 초기화가 되어 있는 경우에만
+	if (_imguiWin32Initialized)
+	{
+		ImGui_ImplWin32_NewFrame();
+	}
+	
 	// TODO: 단지 테스트 코드!!
 	ImGui::NewFrame();
 	
@@ -519,6 +569,7 @@ protected:
 	bool _updatable;
 	bool _presentable;
 	bool _shouldCloseNextFrame;
+	bool _imguiWin32Initialized = false;
 	// Command encoders for triple buffering
 	std::vector<Render::OgCommandEncoderHandle*> _encoders;
 	uint32 _submitIndex;
