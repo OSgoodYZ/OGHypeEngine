@@ -339,96 +339,86 @@ protected:
 
 	void onPrepare(float deltaTime)
 	{
-		
-		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
-		ImGuiIO& io = context->IO;
-		io.DisplaySize.x = static_cast<float>(GetWidth());
-		io.DisplaySize.y = static_cast<float>(GetHeight());
+	
+	ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+	ImGuiIO& io = context->IO;
+	io.DisplaySize.x = static_cast<float>(GetWidth());
+	io.DisplaySize.y = static_cast<float>(GetHeight());
 
-		// TODO: 단지 테스트 코드!!
-		ImGui::NewFrame();
-		//ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.8f, io.DisplaySize.y * 0.8f), ImGuiCond_FirstUseEver);
-		//ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.1f, io.DisplaySize.y * 0.1f), ImGuiCond_FirstUseEver);
-		// ImGui 윈도우 시작
-		ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_None);
+	// TODO: 단지 테스트 코드!!
+	ImGui::NewFrame();
+	
+	// ImGui 윈도우 크기를 화면의 절반 정도로 설정
+	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.6f, io.DisplaySize.y * 0.6f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.2f, io.DisplaySize.y * 0.2f), ImGuiCond_FirstUseEver);
+		
+	// ImGui 윈도우 시작
+	ImGui::Begin("Triangle Render Target", nullptr, ImGuiWindowFlags_None);
 
-		// 디버깅: ImGui 레이아웃 정보 수집 및 확인
-		ImVec2 windowSize = ImGui::GetWindowSize();
-		ImVec2 cursorPos = ImGui::GetCursorPos();
-		ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
-		ImVec2 contentRegionMax = ImGui::GetWindowContentRegionMax();
-		ImVec2 contentRegionMin = ImGui::GetWindowContentRegionMin();
-		ImGuiStyle& style = ImGui::GetStyle();
-		ImVec2 windowPadding = style.WindowPadding;
-		float titleBarHeight = ImGui::GetTextLineHeightWithSpacing();
-		
-		// 디버깅 정보 출력
-		ImGui::Text("Debug Info:");
-		ImGui::Text("Window Size: %.1f x %.1f", windowSize.x, windowSize.y);
-		ImGui::Text("Cursor Pos: %.1f, %.1f", cursorPos.x, cursorPos.y);
-		ImGui::Text("Content Avail: %.1f x %.1f", contentRegionAvail.x, contentRegionAvail.y);
-		ImGui::Text("Content Max: %.1f x %.1f", contentRegionMax.x, contentRegionMax.y);
-		ImGui::Text("Content Min: %.1f x %.1f", contentRegionMin.x, contentRegionMin.y);
-		ImGui::Text("Window Padding: %.1f x %.1f", windowPadding.x, windowPadding.y);
-		ImGui::Text("Title Bar Height: %.1f", titleBarHeight);
-		ImGui::Separator();
-		
-		// 렌더 타겟의 실제 크기
-		float renderTargetWidth = static_cast<float>(_triangleSample.GetRenderTargetWidth());
-		float renderTargetHeight = static_cast<float>(_triangleSample.GetRenderTargetHeight());
-		ImGui::Text("Render Target: %.0f x %.0f", renderTargetWidth, renderTargetHeight);
-		
-		// 사용 가능한 영역 계산 (간단한 방법 사용)
-		ImVec2 imageSize;
-		if (renderTargetWidth > 0 && renderTargetHeight > 0 && contentRegionAvail.x > 0 && contentRegionAvail.y > 0) {
-			// GetContentRegionAvail()로 간단하게 계산
-			float availWidth = contentRegionAvail.x - 20.0f; // 약간의 여백
-			float availHeight = contentRegionAvail.y - 100.0f; // 디버깅 텍스트를 위한 공간
-			
-			if (availWidth > 0 && availHeight > 0) {
-				float scaleX = availWidth / renderTargetWidth;
-				float scaleY = availHeight / renderTargetHeight;
-				float scale = std::min(scaleX, scaleY);
-				scale = std::min(scale, 1.0f); // 확대 방지
-				
-				imageSize.x = renderTargetWidth * scale;
-				imageSize.y = renderTargetHeight * scale;
-				
-				ImGui::Text("Scale: %.3f (X:%.3f, Y:%.3f)", scale, scaleX, scaleY);
-				ImGui::Text("Final Image Size: %.1f x %.1f", imageSize.x, imageSize.y);
-			} else {
-				imageSize.x = 200.0f;
-				imageSize.y = 150.0f;
-				ImGui::Text("Using fallback size (insufficient space)");
-			}
-		} else {
-			imageSize.x = 200.0f;
-			imageSize.y = 150.0f;
-			ImGui::Text("Using fallback size (not ready)");
-		}
+	// 렌더 타겟의 실제 크기
+	float renderTargetWidth = static_cast<float>(_triangleSample.GetRenderTargetWidth());
+	float renderTargetHeight = static_cast<float>(_triangleSample.GetRenderTargetHeight());
+	
+	// 사용 가능한 영역 계산
+	ImVec2 contentRegionAvail = ImGui::GetContentRegionAvail();
+	ImVec2 imageSize;
+	
+	if (renderTargetWidth > 0 && renderTargetHeight > 0 && contentRegionAvail.x > 0 && contentRegionAvail.y > 0) {
+	 // 비율을 유지하면서 창에 맞게 크기 조정
+	 float scaleX = contentRegionAvail.x / renderTargetWidth;
+	 float scaleY = contentRegionAvail.y / renderTargetHeight;
+	 float scale = std::min(scaleX, scaleY);
+	 
+	 // 크기 제한 (너무 작거나 크지 않도록)
+	 scale = std::max(scale, 0.1f);  // 최소 10%
+	 scale = std::min(scale, 2.0f);  // 최대 200%
+	 
+	 imageSize.x = renderTargetWidth * scale;
+	 imageSize.y = renderTargetHeight * scale;
+	 
+	 // 디버깅 정보
+	 ImGui::Text("Render Target: %.0f x %.0f", renderTargetWidth, renderTargetHeight);
+	 ImGui::Text("Available Space: %.0f x %.0f", contentRegionAvail.x, contentRegionAvail.y);
+	 ImGui::Text("Scale: %.2f%% (%.0f x %.0f)", scale * 100.0f, imageSize.x, imageSize.y);
+	 ImGui::Separator();
+	} else {
+	// 기본 크기 사용
+	imageSize.x = 400.0f;
+	imageSize.y = 300.0f;
+	ImGui::Text("Using default size");
+	}
 
-		// ImGui에 이미지로 텍스쳐 표시 - 외부 텍스처를 ImTextureID로 사용
-		ImGui::Image((ImTextureID)_triangleSample.GetRenderTargetTexture(), imageSize);
-		ImGui::End();
+	// 이미지를 중앙에 배치
+	float centerX = (contentRegionAvail.x - imageSize.x) * 0.5f;
+	if (centerX > 0) {
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + centerX);
+	}
+	
+	// ImGui에 이미지로 텍스쳐 표시 - 외부 텍스처를 ImTextureID로 사용
+	ImGui::Image((ImTextureID)_triangleSample.GetRenderTargetTexture(), imageSize);
+	ImGui::End();
 
-		// 변경된 ImGui 커맨드 리스트로 DrawData 업데이트
-		ImGui::Render();
-				
-		// ImGui 업데이트
-		_imguiRenderer->UpdateGPUContext(context);
-		_imguiRenderer->UpdateSurface(_swapchain);
-		
-		// 삼각형 렌더 타겟 텍스쳐를 ImGui 렌더러에 외부 텍스쳐로 설정
+	// 변경된 ImGui 커맨드 리스트로 DrawData 업데이트
+	ImGui::Render();
+	 
+	// ImGui 업데이트
+	_imguiRenderer->UpdateGPUContext(context);
+	_imguiRenderer->UpdateSurface(_swapchain);
+	
+	// 삼각형 렌더 타겟 텍스쳐를 ImGui 렌더러에 외부 텍스쳐로 설정
 		// 이제 삼각형이 스왑 체인이 아닌 렌더 타겟에 그려지고, 렌더 타겟은 ImGui에 텍스쳐로 표시됩니다
-		_imguiRenderer->SetExternalTexture(_triangleSample.GetRenderTargetTexture());
+	_imguiRenderer->SetExternalTexture(_triangleSample.GetRenderTargetTexture());
 	}
 
 	void onRender(float deltaTime)
 	{
 		ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
 		_encoders[_submitIndex]->Begin();
-		//ImGui::Render();
+		
+		// 먼저 삼각형을 렌더 타겟에 렌더링
 		_triangleSample.OnRender(_encoders[_submitIndex], _swapchain);
+		
+		// 그 다음 ImGui를 스왑체인에 렌더링
 		ImDrawData* drawData = ImGui::GetDrawData();
 		if (drawData)
 		{
@@ -442,6 +432,9 @@ protected:
 		}
 
 		_encoders[_submitIndex]->End();
+		
+		// 모든 렌더링 커맨드를 한 번에 Submit
+		_renderContext->Submit(_swapchain, _encoders[_submitIndex]);
 	}
 
 	void onPresent()
