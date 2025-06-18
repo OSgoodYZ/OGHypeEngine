@@ -394,25 +394,25 @@ void OgTriangleSample::destroyRenderTarget()
 {
     if (_renderTargetFrameBuffer)
     {
-        _renderContext->DestroyFrameBuffer(_renderTargetFrameBuffer);
+        _renderTargetFrameBuffer->Release();
         _renderTargetFrameBuffer = nullptr;
     }
     
     if (_renderTargetRenderPass)
     {
-        _renderContext->DestroyRenderPass(_renderTargetRenderPass);
+        _renderTargetRenderPass->Release();
         _renderTargetRenderPass = nullptr;
     }
     
     if (_depthTexture)
     {
-        _renderContext->DestroyTexture(_depthTexture);
+        _depthTexture->Release();
         _depthTexture = nullptr;
     }
     
     if (_renderTargetTexture)
     {
-        _renderContext->DestroyTexture(_renderTargetTexture);
+        _renderTargetTexture->Release();
         _renderTargetTexture = nullptr;
     }
 }

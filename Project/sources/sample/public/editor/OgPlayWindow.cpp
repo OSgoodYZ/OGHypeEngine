@@ -92,6 +92,9 @@ void OgPlayWindow::onRender(Render::OgCommandEncoderHandle* encoder)
 
 void OgPlayWindow::onResize(uint32 width, uint32 height)
 {
+    _renderContext->Suspend(_swapchain);
+    _imguiRenderer->RemoveSurface(_swapchain);
+
     // ImGui 디스플레이 크기 업데이트
     ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
     if (context) 
@@ -106,6 +109,7 @@ void OgPlayWindow::onResize(uint32 width, uint32 height)
     {
         _currentSample->OnResize(width, height);
     }
+    _renderContext->Restore(_swapchain);
 }
 
 void OgPlayWindow::initImGui()
