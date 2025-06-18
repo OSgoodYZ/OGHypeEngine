@@ -1,6 +1,7 @@
-﻿# set(CMAKE_CXX_STANDARD 11)
 
-set(CMAKE_CXX_STANDARD 11)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 IF(OG_SAMPLE_ON)
 
 set(PUBLIC_COMMON
@@ -18,13 +19,16 @@ source_group("public\\core\\util" FILES ${PUBLIC_CORE_UTIL})
 list(APPEND TOTAL_FILE ${PUBLIC_CORE_UTIL})
 
 set(PUBLIC_CORE
-	public/core/OgTriangle.h
-	public/core/OgTriangle.cpp
+	public/core/OgSampleBase.h
+	public/core/OgTriangleSample.h
+	public/core/OgTriangleSample.cpp
 	)
 source_group("public\\core" FILES ${PUBLIC_CORE})
 list(APPEND TOTAL_FILE ${PUBLIC_CORE})
 
 set(PUBLIC_EDITOR
+	public/editor/OgEditorWindow.h
+	public/editor/OgEditorWindow.cpp
 	public/editor/OgPlayWindow.h
 	public/editor/OgPlayWindow.cpp
 	public/editor/OgImguiRenderer.h
@@ -32,6 +36,13 @@ set(PUBLIC_EDITOR
 	)
 source_group("public\\editor" FILES ${PUBLIC_EDITOR})
 list(APPEND TOTAL_FILE ${PUBLIC_EDITOR})
+
+set(PUBLIC_APPLICATION
+	public/application/OgSampleApplication.h
+	public/application/OgSampleApplication.cpp
+	)
+source_group("public\\application" FILES ${PUBLIC_APPLICATION})
+list(APPEND TOTAL_FILE ${PUBLIC_APPLICATION})
 
 add_library(sample STATIC ${TOTAL_FILE})
 link_directories(${LIB_DIR})

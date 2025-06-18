@@ -293,6 +293,7 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
         {
             OgBufferHandle* vertex = _renderContext->CreateBuffer(nullptr, VERTEX_BUFFER_INITIAL_SIZE * sizeof(ImGuiVertex), OgBufferUsage::VERTEX, OgMemoryOption::MAP_MANAGED);
             vertex->name = "ImGui_VertexBuffer";
+            vertex->Retain();
             res.vertexBufferHandles.push_back(vertex);
         }
 
@@ -301,6 +302,7 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
         {
             OgBufferHandle* index = _renderContext->CreateBuffer(nullptr, INDEX_BUFFER_INITIAL_SIZE * sizeof(ImDrawIdx), OgBufferUsage::INDEX, OgMemoryOption::MAP_MANAGED);
             index->name = "ImGui_IndexBuffer";
+            index->Retain();
             res.indexBufferHandles.push_back(index);
         }
 
@@ -310,6 +312,7 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
             for (uint32 j = 0; j < _renderContext->maxSubmitCount; ++j) {
                 OgBufferHandle* uniform = _renderContext->CreateBuffer(nullptr, 64, OgBufferUsage::UNIFORM, OgMemoryOption::MAP_MANAGED);
                 uniform->name = "ImGui_UniformBuffer";
+                uniform->Retain();
                 res.uniformBufferHandles[i][j] = uniform;
             }
         }
@@ -336,6 +339,7 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
 
         res.renderPassHandle = _renderContext->CreateRenderPass(rpInfo);
         res.renderPassHandle->name = "ImGui_RenderPass";
+        res.renderPassHandle->Retain();
 
         // 현재 서브밋 인덱스 가져오기
         uint32 submitIndex = _renderContext->GetCurrentImageIndex(swapchain);
@@ -352,29 +356,37 @@ void OgImguiRenderer::UpdateSurface(Render::OgSwapChain* swapchain)
 void OgImguiRenderer::RemoveSurface(Render::OgSwapChain* swapchain)
 {
     auto it = _surfaceResources.find(swapchain);
-    if (it != _surfaceResources.end()) {
+    if (it != _surfaceResources.end()) 
+    {
         OgSurfaceResource& res = it->second;
 
         // 버텍스 버퍼 해제
-        for (auto& buffer : res.vertexBufferHandles) {
-            if (buffer) _renderContext->DestroyBuffer(buffer);
+        for (auto& buffer : res.vertexBufferHandles) 
+        {
+            if (buffer) buffer->Release();
         }
 
         // 인덱스 버퍼 해제
-        for (auto& buffer : res.indexBufferHandles) {
-            if (buffer) _renderContext->DestroyBuffer(buffer);
+        for (auto& buffer : res.indexBufferHandles) 
+        {
+            if (buffer) buffer->Release();
         }
 
         // 유니폼 버퍼 해제
-        for (int i = 0; i < 3; i++) {
-            for (auto& buffer : res.uniformBufferHandles[i]) {
-                if (buffer) _renderContext->DestroyBuffer(buffer);
+        for (int i = 0; i < 3; i++) 
+        {
+            for (auto& buffer : res.uniformBufferHandles[i]) 
+            {
+                if (buffer) buffer->Release();
             }
         }
 
         // 렌더패스 해제
         if (res.renderPassHandle)
-            _renderContext->DestroyRenderPass(res.renderPassHandle);
+        {
+            res.renderPassHandle->Release();
+        }
+            
 
         // 맵에서 제거
         _surfaceResources.erase(it);

@@ -2,8 +2,8 @@
 # https://stackoverflow.com/questions/39807664/how-to-best-tell-cmake-where-to-find-dll
 
 
-set(CMAKE_CXX_STANDARD 11)
-
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 set(PUBLIC_COMMON 
