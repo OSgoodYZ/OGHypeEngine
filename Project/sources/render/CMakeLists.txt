@@ -1,5 +1,4 @@
-﻿# set(CMAKE_CXX_STANDARD 11)
-
+﻿
 set(PUBLIC_COMMON 
 	OgRenderContext.h
 	OgRenderDefinitions.h
