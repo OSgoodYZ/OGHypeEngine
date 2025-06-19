@@ -396,8 +396,8 @@ enum class OgVertexFormat : uint8
 
 enum class OgIndexType : uint8
 {
-	UInt16,
-	UInt32
+	UINT16,
+	UINT32
 };
 
 // If your application will render all pixels of the attachment for a given frame, use the default load action MTLLoadActionDontCare.
@@ -2393,7 +2393,7 @@ struct OG_API OgCommandEncoderHandle : OgHandle
 	// const all levels for bufferHandle*
 	virtual void BindVertexBuffers(const OgBufferHandle* const * vertexBuffers, const uint32* offsets, const uint8 bufferCount) = 0;
 
-	virtual void BindIndexBuffer(const OgBufferHandle* indexBuffer, const  OgIndexType indexType = OgIndexType::UInt16) = 0;
+	virtual void BindIndexBuffer(const OgBufferHandle* indexBuffer, const  OgIndexType indexType = OgIndexType::UINT16) = 0;
 
 	// firstIndex : byte offset
 	virtual void DrawIndexed(const uint32 firstIndex, const uint32 indexCount, const uint32 instanceCount, const uint32 vertexOffset) = 0;
