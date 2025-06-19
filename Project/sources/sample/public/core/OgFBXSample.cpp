@@ -1,4 +1,5 @@
 #include "OgFBXSample.h"
+#include "sample/public/core/util/OgShaderCompiler.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include <cmath>
 
@@ -46,7 +47,7 @@ void OgFBXSample::OnDestroy()
 void OgFBXSample::OnUpdate(float deltaTime)
 {
 	// 큐브 회전
-	_rotation += deltaTime * 45.0f; // 초당 45도 회전
+	_rotation += deltaTime * 1.0f; // 초당 1도 회전
 	if (_rotation > 360.0f)
 		_rotation -= 360.0f;
 
@@ -352,94 +353,94 @@ void OgFBXSample::updateUniformBuffer()
 
 void OgFBXSample::createShaders()
 {
-	// 간단한 3D 셰이더 코드 (SPIR-V)
-	// 실제로는 별도의 셰이더 파일로 관리하는 것이 좋습니다
-	// 여기서는 Triangle 샘플처럼 하드코딩된 SPIR-V 코드를 사용합니다
+// MVP 변환을 지원하는 GLSL 셰이더
+const char* vertexShaderGLSL = R"(
+	#version 450
+	
+	layout(location = 0) in vec3 inPosition;
+	layout(location = 1) in vec3 inNormal;
+	layout(location = 2) in vec2 inTexCoord;
+	layout(location = 3) in vec3 inColor;
+	
+	layout(binding = 0) uniform UniformBufferObject {
+	mat4 model;
+	mat4 view;
+	mat4 proj;
+} ubo;
 
-	// Vertex Shader (MVP 변환 + 색상 전달)
-	// Fragment Shader (색상 보간)
-	// 실제 SPIR-V 코드는 glslangValidator를 통해 생성해야 합니다
+layout(location = 0) out vec3 fragColor;
+layout(location = 1) out vec3 fragNormal;
+layout(location = 2) out vec2 fragTexCoord;
 
-	// 임시로 간단한 셰이더 사용 (Triangle 샘플의 셰이더 수정)
-	uint32 vs[]{
-		// 여기에 실제 SPIR-V 코드가 들어가야 합니다
-		// 현재는 Triangle 샘플의 셰이더를 재사용
-		0x03022307, 0x00000100, 0x0A000D00, 0x18000000, 0x00000000, 0x11000200, 0x01000000, 0x0B000600,
-		0x01000000, 0x474C534C, 0x2E737464, 0x2E343530, 0x00000000, 0x0E000300, 0x00000000, 0x01000000,
-		0x0F000700, 0x00000000, 0x04000000, 0x6D61696E, 0x00000000, 0x0A000000, 0x0F000000, 0x03000300,
-		0x01000000, 0x36010000, 0x04000A00, 0x474C5F47, 0x4F4F474C, 0x455F6370, 0x705F7374, 0x796C655F,
-		0x6C696E65, 0x5F646972, 0x65637469, 0x76650000, 0x04000800, 0x474C5F47, 0x4F4F474C, 0x455F696E,
-		0x636C7564, 0x655F6469, 0x72656374, 0x69766500, 0x05000400, 0x04000000, 0x6D61696E, 0x00000000,
-		0x05000600, 0x08000000, 0x676C5F50, 0x65725665, 0x72746578, 0x00000000, 0x06000600, 0x08000000,
-		0x00000000, 0x676C5F50, 0x6F736974, 0x696F6E00, 0x06000700, 0x08000000, 0x01000000, 0x676C5F50,
-		0x6F696E74, 0x53697A65, 0x00000000, 0x05000300, 0x0A000000, 0x00000000, 0x05000500, 0x0F000000,
-		0x615F506F, 0x73697469, 0x6F6E0000, 0x48000500, 0x08000000, 0x00000000, 0x0B000000, 0x00000000,
-		0x48000500, 0x08000000, 0x01000000, 0x0B000000, 0x01000000, 0x47000300, 0x08000000, 0x02000000,
-		0x47000400, 0x0F000000, 0x1E000000, 0x00000000, 0x13000200, 0x02000000, 0x21000300, 0x03000000,
-		0x02000000, 0x16000300, 0x06000000, 0x20000000, 0x17000400, 0x07000000, 0x06000000, 0x04000000,
-		0x1E000400, 0x08000000, 0x07000000, 0x06000000, 0x20000400, 0x09000000, 0x03000000, 0x08000000,
-		0x3B000400, 0x09000000, 0x0A000000, 0x03000000, 0x15000400, 0x0B000000, 0x20000000, 0x01000000,
-		0x2B000400, 0x0B000000, 0x0C000000, 0x00000000, 0x17000400, 0x0D000000, 0x06000000, 0x03000000,
-		0x20000400, 0x0E000000, 0x01000000, 0x0D000000, 0x3B000400, 0x0E000000, 0x0F000000, 0x01000000,
-		0x2B000400, 0x06000000, 0x11000000, 0x0000803F, 0x20000400, 0x16000000, 0x03000000, 0x07000000,
-		0x36000500, 0x02000000, 0x04000000, 0x00000000, 0x03000000, 0xF8000200, 0x05000000, 0x3D000400,
-		0x0D000000, 0x10000000, 0x0F000000, 0x51000500, 0x06000000, 0x12000000, 0x10000000, 0x00000000,
-		0x51000500, 0x06000000, 0x13000000, 0x10000000, 0x01000000, 0x51000500, 0x06000000, 0x14000000,
-		0x10000000, 0x02000000, 0x50000700, 0x07000000, 0x15000000, 0x12000000, 0x13000000, 0x14000000,
-		0x11000000, 0x41000500, 0x16000000, 0x17000000, 0x0A000000, 0x0C000000, 0x3E000300, 0x17000000,
-		0x15000000, 0xFD000100, 0x38000100
-	};
+void main() {
+	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
+	fragColor = inColor;
+	fragNormal = mat3(transpose(inverse(ubo.model))) * inNormal;
+	fragTexCoord = inTexCoord;
+}
+)";
 
-	uint32 fs[]{
-		0x03022307, 0x00000100, 0x0A000D00, 0x0E000000, 0x00000000, 0x11000200, 0x01000000, 0x0B000600,
-		0x01000000, 0x474C534C, 0x2E737464, 0x2E343530, 0x00000000, 0x0E000300, 0x00000000, 0x01000000,
-		0x0F000600, 0x04000000, 0x04000000, 0x6D61696E, 0x00000000, 0x09000000, 0x10000300, 0x04000000,
-		0x07000000, 0x03000300, 0x01000000, 0x36010000, 0x04000A00, 0x474C5F47, 0x4F4F474C, 0x455F6370,
-		0x705F7374, 0x796C655F, 0x6C696E65, 0x5F646972, 0x65637469, 0x76650000, 0x04000800, 0x474C5F47,
-		0x4F4F474C, 0x455F696E, 0x636C7564, 0x655F6469, 0x72656374, 0x69766500, 0x05000400, 0x04000000,
-		0x6D61696E, 0x00000000, 0x05000500, 0x09000000, 0x46726167, 0x436F6C6F, 0x72000000, 0x47000400,
-		0x09000000, 0x1E000000, 0x00000000, 0x13000200, 0x02000000, 0x21000300, 0x03000000, 0x02000000,
-		0x16000300, 0x06000000, 0x20000000, 0x17000400, 0x07000000, 0x06000000, 0x04000000, 0x20000400,
-		0x08000000, 0x03000000, 0x07000000, 0x3B000400, 0x08000000, 0x09000000, 0x03000000, 0x2B000400,
-		0x06000000, 0x0A000000, 0x0000803F, 0x2B000400, 0x06000000, 0x0B000000, 0x3333333F, 0x2B000400,
-		0x06000000, 0x0C000000, 0x9A99993E, 0x2C000700, 0x07000000, 0x0D000000, 0x0A000000, 0x0B000000,
-		0x0C000000, 0x0A000000, 0x36000500, 0x02000000, 0x04000000, 0x00000000, 0x03000000, 0xF8000200,
-		0x05000000, 0x3E000300, 0x09000000, 0x0D000000, 0xFD000100, 0x38000100
-	};
+const char* fragmentShaderGLSL = R"(
+#version 450
 
-	// 바이트 순서 변환
-	for (int i = 0; i < sizeof(vs) / sizeof(uint32); i++)
+layout(location = 0) in vec3 fragColor;
+layout(location = 1) in vec3 fragNormal;
+layout(location = 2) in vec2 fragTexCoord;
+
+layout(location = 0) out vec4 outColor;
+
+	void main() {
+			// 간단한 디렉셔널 라이팅
+		vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+	float diff = max(dot(normalize(fragNormal), lightDir), 0.0);
+	vec3 diffuse = diff * fragColor;
+	
+	vec3 ambient = 0.15 * fragColor;
+	vec3 result = ambient + diffuse;
+	
+	outColor = vec4(result, 1.0);
+}
+)";
+
+// GLSL을 SPIR-V로 컴파일
+std::vector<uint32_t> vertexSPIRV;
+std::vector<uint32_t> fragmentSPIRV;
+
+if (!OgShaderCompiler::CompileGLSLtoSPIRV(vertexShaderGLSL, OgShaderType::VERTEX, vertexSPIRV))
 	{
-		uint8* left = (uint8*)&vs[i];
-		uint8* right = left + 3;
-		std::swap(*left, *right);
-		left = left + 1;
-		right = right - 1;
-		std::swap(*left, *right);
-	}
+	LOGE(OG_ID, "Failed to compile vertex shader");
+	return;
+}
 
-	for (int i = 0; i < sizeof(fs) / sizeof(uint32); i++)
-	{
-		uint8* left = (uint8*)&fs[i];
-		uint8* right = left + 3;
-		std::swap(*left, *right);
-		left = left + 1;
-		right = right - 1;
-		std::swap(*left, *right);
-	}
+if (!OgShaderCompiler::CompileGLSLtoSPIRV(fragmentShaderGLSL, OgShaderType::FRAGMENT, fragmentSPIRV))
+{
+LOGE(OG_ID, "Failed to compile fragment shader");
+return;
+}
 
-	_vertexShader = _renderContext->CreateShader(OgShaderType::VERTEX, (const char*)vs, sizeof(vs), "main");
-	_vertexShader->name = "FBXSampleVertexShader";
-	_vertexShader->Retain();
+	// 컴파일된 SPIR-V로 셰이더 생성
+_vertexShader = _renderContext->CreateShader(
+	OgShaderType::VERTEX, 
+reinterpret_cast<const char*>(vertexSPIRV.data()), 
+vertexSPIRV.size() * sizeof(uint32_t), 
+"main"
+);
+_vertexShader->name = "FBXSampleVertexShader";
+_vertexShader->Retain();
 
-	_fragmentShader = _renderContext->CreateShader(OgShaderType::FRAGMENT, (const char*)fs, sizeof(fs), "main");
-	_fragmentShader->name = "FBXSampleFragmentShader";
-	_fragmentShader->Retain();
+	_fragmentShader = _renderContext->CreateShader(
+	OgShaderType::FRAGMENT, 
+	reinterpret_cast<const char*>(fragmentSPIRV.data()), 
+	fragmentSPIRV.size() * sizeof(uint32_t), 
+		"main"
+);
+_fragmentShader->name = "FBXSampleFragmentShader";
+_fragmentShader->Retain();
 
-	OgShaderHandle* handles[]{ _vertexShader, _fragmentShader };
-	_program = _renderContext->CreateProgram(handles, 2);
-	_program->name = "FBXSampleShaderProgram";
-	_program->Retain();
+OgShaderHandle* handles[]{ _vertexShader, _fragmentShader };
+_program = _renderContext->CreateProgram(handles, 2);
+_program->name = "FBXSampleShaderProgram";
+_program->Retain();
 }
 
 void OgFBXSample::createPipeline()
@@ -451,7 +452,7 @@ void OgFBXSample::createPipeline()
 	OgRasterizationDescriptor rsDesc{};
 	rsDesc.polygonMode = OgPolygonMode::FILL;
 	rsDesc.cullMode = OgCullMode::BACK;  // 백페이스 컬링 활성화
-	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;
+	rsDesc.frontFace = OgFrontFace::CLOCKWISE;
 	rsDesc.scissorTest = false;
 	rsDesc.primitiveType = OgPrimitiveType::TRIANGLE_LIST;
 
