@@ -154,7 +154,6 @@ void OgTriangleSample::destroyResources()
     
     if (_fragmentShader)
     {
-        //_renderContext->DestroyShader(_fragmentShader);
         _fragmentShader->Release();
         _fragmentShader = nullptr;
     }
