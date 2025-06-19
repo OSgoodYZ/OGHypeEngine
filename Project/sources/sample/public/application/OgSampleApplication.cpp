@@ -1,6 +1,7 @@
 #include "OgSampleApplication.h"
 #include "render/private/vulkan/OgRenderContext_Vulkan.h"
 #include "sample/public/core/OgTriangleSample.h"
+#include "sample/public/core/OgFBXSample.h"
 
 OG_NAMESPACE_SAMPLE_BEGIN
 
@@ -63,9 +64,13 @@ void OgSampleApplication::createMainWindow()
     // 샘플 뷰어 윈도우 생성
     auto window = std::make_unique<OgSampleViewerWindow>(_renderContext.get(), config);
     
-    // 삼각형 샘플 설정
-    auto triangleSample = std::make_unique<OgTriangleSample>(_renderContext.get());
-    window->SetSample(std::move(triangleSample));
+    // FBX 샘플 설정 (기본으로 FBX 샘플 표시)
+    auto fbxSample = std::make_unique<OgFBXSample>(_renderContext.get());
+    window->SetSample(std::move(fbxSample));
+    
+    // 다른 샘플들도 사용 가능:
+    // auto triangleSample = std::make_unique<OgTriangleSample>(_renderContext.get());
+    // window->SetSample(std::move(triangleSample));
     
     // 윈도우 열기
     window->Open();

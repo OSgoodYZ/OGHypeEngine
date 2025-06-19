@@ -21,38 +21,38 @@ OG_NAMESPACE_SAMPLE_BEGIN
 class OG_API OgPlayWindow : public OgEditorWindow
 {
 public:
-    OgPlayWindow(Render::OgRenderContext* renderContext, const Config& config);
-    ~OgPlayWindow() override;
+	OgPlayWindow(Render::OgRenderContext* renderContext, const Config& config);
+	~OgPlayWindow() override;
 
-    // 샘플 관리
-    void SetSample(std::unique_ptr<OgSampleBase> sample);
-    OgSampleBase* GetSample() const { return _currentSample.get(); }
+	// 샘플 관리
+	void SetSample(std::unique_ptr<OgSampleBase> sample);
+	OgSampleBase* GetSample() const { return _currentSample.get(); }
 
 protected:
-    // OgEditorWindow 오버라이드
-    void onInit() override;
-    void onDestroy() override;
-    void onUpdate(float deltaTime) override;
-    void onRender(Render::OgCommandEncoderHandle* encoder) override;
-    void onResize(uint32 width, uint32 height) override;
+	// OgEditorWindow 오버라이드
+	void onInit() override;
+	void onDestroy() override;
+	void onUpdate(float deltaTime) override;
+	void onRender(Render::OgCommandEncoderHandle* encoder) override;
+	void onResize(uint32 width, uint32 height) override;
 
-    // ImGui 관련
-    void initImGui();
-    void shutdownImGui();
-    void beginImGuiFrame();
-    void endImGuiFrame();
-    void renderImGui(Render::OgCommandEncoderHandle* encoder);
+	// ImGui 관련
+	void initImGui();
+	void shutdownImGui();
+	void beginImGuiFrame();
+	void endImGuiFrame();
+	void renderImGui(Render::OgCommandEncoderHandle* encoder);
 
-    // UI 렌더링 (서브클래스에서 오버라이드)
-    virtual void onRenderUI() {}
+	// UI 렌더링 (서브클래스에서 오버라이드)
+	virtual void onRenderUI() {}
 
 private:
-    // ImGui 렌더러
-    std::unique_ptr<OgImguiRenderer> _imguiRenderer;
-    bool _imguiWin32Initialized = false;
+	// ImGui 렌더러
+	std::unique_ptr<OgImguiRenderer> _imguiRenderer;
+	bool _imguiWin32Initialized = false;
 
-    // 현재 샘플
-    std::unique_ptr<OgSampleBase> _currentSample;
+	// 현재 샘플
+	std::unique_ptr<OgSampleBase> _currentSample;
 };
 
 /**
@@ -61,17 +61,21 @@ private:
 class OG_API OgSampleViewerWindow : public OgPlayWindow
 {
 public:
-    OgSampleViewerWindow(Render::OgRenderContext* renderContext, const Config& config)
-        : OgPlayWindow(renderContext, config)
-    {
-    }
+	OgSampleViewerWindow(Render::OgRenderContext* renderContext, const Config& config)
+		: OgPlayWindow(renderContext, config)
+	{
+	}
 
 protected:
-    void onRenderUI() override;
+	void onRenderUI() override;
 
 private:
-    void renderSampleViewer();
-    void renderDebugInfo();
+	void renderSampleViewer();
+	void renderDebugInfo();
+	void renderSampleSelector();
+	void switchSample(int index);
+	
+	int _currentSampleIndex = 1; // 기본은 FBX 샘플
 };
 
 OG_NAMESPACE_SAMPLE_END

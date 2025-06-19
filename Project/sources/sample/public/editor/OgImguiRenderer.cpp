@@ -497,7 +497,7 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
         encoder->BindVertexBuffers(&vertexBuffer, &vertexOffset, 1);
 
         OgBufferHandle* indexBuffer = surfaceRes.indexBufferHandles[imageIndex];
-        encoder->BindIndexBuffer(indexBuffer, sizeof(ImDrawIdx) == 2 ? OgIndexType::UInt16 : OgIndexType::UInt32);
+        encoder->BindIndexBuffer(indexBuffer, sizeof(ImDrawIdx) == 2 ? OgIndexType::UINT16 : OgIndexType::UINT32);
 
         // 드로우 커맨드 처리 - 텍스처별로 다른 리소스 세트 바인딩
         int indexOffset = 0;
