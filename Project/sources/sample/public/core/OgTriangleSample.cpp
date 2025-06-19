@@ -134,7 +134,7 @@ void OgTriangleSample::destroyResources()
     
     if (_pipeline)
     {
-        _renderContext->DestroyPipeline(_pipeline);
+        _pipeline->Release();
         _pipeline = nullptr;
     }
     
@@ -142,31 +142,32 @@ void OgTriangleSample::destroyResources()
     
     if (_resourceLayout)
     {
-        _renderContext->DestroyResourceLayout(_resourceLayout);
-        _resourceLayout = nullptr;
+        _resourceLayout->Release();
+    	_resourceLayout = nullptr;
     }
     
     if (_program)
     {
-        _renderContext->DestroyProgram(_program);
+        _program->Release();
         _program = nullptr;
     }
     
     if (_fragmentShader)
     {
-        _renderContext->DestroyShader(_fragmentShader);
+        //_renderContext->DestroyShader(_fragmentShader);
+        _fragmentShader->Release();
         _fragmentShader = nullptr;
     }
     
     if (_vertexShader)
     {
-        _renderContext->DestroyShader(_vertexShader);
+        _vertexShader->Release();
         _vertexShader = nullptr;
     }
     
     if (_vertexBuffer)
     {
-        _renderContext->DestroyBuffer(_vertexBuffer);
+        _vertexBuffer->Release();
         _vertexBuffer = nullptr;
     }
 }

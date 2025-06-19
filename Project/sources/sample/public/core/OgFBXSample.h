@@ -12,11 +12,11 @@ OG_NAMESPACE_SAMPLE_BEGIN
 
 /**
  * @brief FBX 모델을 로드하고 렌더링하는 샘플
- * 
+ *
  * 현재는 간단한 큐브 메시를 하드코딩하여 보여주지만,
  * 추후 FBX SDK나 Assimp 라이브러리를 통합하여 실제 FBX 파일을 로드할 수 있습니다.
  */
-class OG_API OgFBXSample : public OgSampleBase
+	class OG_API OgFBXSample : public OgSampleBase
 {
 public:
 	OgFBXSample(Render::OgRenderContext* renderContext);
@@ -85,7 +85,7 @@ private:
 	Render::OgTextureHandle* _depthTexture = nullptr;
 	Render::OgFrameBufferHandle* _renderTargetFrameBuffer = nullptr;
 	Render::OgRenderPassHandle* _renderTargetRenderPass = nullptr;
-	
+
 	uint16 _renderTargetWidth = 0;
 	uint16 _renderTargetHeight = 0;
 
