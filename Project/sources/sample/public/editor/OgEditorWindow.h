@@ -65,6 +65,16 @@ protected:
     void createCommandEncoders();
     void destroyCommandEncoders();
 
+    // Input 콜백 설정
+    void setupInputCallbacks();
+    
+    // Input 콜백 함수들 (스태틱)
+    static void onKeyCallback(OgNativeWindow* window, int keyCode, int scanCode, int action, int modifierKeys);
+    static void onCharacterCallback(OgNativeWindow* window, unsigned int codepoint);
+    static void onCharacterModsCallback(OgNativeWindow* window, unsigned int codepoint, int modifierKeys);
+    static void onMouseButtonCallback(OgNativeWindow* window, int button, int action, int modifierKeys);
+    static void onCursorPosCallback(OgNativeWindow* window, double xpos, double ypos);
+
 protected:
     // 기본 멤버
     Render::OgRenderContext* _renderContext;
@@ -82,6 +92,14 @@ protected:
     
     // 설정
     Config _config;
+    
+    // 마우스 위치 추적
+    double _lastMouseX = 0.0;
+    double _lastMouseY = 0.0;
+    bool _firstMouse = true;
+    
+    // 마우스 휠 추적
+    double _lastWheelY = 0.0;
 };
 
 OG_NAMESPACE_SAMPLE_END

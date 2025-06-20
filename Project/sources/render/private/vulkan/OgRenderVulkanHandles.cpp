@@ -239,7 +239,7 @@ void OgCommandEncoderVK::BindIndexBuffer(const OgBufferHandle* indexBuffer, cons
 	offsets[0] = ibo->innerOffset;
 
 	curBindIndexBufferType = VK_INDEX_TYPE_UINT32;
-	if (indexType == OgIndexType::UInt16)
+	if (indexType == OgIndexType::UINT16)
 		curBindIndexBufferType = VK_INDEX_TYPE_UINT16;
 
 	vkCmdBindIndexBuffer(cmdBufferVK, ibo->bufferVK, *offsets, curBindIndexBufferType);

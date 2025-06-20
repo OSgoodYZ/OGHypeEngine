@@ -14,6 +14,10 @@ list(APPEND TOTAL_FILE ${PUBLIC_COMMON})
 set(PUBLIC_CORE_UTIL
 	public/core/util/OgRenderUtil.h
 	public/core/util/OgRenderUtil.cpp
+	public/core/util/OgShaderCompiler.h
+	public/core/util/OgShaderCompiler.cpp
+	public/core/util/OgFlyCamera.h
+	public/core/util/OgFlyCamera.cpp
 	)
 source_group("public\\core\\util" FILES ${PUBLIC_CORE_UTIL})
 list(APPEND TOTAL_FILE ${PUBLIC_CORE_UTIL})
@@ -22,6 +26,8 @@ set(PUBLIC_CORE
 	public/core/OgSampleBase.h
 	public/core/OgTriangleSample.h
 	public/core/OgTriangleSample.cpp
+	public/core/OgFBXSample.h
+	public/core/OgFBXSample.cpp
 	)
 source_group("public\\core" FILES ${PUBLIC_CORE})
 list(APPEND TOTAL_FILE ${PUBLIC_CORE})

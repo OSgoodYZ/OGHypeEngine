@@ -648,7 +648,7 @@ struct OgCommandEncoderVK : public OgCommandEncoderHandle
 
 	void BindVertexBuffers(const OgBufferHandle* const * vertexBuffers, const  uint32* offsets, const  uint8 bufferCount) override;
 
-	void BindIndexBuffer(const OgBufferHandle* indexBuffer, const OgIndexType indexType = OgIndexType::UInt16) override;
+	void BindIndexBuffer(const OgBufferHandle* indexBuffer, const OgIndexType indexType = OgIndexType::UINT16) override;
 
 	void DrawIndexed(const uint32 firstIndex, const uint32 indexCount, const uint32 instanceCount, const uint32 vertexOffset) override;
 
