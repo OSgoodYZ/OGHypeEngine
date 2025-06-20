@@ -35,6 +35,7 @@ protected:
 	void onUpdate(float deltaTime) override;
 	void onRender(Render::OgCommandEncoderHandle* encoder) override;
 	void onResize(uint32 width, uint32 height) override;
+	void onEvent(const OgNativeEvent& evt) override;
 
 	// ImGui 관련
 	void initImGui();

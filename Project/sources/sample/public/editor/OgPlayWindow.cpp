@@ -2,6 +2,7 @@
 #include "sample/public/core/OgTriangleSample.h"
 #include "sample/public/core/OgFBXSample.h"
 #include "system/OgSystemContext.h"
+#include "system/OgInput.h"
 #include <algorithm>
 OG_NAMESPACE_SAMPLE_BEGIN
 
@@ -111,6 +112,80 @@ void OgPlayWindow::onResize(uint32 width, uint32 height)
 		_currentSample->OnResize(width, height);
 	}
 	_renderContext->Restore(_swapchain);
+}
+
+void OgPlayWindow::onEvent(const OgNativeEvent& evt)
+{
+	// ImGui가 입력을 처리하는 경우 샘플로 전달하지 않음
+	ImGuiIO& io = ImGui::GetIO();
+	
+	switch (evt.type)
+	{
+	case OG_KEY_PRESS:
+	case OG_KEY_RELEASE:
+		{
+			// ImGui가 키보드 입력을 사용하지 않는 경우에만 전달
+			if (!io.WantCaptureKeyboard && _currentSample)
+			{
+				// OgFBXSample로 다운캐스트 시도
+				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
+				if (fbxSample)
+				{
+					int action = (evt.type == OG_KEY_PRESS) ? OG_PRESS : OG_RELEASE;
+					int mods = 0;
+					if (evt.key.shift) mods |= OG_MOD_SHIFT;
+					if (evt.key.control) mods |= OG_MOD_CONTROL;
+					if (evt.key.alt) mods |= OG_MOD_ALT;
+					if (evt.key.system) mods |= OG_MOD_SUPER;
+					
+					fbxSample->OnKeyPress(evt.key.keyCode, action, mods);
+				}
+			}
+		}
+		break;
+		
+	case OG_MOUSE_PRESS:
+	case OG_MOUSE_RELEASE:
+		{
+			// ImGui가 마우스 입력을 사용하지 않는 경우에만 전달
+			if (!io.WantCaptureMouse && _currentSample)
+			{
+				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
+				if (fbxSample)
+				{
+					int action = (evt.type == OG_MOUSE_PRESS) ? OG_PRESS : OG_RELEASE;
+					fbxSample->OnMouseButton(evt.mouse.button, action, evt.mouse.mods);
+				}
+			}
+		}
+		break;
+		
+	case OG_MOUSE_MOVE:
+		{
+			if (!io.WantCaptureMouse && _currentSample)
+			{
+				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
+				if (fbxSample)
+				{
+					fbxSample->OnMouseMove(evt.mouse.pos.x, evt.mouse.pos.y);
+				}
+			}
+		}
+		break;
+		
+	case OG_MOUSE_WHEEL_CHANGE:
+		{
+			if (!io.WantCaptureMouse && _currentSample)
+			{
+				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
+				if (fbxSample)
+				{
+					fbxSample->OnMouseScroll(0.0, evt.mouse.wheelDelta);
+				}
+			}
+		}
+		break;
+	}
 }
 
 void OgPlayWindow::initImGui()

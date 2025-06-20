@@ -10,7 +10,11 @@ OG_NAMESPACE_SAMPLE_BEGIN
 
 OgFBXSample::OgFBXSample(Render::OgRenderContext* renderContext)
 	: OgSampleBase(renderContext)
+	, _camera(std::make_unique<OgFlyCamera>())
 {
+	// 카메라 초기 설정
+	_camera->SetPosition(glm::vec3(2.0f, 2.0f, 2.0f));
+	_camera->SetTarget(glm::vec3(0.0f, 0.0f, 0.0f));
 }
 
 OgFBXSample::~OgFBXSample()
@@ -46,8 +50,14 @@ void OgFBXSample::OnDestroy()
 
 void OgFBXSample::OnUpdate(float deltaTime)
 {
+	// 카메라 업데이트
+	if (_useFlyCamera && _camera)
+	{
+		_camera->Update(deltaTime);
+	}
+
 	// 큐브 회전
-	_rotation += deltaTime * 1.0f; // 초당 1도 회전
+	_rotation += deltaTime * 45.0f; // 초당 45도 회전
 	if (_rotation > 360.0f)
 		_rotation -= 360.0f;
 
@@ -120,51 +130,99 @@ void OgFBXSample::OnResize(uint32 width, uint32 height)
 
 	// 프로젝션 행렬 업데이트
 	float aspect = static_cast<float>(width) / static_cast<float>(height);
-	_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+	if (_useFlyCamera && _camera)
+	{
+		_camera->SetAspectRatio(aspect);
+		_uniformData.projection = _camera->GetProjectionMatrix();
+	}
+	else
+	{
+		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+	}
 	updateUniformBuffer();
+}
+
+// 입력 처리 메서드들
+void OgFBXSample::OnMouseButton(int button, int action, int mods)
+{
+	if (_useFlyCamera && _camera)
+	{
+		_camera->OnMouseButton(button, action, mods);
+	}
+}
+
+void OgFBXSample::OnMouseMove(double x, double y)
+{
+	if (_useFlyCamera && _camera)
+	{
+		_camera->OnMouseMove(x, y);
+	}
+}
+
+void OgFBXSample::OnMouseScroll(double xoffset, double yoffset)
+{
+	if (_useFlyCamera && _camera)
+	{
+		_camera->OnMouseScroll(xoffset, yoffset);
+	}
+}
+
+void OgFBXSample::OnKeyPress(int key, int action, int mods)
+{
+	if (_useFlyCamera && _camera)
+	{
+		_camera->OnKeyPress(key, action, mods);
+	}
+
+	// F 키로 플라이 카메라 토글
+	if (key == OG_KEY_F && action == OG_PRESS)
+	{
+		_useFlyCamera = !_useFlyCamera;
+		updateUniformBuffer();
+	}
 }
 
 void OgFBXSample::createResources(uint16 width, uint16 height)
 {
-// 렌더 타겟을 먼저 생성하여 _renderTargetWidth/Height 설정
-createRenderTarget(width, height);
+	// 렌더 타겟을 먼저 생성하여 _renderTargetWidth/Height 설정
+	createRenderTarget(width, height);
 
-// 메시 생성
-createMesh();
+	// 메시 생성
+	createMesh();
 
-// 셰이더 생성
-createShaders();
+	// 셰이더 생성
+	createShaders();
 
-// 유니폼 버퍼 생성 (이제 _renderTargetWidth/Height가 설정되어 있음)
-createUniformBuffer();
+	// 유니폼 버퍼 생성 (이제 _renderTargetWidth/Height가 설정되어 있음)
+	createUniformBuffer();
 
-// 리소스 레이아웃 생성
-OgResourceBinding bindings[1];
-bindings[0].type = OgResourceType::UNIFORM_BUFFER;
-bindings[0].stage = OgShaderType::VERTEX;
-bindings[0].binding = 0;
-bindings[0].arrayCount = 0;
-bindings[0].name = nullptr;
+	// 리소스 레이아웃 생성
+	OgResourceBinding bindings[1];
+	bindings[0].type = OgResourceType::UNIFORM_BUFFER;
+	bindings[0].stage = OgShaderType::VERTEX;
+	bindings[0].binding = 0;
+	bindings[0].arrayCount = 0;
+	bindings[0].name = nullptr;
 
-_resourceLayout = _renderContext->CreateResourceLayout(bindings, 1);
-_resourceLayout->name = "FBXSampleResourceLayout";
-_resourceLayout->Retain();
+	_resourceLayout = _renderContext->CreateResourceLayout(bindings, 1);
+	_resourceLayout->name = "FBXSampleResourceLayout";
+	_resourceLayout->Retain();
 
-// 리소스 셋 생성
-uint32 zeroOffset = 0;
+	// 리소스 셋 생성
+	uint32 zeroOffset = 0;
 
-OgResourceUsage usages[1];
-usages[0].binding = bindings[0];
-usages[0].buffer.handle = &_uniformBuffer;
-usages[0].buffer.offset = &zeroOffset;
-usages[0].buffer.range = &_uniformBuffer->size;
+	OgResourceUsage usages[1];
+	usages[0].binding = bindings[0];
+	usages[0].buffer.handle = &_uniformBuffer;
+	usages[0].buffer.offset = &zeroOffset;
+	usages[0].buffer.range = &_uniformBuffer->size;
 
-_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 1);
-_resourceSet->name = "FBXSampleResourceSet";
-_resourceSet->Retain();
+	_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 1);
+	_resourceSet->name = "FBXSampleResourceSet";
+	_resourceSet->Retain();
 
-// 파이프라인 생성
-createPipeline();
+	// 파이프라인 생성
+	createPipeline();
 }
 
 void OgFBXSample::destroyResources()
@@ -313,11 +371,6 @@ void OgFBXSample::createUniformBuffer()
 {
 	// 초기 변환 행렬 설정
 	_uniformData.model = glm::mat4(1.0f);
-	_uniformData.view = glm::lookAt(
-		glm::vec3(2.0f, 2.0f, 2.0f),  // 카메라 위치
-		glm::vec3(0.0f, 0.0f, 0.0f),  // 타겟
-		glm::vec3(0.0f, 1.0f, 0.0f)   // 업 벡터
-	);
 	
 	// aspect ratio 계산 시 0으로 나누기 방지
 	float aspect = 1.0f;
@@ -325,7 +378,23 @@ void OgFBXSample::createUniformBuffer()
 	{
 		aspect = static_cast<float>(_renderTargetWidth) / static_cast<float>(_renderTargetHeight);
 	}
-	_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+
+	// 카메라 설정에 따라 뷰/프로젝션 행렬 설정
+	if (_useFlyCamera && _camera)
+	{
+		_camera->SetAspectRatio(aspect);
+		_uniformData.view = _camera->GetViewMatrix();
+		_uniformData.projection = _camera->GetProjectionMatrix();
+	}
+	else
+	{
+		_uniformData.view = glm::lookAt(
+			glm::vec3(2.0f, 2.0f, 2.0f),  // 카메라 위치
+			glm::vec3(0.0f, 0.0f, 0.0f),  // 타겟
+			glm::vec3(0.0f, 1.0f, 0.0f)   // 업 벡터
+		);
+		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+	}
 
 	// 유니폼 버퍼 생성
 	_uniformBuffer = _renderContext->CreateBuffer(
@@ -342,6 +411,13 @@ void OgFBXSample::updateUniformBuffer()
 	// 모델 행렬 업데이트 (Y축 회전)
 	_uniformData.model = glm::rotate(glm::mat4(1.0f), glm::radians(_rotation), glm::vec3(0.0f, 1.0f, 0.0f));
 
+	// 카메라 사용 시 뷰/프로젝션 행렬 업데이트
+	if (_useFlyCamera && _camera)
+	{
+		_uniformData.view = _camera->GetViewMatrix();
+		_uniformData.projection = _camera->GetProjectionMatrix();
+	}
+
 	// 유니폼 버퍼 업데이트
 	void* mappedData = _renderContext->MapBuffer(_uniformBuffer, sizeof(UniformData));
 	if (mappedData)
@@ -353,94 +429,94 @@ void OgFBXSample::updateUniformBuffer()
 
 void OgFBXSample::createShaders()
 {
-// MVP 변환을 지원하는 GLSL 셰이더
-const char* vertexShaderGLSL = R"(
-	#version 450
-	
-	layout(location = 0) in vec3 inPosition;
-	layout(location = 1) in vec3 inNormal;
-	layout(location = 2) in vec2 inTexCoord;
-	layout(location = 3) in vec3 inColor;
-	
-	layout(binding = 0) uniform UniformBufferObject {
-	mat4 model;
-	mat4 view;
-	mat4 proj;
-} ubo;
+	// MVP 변환을 지원하는 GLSL 셰이더
+	const char* vertexShaderGLSL = R"(
+		#version 450
+		
+		layout(location = 0) in vec3 inPosition;
+		layout(location = 1) in vec3 inNormal;
+		layout(location = 2) in vec2 inTexCoord;
+		layout(location = 3) in vec3 inColor;
+		
+		layout(binding = 0) uniform UniformBufferObject {
+			mat4 model;
+			mat4 view;
+			mat4 proj;
+		} ubo;
 
-layout(location = 0) out vec3 fragColor;
-layout(location = 1) out vec3 fragNormal;
-layout(location = 2) out vec2 fragTexCoord;
+		layout(location = 0) out vec3 fragColor;
+		layout(location = 1) out vec3 fragNormal;
+		layout(location = 2) out vec2 fragTexCoord;
 
-void main() {
-	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
-	fragColor = inColor;
-	fragNormal = mat3(transpose(inverse(ubo.model))) * inNormal;
-	fragTexCoord = inTexCoord;
-}
-)";
+		void main() {
+			gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
+			fragColor = inColor;
+			fragNormal = mat3(transpose(inverse(ubo.model))) * inNormal;
+			fragTexCoord = inTexCoord;
+		}
+	)";
 
-const char* fragmentShaderGLSL = R"(
-#version 450
+	const char* fragmentShaderGLSL = R"(
+		#version 450
 
-layout(location = 0) in vec3 fragColor;
-layout(location = 1) in vec3 fragNormal;
-layout(location = 2) in vec2 fragTexCoord;
+		layout(location = 0) in vec3 fragColor;
+		layout(location = 1) in vec3 fragNormal;
+		layout(location = 2) in vec2 fragTexCoord;
 
-layout(location = 0) out vec4 outColor;
+		layout(location = 0) out vec4 outColor;
 
-	void main() {
+		void main() {
 			// 간단한 디렉셔널 라이팅
-		vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-	float diff = max(dot(normalize(fragNormal), lightDir), 0.0);
-	vec3 diffuse = diff * fragColor;
-	
-	vec3 ambient = 0.15 * fragColor;
-	vec3 result = ambient + diffuse;
-	
-	outColor = vec4(result, 1.0);
-}
-)";
+			vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+			float diff = max(dot(normalize(fragNormal), lightDir), 0.0);
+			vec3 diffuse = diff * fragColor;
+			
+			vec3 ambient = 0.15 * fragColor;
+			vec3 result = ambient + diffuse;
+			
+			outColor = vec4(result, 1.0);
+		}
+	)";
 
-// GLSL을 SPIR-V로 컴파일
-std::vector<uint32_t> vertexSPIRV;
-std::vector<uint32_t> fragmentSPIRV;
+	// GLSL을 SPIR-V로 컴파일
+	std::vector<uint32_t> vertexSPIRV;
+	std::vector<uint32_t> fragmentSPIRV;
 
-if (!OgShaderCompiler::CompileGLSLtoSPIRV(vertexShaderGLSL, OgShaderType::VERTEX, vertexSPIRV))
+	if (!OgShaderCompiler::CompileGLSLtoSPIRV(vertexShaderGLSL, OgShaderType::VERTEX, vertexSPIRV))
 	{
-	LOGE(OG_ID, "Failed to compile vertex shader");
-	return;
-}
+		LOGE(OG_ID, "Failed to compile vertex shader");
+		return;
+	}
 
-if (!OgShaderCompiler::CompileGLSLtoSPIRV(fragmentShaderGLSL, OgShaderType::FRAGMENT, fragmentSPIRV))
-{
-LOGE(OG_ID, "Failed to compile fragment shader");
-return;
-}
+	if (!OgShaderCompiler::CompileGLSLtoSPIRV(fragmentShaderGLSL, OgShaderType::FRAGMENT, fragmentSPIRV))
+	{
+		LOGE(OG_ID, "Failed to compile fragment shader");
+		return;
+	}
 
 	// 컴파일된 SPIR-V로 셰이더 생성
-_vertexShader = _renderContext->CreateShader(
-	OgShaderType::VERTEX, 
-reinterpret_cast<const char*>(vertexSPIRV.data()), 
-vertexSPIRV.size() * sizeof(uint32_t), 
-"main"
-);
-_vertexShader->name = "FBXSampleVertexShader";
-_vertexShader->Retain();
+	_vertexShader = _renderContext->CreateShader(
+		OgShaderType::VERTEX, 
+		reinterpret_cast<const char*>(vertexSPIRV.data()), 
+		vertexSPIRV.size() * sizeof(uint32_t), 
+		"main"
+	);
+	_vertexShader->name = "FBXSampleVertexShader";
+	_vertexShader->Retain();
 
 	_fragmentShader = _renderContext->CreateShader(
-	OgShaderType::FRAGMENT, 
-	reinterpret_cast<const char*>(fragmentSPIRV.data()), 
-	fragmentSPIRV.size() * sizeof(uint32_t), 
+		OgShaderType::FRAGMENT, 
+		reinterpret_cast<const char*>(fragmentSPIRV.data()), 
+		fragmentSPIRV.size() * sizeof(uint32_t), 
 		"main"
-);
-_fragmentShader->name = "FBXSampleFragmentShader";
-_fragmentShader->Retain();
+	);
+	_fragmentShader->name = "FBXSampleFragmentShader";
+	_fragmentShader->Retain();
 
-OgShaderHandle* handles[]{ _vertexShader, _fragmentShader };
-_program = _renderContext->CreateProgram(handles, 2);
-_program->name = "FBXSampleShaderProgram";
-_program->Retain();
+	OgShaderHandle* handles[]{ _vertexShader, _fragmentShader };
+	_program = _renderContext->CreateProgram(handles, 2);
+	_program->name = "FBXSampleShaderProgram";
+	_program->Retain();
 }
 
 void OgFBXSample::createPipeline()
@@ -618,24 +694,6 @@ bool OgFBXSample::loadFBXModel(const char* filePath)
 	// 3. 재질 정보 추출
 	// 4. 애니메이션 데이터 추출 (옵션)
 	// 5. _vertices와 _indices에 데이터 저장
-
-	// 예제:
-	// FbxManager* fbxManager = FbxManager::Create();
-	// FbxIOSettings* ios = FbxIOSettings::Create(fbxManager, IOSROOT);
-	// fbxManager->SetIOSettings(ios);
-	// 
-	// FbxImporter* importer = FbxImporter::Create(fbxManager, "");
-	// if (!importer->Initialize(filePath, -1, fbxManager->GetIOSettings())) {
-	//     return false;
-	// }
-	// 
-	// FbxScene* scene = FbxScene::Create(fbxManager, "myScene");
-	// importer->Import(scene);
-	// importer->Destroy();
-	// 
-	// // 메시 데이터 추출...
-	// 
-	// fbxManager->Destroy();
 
 	return false; // 현재는 구현되지 않음
 }

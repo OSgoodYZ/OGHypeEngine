@@ -7,6 +7,7 @@
 #include <vector>
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
+#include "sample/public/core/util/OgFlyCamera.h"
 
 OG_NAMESPACE_SAMPLE_BEGIN
 
@@ -30,6 +31,12 @@ public:
 	void OnSuspend(Render::OgSwapChain* swapchain) override;
 	void OnRestore(Render::OgSwapChain* swapchain) override;
 	void OnResize(uint32 width, uint32 height) override;
+
+	// 입력 처리
+	void OnMouseButton(int button, int action, int mods);
+	void OnMouseMove(double x, double y);
+	void OnMouseScroll(double xoffset, double yoffset);
+	void OnKeyPress(int key, int action, int mods);
 
 	// 렌더 타겟 인터페이스
 	Render::OgTextureHandle* GetRenderTargetTexture() const override { return _renderTargetTexture; }
@@ -97,6 +104,10 @@ private:
 	// 변환 행렬
 	float _rotation = 0.0f;
 	UniformData _uniformData;
+
+	// 카메라
+	std::unique_ptr<OgFlyCamera> _camera;
+	bool _useFlyCamera = true; // 플라이 카메라 사용 여부
 };
 
 OG_NAMESPACE_SAMPLE_END
