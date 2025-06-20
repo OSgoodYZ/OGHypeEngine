@@ -296,22 +296,37 @@ void OgPlayWindow::renderImGui(Render::OgCommandEncoderHandle* encoder)
 // OgSampleViewerWindow 구현
 void OgSampleViewerWindow::onRenderUI()
 {
-
-	renderSampleViewer();
+	ImGuiIO& io = ImGui::GetIO();
+	
+	// 레이아웃 설정
+	const float leftPanelWidth = 250.0f;
+	const float topPanelHeight = 200.0f;
+	const float padding = 5.0f;
+	
+	// 왼쪽 패널 - Sample Selector
+	ImGui::SetNextWindowPos(ImVec2(padding, padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, io.DisplaySize.y - 2 * padding), ImGuiCond_FirstUseEver);
 	renderSampleSelector();
+	
+	// 오른쪽 상단 - Debug Info
+	float rightPanelPosX = leftPanelWidth + 2 * padding;
+	float rightPanelWidth = io.DisplaySize.x - rightPanelPosX - padding;
+	
+	ImGui::SetNextWindowPos(ImVec2(rightPanelPosX, padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, topPanelHeight), ImGuiCond_FirstUseEver);
 	renderDebugInfo();
 	
+	// 오른쪽 하단 - Sample Viewer
+	float viewerHeight = io.DisplaySize.y - topPanelHeight - 3 * padding;
+	
+	ImGui::SetNextWindowPos(ImVec2(rightPanelPosX, topPanelHeight + 2 * padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, viewerHeight), ImGuiCond_FirstUseEver);
+	renderSampleViewer();
 }
 
 void OgSampleViewerWindow::renderSampleViewer()
 {
-	ImGuiIO& io = ImGui::GetIO();
-	
-	// 메인 뷰어 윈도우
-	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x , io.DisplaySize.y ), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-	
-	if (ImGui::Begin("Sample Viewer", nullptr, ImGuiWindowFlags_None))
+	if (ImGui::Begin("Sample Viewer", nullptr))
 	{
 		OgSampleBase* sample = GetSample();
 		if (sample && sample->GetRenderTargetTexture())
@@ -330,7 +345,6 @@ void OgSampleViewerWindow::renderSampleViewer()
 				float scaleX = availSize.x / rtWidth;
 				float scaleY = availSize.y / rtHeight;
 				scale = std::min(scaleX, scaleY);
-				
 				scale = std::clamp(scale, 0.1f, 2.0f);
 			}
 			
@@ -338,19 +352,48 @@ void OgSampleViewerWindow::renderSampleViewer()
 			
 			// 중앙 정렬
 			float centerX = (availSize.x - imageSize.x) * 0.5f;
-			if (centerX > 0)
-			{
-				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + centerX);
-			}
+			float centerY = (availSize.y - imageSize.y) * 0.5f;
+			
+			if (centerX > 0) ImGui::SetCursorPosX(ImGui::GetCursorPosX() + centerX);
+			if (centerY > 0) ImGui::SetCursorPosY(ImGui::GetCursorPosY() + centerY);
 			
 			// 이미지 렌더링
 			ImGui::Image(
 				reinterpret_cast<ImTextureID>(sample->GetRenderTargetTexture()),
 				imageSize
 			);
+			
+			// 이미지 위에 정보 오버레이
+			ImDrawList* draw_list = ImGui::GetWindowDrawList();
+			ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+			canvas_pos.y -= imageSize.y;
+			
+			// 배경 박스
+			draw_list->AddRectFilled(
+				canvas_pos,
+				ImVec2(canvas_pos.x + 200, canvas_pos.y + 25),
+				IM_COL32(0, 0, 0, 128)
+			);
+			
+			// 텍스트
+			char info[256];
+			snprintf(info, sizeof(info), "Size: %ux%u Scale: %.1f%%", 
+				sample->GetRenderTargetWidth(), 
+				sample->GetRenderTargetHeight(),
+				scale * 100.0f);
+			draw_list->AddText(
+				ImVec2(canvas_pos.x + 5, canvas_pos.y + 5),
+				IM_COL32(255, 255, 255, 255),
+				info
+			);
 		}
 		else
 		{
+			// 중앙에 메시지 표시
+			ImVec2 availSize = ImGui::GetContentRegionAvail();
+			ImVec2 textSize = ImGui::CalcTextSize("No sample loaded");
+			ImGui::SetCursorPosX((availSize.x - textSize.x) * 0.5f);
+			ImGui::SetCursorPosY((availSize.y - textSize.y) * 0.5f);
 			ImGui::Text("No sample loaded");
 		}
 	}
@@ -359,58 +402,136 @@ void OgSampleViewerWindow::renderSampleViewer()
 
 void OgSampleViewerWindow::renderDebugInfo()
 {
-	// 디버그 정보 윈도우
-	if (ImGui::Begin("Debug Info", nullptr, ImGuiWindowFlags_None))
+	if (ImGui::Begin("Debug Info", nullptr))
 	{
-		ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+		// 성능 정보
+		ImGui::Text("Performance");
+		ImGui::Separator();
+		ImGui::Text("FPS: %.1f (%.3f ms/frame)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
 		ImGui::Text("Window Size: %u x %u", GetWidth(), GetHeight());
 		
+		ImGui::Spacing();
+		
+		// 샘플 정보
 		OgSampleBase* sample = GetSample();
 		if (sample)
 		{
+			ImGui::Text("Sample Information");
 			ImGui::Separator();
-			ImGui::Text("Sample Info:");
+			ImGui::Text("Type: %s", _currentSampleIndex == 0 ? "Triangle" : "FBX Model");
 			ImGui::Text("Render Target: %u x %u", 
 				sample->GetRenderTargetWidth(), 
 				sample->GetRenderTargetHeight());
-			ImGui::Text("Initialized: %s", sample->IsInitialized() ? "Yes" : "No");
+			ImGui::Text("Status: %s", sample->IsInitialized() ? "Running" : "Not Initialized");
+			
+			// FBX 샘플인 경우 추가 정보
+			if (_currentSampleIndex == 1)
+			{
+				ImGui::Spacing();
+				ImGui::Text("Controls");
+				ImGui::Separator();
+				ImGui::BulletText("Mouse: Rotate camera");
+				ImGui::BulletText("Scroll: Zoom in/out");
+				ImGui::BulletText("W/A/S/D: Move camera");
+			}
 		}
+		
+		// 시스템 정보
+		ImGui::Spacing();
+		ImGui::Text("System Information");
+		ImGui::Separator();
+		ImGui::Text("Renderer: %s", _renderContext ? "Active" : "Inactive");
+		ImGui::Text("ImGui Backend: Win32");
 	}
 	ImGui::End();
 }
 
 void OgSampleViewerWindow::renderSampleSelector()
 {
-	// 샘플 선택 윈도우
-	ImGuiIO& io = ImGui::GetIO();
-	ImGui::SetNextWindowSize(ImVec2(250, 500), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-	if (ImGui::Begin("Sample Selector", nullptr, ImGuiWindowFlags_None))
+	if (ImGui::Begin("Sample Selector", nullptr))
 	{
 		const char* sampleNames[] = {
 			"Triangle Sample",
 			"FBX Model Sample"
-			// 나중에 더 잘 샘플들을 추가할 수 있습니다
 		};
 		
-		if (ImGui::Combo("Select Sample", &_currentSampleIndex, sampleNames, IM_ARRAYSIZE(sampleNames)))
+		ImGui::Text("Available Samples");
+		ImGui::Separator();
+		ImGui::Spacing();
+		
+		// 리스트박스 스타일로 변경
+		if (ImGui::BeginListBox("##samples", ImVec2(-1, 100)))
+		{
+			for (int i = 0; i < IM_ARRAYSIZE(sampleNames); i++)
+			{
+				const bool isSelected = (_currentSampleIndex == i);
+				if (ImGui::Selectable(sampleNames[i], isSelected))
+				{
+					if (_currentSampleIndex != i)
+					{
+						_currentSampleIndex = i;
+						switchSample(i);
+					}
+				}
+				
+				if (isSelected)
+					ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndListBox();
+		}
+		
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+		
+		// 현재 샘플 설명
+		ImGui::Text("Description");
+		ImGui::Separator();
+		ImGui::PushTextWrapPos();
+		
+		switch (_currentSampleIndex)
+		{
+		case 0:
+			ImGui::TextWrapped("Triangle Sample");
+			ImGui::BulletText("Basic triangle rendering");
+			ImGui::BulletText("Vertex color interpolation");
+			ImGui::BulletText("No user interaction");
+			break;
+		case 1:
+			ImGui::TextWrapped("FBX Model Sample");
+			ImGui::BulletText("3D cube rendering");
+			ImGui::BulletText("Camera controls");
+			ImGui::BulletText("Y-axis rotation animation");
+			ImGui::BulletText("Mouse & keyboard input");
+			break;
+		}
+		
+		ImGui::PopTextWrapPos();
+		
+		// 샘플 제어 버튼
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+		
+		ImGui::Text("Controls");
+		ImGui::Separator();
+		
+		if (ImGui::Button("Reload Sample", ImVec2(-1, 0)))
 		{
 			switchSample(_currentSampleIndex);
 		}
 		
-		ImGui::Separator();
-		
-		// 현재 샘플 설명
-		switch (_currentSampleIndex)
+		if (GetSample() && GetSample()->IsInitialized())
 		{
-		case 0:
-			ImGui::TextWrapped(u8"Triangle Sample: 기본적인 삼각형을 렌더링합니다.");
-			break;
-		case 1:
-			ImGui::TextWrapped(u8"FBX Model Sample: 3D 큐브를 렌더링하며 Y축을 기준으로 회전합니다. "
-							 "실제 FBX 파일 로드 기능은 FBX SDK 또는 Assimp 라이브러리를 "
-							 "통해 추가할 수 있습니다.");
-			break;
+			if (ImGui::Button("Reset View", ImVec2(-1, 0)))
+			{
+				// 샘플별 리셋 기능 구현 가능
+				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(GetSample());
+				if (fbxSample)
+				{
+					// 카메라 리셋 등의 기능 추가 가능
+				}
+			}
 		}
 	}
 	ImGui::End();

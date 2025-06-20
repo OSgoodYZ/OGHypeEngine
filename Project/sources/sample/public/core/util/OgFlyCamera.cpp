@@ -159,7 +159,7 @@ void OgFlyCamera::OnMouseMove(double x, double y)
 	else if (_mode == Mode::PAN && _middleMousePressed)
 	{
 		// PAN 모드: 화면 평면에서 이동
-		float panX = static_cast<float>(-xoffset) * _panSpeed * _orbitDistance;
+		float panX = static_cast<float>(xoffset) * _panSpeed * _orbitDistance;
 		float panY = static_cast<float>(-yoffset) * _panSpeed * _orbitDistance;
 
 		_position += _right * panX + _up * panY;
