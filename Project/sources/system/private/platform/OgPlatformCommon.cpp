@@ -4,6 +4,8 @@
 
 #include <stdlib.h>
 
+#include "system/OgNativeWindow.h"
+
 #if defined(__WIN32__)
 #include "system/private/platform/win/OgPlatform_win32.h"
 #endif
@@ -85,15 +87,15 @@ void og_platform_common_input_cursor_pos(OgNativeWindow* window, double xpos, do
 		window->input.onCursorPos(window, xpos, ypos);
 	}
 
-	/* 필요하면 넣을것
+	
 	OgNativeEvent evt;
 	memset(&evt, 0, sizeof(OgNativeEvent));
-	evt.type == OgEventType::OG_MOUSE_MOVE;
+	evt.type = OgEventType::OG_MOUSE_MOVE;
 	evt.mouse.pos.x = (int)xpos;
 	evt.mouse.pos.y = (int)ypos;
 
 	og_window_event_push(window, &evt);
-	*/
+	
 }
 
 void og_platform_common_mouse_click(OgNativeWindow* window, int button, int action, int mods)
@@ -118,21 +120,21 @@ void og_platform_common_mouse_click(OgNativeWindow* window, int button, int acti
 	if (window->input.onMouseButton)
 		window->input.onMouseButton(window, button, action, mods);
 
-	/* 필요하면 넣을것
+
 	OgNativeEvent evt;
 	memset(&evt, 0, sizeof(OgNativeEvent));
-	evt.type == action == OG_PRESS ? OgEventType::OG_MOUSE_PRESS : OgEventType::OG_MOUSE_RELEASE;
+	evt.type = action == OG_PRESS ? OgEventType::OG_MOUSE_PRESS : OgEventType::OG_MOUSE_RELEASE;
 	evt.mouse.button = button;
 	evt.mouse.mods = mods;
 
 	og_window_event_push(window, &evt);
-	*/
+
 }
 
 void og_platform_common_window_focus(OgNativeWindow* window, bool focused)
 {
 	//if (window->callbacks.focus)
-		// window->callbacks.focus((GLFWwindow*)window, focused);
+	//	 window->callbacks.focus((GLFWwindow*)window, focused);
 
 	window->focused = focused;
 	if (!focused)
@@ -148,21 +150,21 @@ void og_platform_common_window_focus(OgNativeWindow* window, bool focused)
 			}
 		}
 
-		/*
+
 		for (button = 0; button <= OG_MOUSE_BUTTON_LAST; button++)
 		{
 			if (window->input.pointers[button] == OG_PRESS)
 				og_platform_common_mouse_click(window, button, OG_RELEASE, 0);
 		}
-		*/
+	
 	}
 
-	/* 필요하면 넣을것
+
 	OgNativeEvent evt;
 	memset(&evt, 0, sizeof(OgNativeEvent));
 	evt.type = focused ? OgEventType::OG_WINDOW_FOCUS_IN : OgEventType::OG_WINDOW_FOCUS_OUT;
 	og_window_event_push(window, &evt);
-	*/
+	
 }
 
 void og_platform_common_center_cursor_in_content_area(OgNativeWindow* window)

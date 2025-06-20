@@ -117,6 +117,11 @@ void OgPlayWindow::onResize(uint32 width, uint32 height)
 void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 {
 	// ImGui가 입력을 처리하는 경우 샘플로 전달하지 않음
+	ImGuiContext* context = static_cast<ImGuiContext*>(OgImGuiContextManager::GetMainImGuiContext());
+	if (!context)
+		return;
+		
+	ImGui::SetCurrentContext(context);
 	ImGuiIO& io = ImGui::GetIO();
 	
 	switch (evt.type)
