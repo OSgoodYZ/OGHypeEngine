@@ -1,4 +1,4 @@
-#include "OgPlayWindow.h"
+﻿#include "OgPlayWindow.h"
 #include "sample/public/core/OgTriangleSample.h"
 #include "sample/public/core/OgFBXSample.h"
 #include "system/OgSystemContext.h"
@@ -296,9 +296,11 @@ void OgPlayWindow::renderImGui(Render::OgCommandEncoderHandle* encoder)
 // OgSampleViewerWindow 구현
 void OgSampleViewerWindow::onRenderUI()
 {
-	renderSampleSelector();
+
 	renderSampleViewer();
+	renderSampleSelector();
 	renderDebugInfo();
+	
 }
 
 void OgSampleViewerWindow::renderSampleViewer()
@@ -306,8 +308,8 @@ void OgSampleViewerWindow::renderSampleViewer()
 	ImGuiIO& io = ImGui::GetIO();
 	
 	// 메인 뷰어 윈도우
-	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.6f, io.DisplaySize.y * 0.6f), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.2f, io.DisplaySize.y * 0.2f), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x , io.DisplaySize.y ), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
 	
 	if (ImGui::Begin("Sample Viewer", nullptr, ImGuiWindowFlags_None))
 	{
@@ -380,6 +382,9 @@ void OgSampleViewerWindow::renderDebugInfo()
 void OgSampleViewerWindow::renderSampleSelector()
 {
 	// 샘플 선택 윈도우
+	ImGuiIO& io = ImGui::GetIO();
+	ImGui::SetNextWindowSize(ImVec2(250, 500), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
 	if (ImGui::Begin("Sample Selector", nullptr, ImGuiWindowFlags_None))
 	{
 		const char* sampleNames[] = {
@@ -399,10 +404,10 @@ void OgSampleViewerWindow::renderSampleSelector()
 		switch (_currentSampleIndex)
 		{
 		case 0:
-			ImGui::TextWrapped("Triangle Sample: 기본적인 삼각형을 렌더링합니다.");
+			ImGui::TextWrapped(u8"Triangle Sample: 기본적인 삼각형을 렌더링합니다.");
 			break;
 		case 1:
-			ImGui::TextWrapped("FBX Model Sample: 3D 큐브를 렌더링하며 Y축을 기준으로 회전합니다. "
+			ImGui::TextWrapped(u8"FBX Model Sample: 3D 큐브를 렌더링하며 Y축을 기준으로 회전합니다. "
 							 "실제 FBX 파일 로드 기능은 FBX SDK 또는 Assimp 라이브러리를 "
 							 "통해 추가할 수 있습니다.");
 			break;
