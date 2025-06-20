@@ -151,11 +151,11 @@ void og_platform_common_window_focus(OgNativeWindow* window, bool focused)
 		}
 
 
-		for (button = 0; button <= OG_MOUSE_BUTTON_LAST; button++)
-		{
-			if (window->input.pointers[button] == OG_PRESS)
-				og_platform_common_mouse_click(window, button, OG_RELEASE, 0);
-		}
+		//for (button = 0; button <= OG_MOUSE_BUTTON_LAST; button++)
+		//{
+		//	if (window->input.pointers[button] == OG_PRESS)
+		//		og_platform_common_mouse_click(window, button, OG_RELEASE, 0);
+		//}
 	
 	}
 

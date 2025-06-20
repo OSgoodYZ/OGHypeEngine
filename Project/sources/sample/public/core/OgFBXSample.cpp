@@ -57,7 +57,7 @@ void OgFBXSample::OnUpdate(float deltaTime)
 	}
 
 	// 큐브 회전
-	_rotation += deltaTime * 45.0f; // 초당 45도 회전
+	_rotation += deltaTime * 1.0f; // 초당 1도 회전
 	if (_rotation > 360.0f)
 		_rotation -= 360.0f;
 

@@ -167,7 +167,7 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 		
 	case OG_MOUSE_MOVE:
 		{
-			if (!io.WantCaptureMouse && _currentSample)
+			if (_currentSample) // !io.WantCaptureMouse && 
 			{
 				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
 				if (fbxSample)
@@ -180,7 +180,7 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 		
 	case OG_MOUSE_WHEEL_CHANGE:
 		{
-			if (!io.WantCaptureMouse && _currentSample)
+			if (_currentSample) // !io.WantCaptureMouse && 
 			{
 				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
 				if (fbxSample)

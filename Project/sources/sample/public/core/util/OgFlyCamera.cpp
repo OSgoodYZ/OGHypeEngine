@@ -137,7 +137,7 @@ void OgFlyCamera::OnMouseMove(double x, double y)
 		yoffset *= _rotateSpeed;
 
 		_yaw += static_cast<float>(xoffset);
-		_pitch += static_cast<float>(yoffset);
+		_pitch -= static_cast<float>(yoffset);
 
 		// Pitch 제한
 		_pitch = std::clamp(_pitch, -89.0f, 89.0f);
