@@ -12,8 +12,8 @@ OgFBXSample::OgFBXSample(Render::OgRenderContext* renderContext)
 	: OgSampleBase(renderContext)
 	, _camera(std::make_unique<OgFlyCamera>())
 {
-	// 카메라 초기 설정
-	_camera->SetPosition(glm::vec3(2.0f, 2.0f, 2.0f));
+	// 카메라 초기 설정 - 더 멀리 배치
+	_camera->SetPosition(glm::vec3(5.0f, 5.0f, 5.0f));
 	_camera->SetTarget(glm::vec3(0.0f, 0.0f, 0.0f));
 }
 
@@ -72,9 +72,9 @@ void OgFBXSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::OgSw
 	float passColor[]{ 0.0f, 0.0f, 1.0f, 1.0f };
 
 	OgCommandEncoderHandle::ClearValue colorClear;
-	colorClear.color.value[0] = 0.1f;
-	colorClear.color.value[1] = 0.1f;
-	colorClear.color.value[2] = 0.2f;
+	colorClear.color.value[0] = 0.3f;
+	colorClear.color.value[1] = 0.3f;
+	colorClear.color.value[2] = 0.4f;
 	colorClear.color.value[3] = 1.0f;
 
 	OgCommandEncoderHandle::ClearValue depthStencilClear;
@@ -139,6 +139,8 @@ void OgFBXSample::OnResize(uint32 width, uint32 height)
 	{
 		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
 	}
+	// Vulkan의 클립 공간 조정: [0,1] 깊이 범위와 Y축 뒤집기
+	//convertProjectionForVulkan(_uniformData.projection);
 	updateUniformBuffer();
 }
 
@@ -291,43 +293,43 @@ void OgFBXSample::createMesh()
 	// 간단한 큐브 메시 생성 (FBX 로더가 없으므로 하드코딩)
 	// 실제 구현에서는 loadFBXModel() 함수를 통해 FBX 파일에서 로드
 
-	// 큐브 정점 데이터 (8개 정점, 각 면의 색상 다르게)
+	// 큐브 정점 데이터 (8개 정점, 각 면의 색상 다르게) - 크기를 2배로 키움
 	_vertices = {
 		// 앞면 (빨강)
-		{{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
-		{{ 0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-		{{-0.5f,  0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+		{{-1.0f, -1.0f,  1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
+		{{ 1.0f, -1.0f,  1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 0.0f}},
+		{{ 1.0f,  1.0f,  1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+		{{-1.0f,  1.0f,  1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
 
 		// 뒷면 (초록)
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-		{{ 0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-		{{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-		{{-0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+		{{-1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+		{{ 1.0f, -1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+		{{ 1.0f,  1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+		{{-1.0f,  1.0f, -1.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
 
 		// 왼쪽면 (파랑)
-		{{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
-		{{-0.5f, -0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
-		{{-0.5f,  0.5f,  0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-		{{-0.5f,  0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+		{{-1.0f, -1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+		{{-1.0f, -1.0f,  1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+		{{-1.0f,  1.0f,  1.0f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+		{{-1.0f,  1.0f, -1.0f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}},
 
 		// 오른쪽면 (노랑)
-		{{ 0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 1.0f, 0.0f}},
-		{{ 0.5f, -0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f, 0.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 1.0f, 0.0f}},
-		{{ 0.5f,  0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f, 0.0f}},
+		{{ 1.0f, -1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 1.0f, 0.0f}},
+		{{ 1.0f, -1.0f,  1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f, 0.0f}},
+		{{ 1.0f,  1.0f,  1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 1.0f, 0.0f}},
+		{{ 1.0f,  1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f, 0.0f}},
 
 		// 윗면 (보라)
-		{{-0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 1.0f}},
-		{{ 0.5f,  0.5f,  0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 1.0f}},
-		{{ 0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 1.0f}},
-		{{-0.5f,  0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 1.0f}},
+		{{-1.0f,  1.0f,  1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 1.0f}},
+		{{ 1.0f,  1.0f,  1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 0.0f, 1.0f}},
+		{{ 1.0f,  1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 0.0f, 1.0f}},
+		{{-1.0f,  1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}, {1.0f, 0.0f, 1.0f}},
 
 		// 아랫면 (청록)
-		{{-0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 1.0f}},
-		{{ 0.5f, -0.5f,  0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 1.0f}},
-		{{ 0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 1.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 1.0f}}
+		{{-1.0f, -1.0f,  1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 1.0f, 1.0f}},
+		{{ 1.0f, -1.0f,  1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f, 1.0f}},
+		{{ 1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f, 1.0f}},
+		{{-1.0f, -1.0f, -1.0f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, {0.0f, 1.0f, 1.0f}}
 	};
 
 	// 인덱스 데이터
@@ -389,12 +391,15 @@ void OgFBXSample::createUniformBuffer()
 	else
 	{
 		_uniformData.view = glm::lookAt(
-			glm::vec3(2.0f, 2.0f, 2.0f),  // 카메라 위치
+			glm::vec3(5.0f, 5.0f, 5.0f),  // 카메라 위치
 			glm::vec3(0.0f, 0.0f, 0.0f),  // 타겟
 			glm::vec3(0.0f, 1.0f, 0.0f)   // 업 벡터
 		);
 		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
 	}
+	
+	// Vulkan의 클립 공간 조정: [0,1] 깊이 범위와 Y축 뒤집기
+	//convertProjectionForVulkan(_uniformData.projection);
 
 	// 유니폼 버퍼 생성
 	_uniformBuffer = _renderContext->CreateBuffer(
@@ -416,6 +421,8 @@ void OgFBXSample::updateUniformBuffer()
 	{
 		_uniformData.view = _camera->GetViewMatrix();
 		_uniformData.projection = _camera->GetProjectionMatrix();
+		// Vulkan의 클립 공간 조정: [0,1] 깊이 범위와 Y축 뒤집기
+		//convertProjectionForVulkan(_uniformData.projection);
 	}
 
 	// 유니폼 버퍼 업데이트
@@ -527,8 +534,8 @@ void OgFBXSample::createPipeline()
 
 	OgRasterizationDescriptor rsDesc{};
 	rsDesc.polygonMode = OgPolygonMode::FILL;
-	rsDesc.cullMode = OgCullMode::BACK;  // 백페이스 컬링 활성화
-	rsDesc.frontFace = OgFrontFace::CLOCKWISE;
+	rsDesc.cullMode = OgCullMode::NONE;  // 백페이스 컬링 활성화
+	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;  // Y축 뒤집기로 인해 시계방향
 	rsDesc.scissorTest = false;
 	rsDesc.primitiveType = OgPrimitiveType::TRIANGLE_LIST;
 
@@ -696,6 +703,20 @@ bool OgFBXSample::loadFBXModel(const char* filePath)
 	// 5. _vertices와 _indices에 데이터 저장
 
 	return false; // 현재는 구현되지 않음
+}
+
+void OgFBXSample::convertProjectionForVulkan(glm::mat4& projection)
+{
+	// GLM의 기본 프로젝션은 OpenGL을 위한 것이므로 Vulkan용으로 변환
+	// 1. Y축 뒤집기 (Vulkan은 Y축이 아래로 향함)
+	projection[1][1] *= -1.0f;
+	
+	// 2. Z 범위 변환: [-1, 1] -> [0, 1]
+	// glm은 column-major이므로 projection[col][row] 순서
+	// OpenGL NDC z: [-1, 1], Vulkan NDC z: [0, 1]
+	// z' = z * 0.5 + 0.5 변환을 프로젝션 행렬에 적용
+	projection[2][2] = projection[2][2] * 0.5f + 0.5f;
+	projection[2][3] = projection[2][3] * 0.5f;
 }
 
 OG_NAMESPACE_SAMPLE_END

@@ -57,6 +57,9 @@ private:
 
 	// FBX 로딩 (추후 구현)
 	bool loadFBXModel(const char* filePath);
+	
+	// Vulkan용 프로젝션 행렬 변환
+	void convertProjectionForVulkan(glm::mat4& projection);
 
 private:
 	// 메시 데이터

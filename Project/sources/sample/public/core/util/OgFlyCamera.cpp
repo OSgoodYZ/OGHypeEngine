@@ -15,7 +15,7 @@ OgFlyCamera::OgFlyCamera()
 	, _aspectRatio(16.0f / 9.0f)
 	, _nearPlane(0.1f)
 	, _farPlane(1000.0f)
-	, _moveSpeed(2.5f)
+	, _moveSpeed(0.1f)
 	, _fastMoveSpeed(10.0f)
 	, _rotateSpeed(0.1f)
 	, _zoomSpeed(2.0f)
@@ -46,8 +46,13 @@ void OgFlyCamera::SetTarget(const glm::vec3& target)
 	_target = target;
 	
 	// 타겟을 바라보도록 yaw/pitch 계산
-	glm::vec3 direction = glm::normalize(_position - _target);
-	_pitch = glm::degrees(asin(direction.y));
+	glm::vec3 direction = glm::normalize(_target - _position);
+	
+	// asin의 입력값이 [-1, 1] 범위를 벗어나지 않도록 clamp
+	float y_clamped = glm::clamp(direction.y, -1.0f, 1.0f);
+	_pitch = glm::degrees(asin(y_clamped));
+	
+	// atan2로 yaw 계산
 	_yaw = glm::degrees(atan2(direction.z, direction.x));
 	
 	_orbitDistance = glm::length(_position - _target);

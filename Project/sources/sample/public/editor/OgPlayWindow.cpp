@@ -153,7 +153,7 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 	case OG_MOUSE_RELEASE:
 		{
 			// ImGui가 마우스 입력을 사용하지 않는 경우에만 전달
-			if (!io.WantCaptureMouse && _currentSample)
+			if (_currentSample)// !io.WantCaptureMouse && 
 			{
 				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
 				if (fbxSample)
@@ -185,7 +185,8 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
 				if (fbxSample)
 				{
-					fbxSample->OnMouseScroll(0.0, evt.mouse.wheelDelta);
+					// wheelDelta를 yoffset으로 사용 (수직 스크롤)
+					fbxSample->OnMouseScroll(0.0, static_cast<double>(evt.mouse.wheelDelta));
 				}
 			}
 		}

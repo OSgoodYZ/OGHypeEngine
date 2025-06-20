@@ -181,7 +181,7 @@ bool og_window_event_poll(OgNativeWindow* window, OgNativeEvent* evt)
 
 	if (win->queue.size() > 0)
 	{
-		OgNativeEvent e = win->queue.back();
+		OgNativeEvent e = win->queue.front();
 		memcpy(evt, &e, sizeof(OgNativeEvent));
 		win->queue.pop();
 		return true;

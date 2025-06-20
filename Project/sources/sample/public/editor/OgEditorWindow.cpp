@@ -194,6 +194,11 @@ void OgEditorWindow::processEvent(const OgNativeEvent& evt)
 	case OG_DROP_FILES:
 		// 드롭 파일 처리
 		break;
+		
+	case OG_MOUSE_WHEEL_CHANGE:
+		// 마우스 휠 이벤트를 바로 onEvent로 전달
+		onEvent(evt);
+		return;
 	}
 	
 	// 서브클래스에 이벤트 전달
