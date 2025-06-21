@@ -1591,7 +1591,7 @@ void OgModelSample::convertProjectionForVulkan(glm::mat4& projection)
 	// 1. Y축 뒤집기 (Vulkan은 Y축이 아래로 향함)
 	projection[1][1] *= -1.0f;
 	
-	// 2. Z 범위 변환: [-1, 1] -> [0, 1]
+	// 2. Z 범위 변환: [-1, 1] -> [0, 1] => GLM이 알아서 해서 주석침
 	//projection[2][2] = projection[2][2] * 0.5f + 0.5f;
 	//projection[2][3] = projection[2][3] * 0.5f;
 }
