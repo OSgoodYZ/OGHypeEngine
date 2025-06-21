@@ -1,6 +1,6 @@
 ﻿#include "OgPlayWindow.h"
 #include "sample/public/core/OgTriangleSample.h"
-#include "sample/public/core/OgFBXSample.h"
+#include "sample/public/core/OgModelSample.h"
 #include "system/OgSystemContext.h"
 #include "system/OgInput.h"
 #include <algorithm>
@@ -132,9 +132,9 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 			// ImGui가 키보드 입력을 사용하지 않는 경우에만 전달
 			if (!io.WantCaptureKeyboard && _currentSample)
 			{
-				// OgFBXSample로 다운캐스트 시도
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
-				if (fbxSample)
+				// OgModelSample로 다운캐스트 시도
+				OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+				if (modelSample)
 				{
 					int action = (evt.type == OG_KEY_PRESS) ? OG_PRESS : OG_RELEASE;
 					int mods = 0;
@@ -143,7 +143,7 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 					if (evt.key.alt) mods |= OG_MOD_ALT;
 					if (evt.key.system) mods |= OG_MOD_SUPER;
 					
-					fbxSample->OnKeyPress(evt.key.keyCode, action, mods);
+					modelSample->OnKeyPress(evt.key.keyCode, action, mods);
 				}
 			}
 		}
@@ -155,11 +155,11 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 			// ImGui가 마우스 입력을 사용하지 않는 경우에만 전달
 			if (_currentSample)// !io.WantCaptureMouse && 
 			{
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
-				if (fbxSample)
+				OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+				if (modelSample)
 				{
 					int action = (evt.type == OG_MOUSE_PRESS) ? OG_PRESS : OG_RELEASE;
-					fbxSample->OnMouseButton(evt.mouse.button, action, evt.mouse.mods);
+					modelSample->OnMouseButton(evt.mouse.button, action, evt.mouse.mods);
 				}
 			}
 		}
@@ -169,10 +169,10 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 		{
 			if (_currentSample) // !io.WantCaptureMouse && 
 			{
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
-				if (fbxSample)
+				OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+				if (modelSample)
 				{
-					fbxSample->OnMouseMove(evt.mouse.pos.x, evt.mouse.pos.y);
+					modelSample->OnMouseMove(evt.mouse.pos.x, evt.mouse.pos.y);
 				}
 			}
 		}
@@ -182,11 +182,11 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 		{
 			if (_currentSample) // !io.WantCaptureMouse && 
 			{
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
-				if (fbxSample)
+				OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+				if (modelSample)
 				{
 					// wheelDelta를 yoffset으로 사용 (수직 스크롤)
-					fbxSample->OnMouseScroll(0.0, static_cast<double>(evt.mouse.wheelDelta));
+					modelSample->OnMouseScroll(0.0, static_cast<double>(evt.mouse.wheelDelta));
 				}
 			}
 		}
@@ -526,7 +526,7 @@ void OgSampleViewerWindow::renderSampleSelector()
 			if (ImGui::Button("Reset View", ImVec2(-1, 0)))
 			{
 				// 샘플별 리셋 기능 구현 가능
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(GetSample());
+				OgModelSample* fbxSample = dynamic_cast<OgModelSample*>(GetSample());
 				if (fbxSample)
 				{
 					// 카메라 리셋 등의 기능 추가 가능
@@ -547,7 +547,7 @@ void OgSampleViewerWindow::switchSample(int index)
 		newSample = std::make_unique<OgTriangleSample>(_renderContext);
 		break;
 	case 1:
-		newSample = std::make_unique<OgFBXSample>(_renderContext);
+		newSample = std::make_unique<OgModelSample>(_renderContext);
 		break;
 	default:
 		return;

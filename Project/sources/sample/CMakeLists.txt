@@ -26,8 +26,8 @@ set(PUBLIC_CORE
 	public/core/OgSampleBase.h
 	public/core/OgTriangleSample.h
 	public/core/OgTriangleSample.cpp
-	public/core/OgFBXSample.h
-	public/core/OgFBXSample.cpp
+	public/core/OgModelSample.h
+	public/core/OgModelSample.cpp
 	)
 source_group("public\\core" FILES ${PUBLIC_CORE})
 list(APPEND TOTAL_FILE ${PUBLIC_CORE})
