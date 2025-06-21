@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _MODEL_SAMPLE_H__
-#define _MODEL_SAMPLE_H__
+#ifndef _OG_MODEL_SAMPLE_H__
+#define _OG_MODEL_SAMPLE_H__
 
 #include "OgSampleBase.h"
 #include <memory>
@@ -201,4 +201,4 @@ private:
 
 OG_NAMESPACE_SAMPLE_END
 
-#endif // _MODEL_SAMPLE_H__
+#endif // _OG_MODEL_SAMPLE_H__

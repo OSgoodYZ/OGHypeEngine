@@ -49,29 +49,59 @@ void OgModelSample::OnInit(Render::OgSwapChain* swapchain)
 	createResources(width, height);
 
 	// glTF 폴더에서 첫 번째 glTF 파일을 찾아서 로드
-	std::string gltfPath = "./glTF/";
+	// 실행 파일 경로를 기준으로 glTF 폴더 경로 구성
+	std::filesystem::path executablePath = std::filesystem::current_path();
+	std::filesystem::path gltfPath = executablePath / "glTF";
+	
+	// 만약 현재 경로에서 찾을 수 없으면, Build/Debug 경로도 시도
+	if (!std::filesystem::exists(gltfPath)) {
+		gltfPath = executablePath / "Build" / "Debug" / "glTF";
+	}
+	
+	// 그래도 없으면 상위 디렉토리들도 확인
+	if (!std::filesystem::exists(gltfPath)) {
+		std::filesystem::path searchPath = executablePath;
+		for (int i = 0; i < 3; ++i) {
+			searchPath = searchPath.parent_path();
+			std::filesystem::path testPath = searchPath / "Build" / "Debug" / "glTF";
+			if (std::filesystem::exists(testPath)) {
+				gltfPath = testPath;
+				break;
+			}
+		}
+	}
+	
 	bool modelLoaded = false;
 	
-	try {
-		for (const auto& entry : std::filesystem::directory_iterator(gltfPath)) 
-		{
-			if (entry.is_regular_file()) 
+	try 
+	{
+		if (std::filesystem::exists(gltfPath) && std::filesystem::is_directory(gltfPath)) {
+			LOGD(OG_ID, "Found glTF directory at: %s", gltfPath.string().c_str());
+			
+			for (const auto& entry : std::filesystem::directory_iterator(gltfPath)) 
 			{
-				std::string extension = entry.path().extension().string();
-				if (extension == ".gltf" || extension == ".glb") 
+				if (entry.is_regular_file()) 
 				{
-					std::string filePath = entry.path().string();
-					
-					LOGD(OG_ID, "Loading glTF model: %s", filePath.c_str());
-					if (loadGLTFModel(filePath)) {
-						modelLoaded = true;
-						LOGD(OG_ID, "Successfully loaded glTF model");
-						break;
+					std::string extension = entry.path().extension().string();
+					if (extension == ".gltf" || extension == ".glb") 
+					{
+						std::string filePath = entry.path().string();
+						
+						LOGD(OG_ID, "Loading glTF model: %s", filePath.c_str());
+						if (loadGLTFModel(filePath)) {
+							modelLoaded = true;
+							LOGD(OG_ID, "Successfully loaded glTF model");
+							break;
+						}
 					}
 				}
 			}
+		} else {
+			LOGE(OG_ID, "glTF directory not found at: %s", gltfPath.string().c_str());
+			LOGD(OG_ID, "Current working directory: %s", executablePath.string().c_str());
 		}
-	} catch (const std::exception& e) {
+	} catch (const std::exception& e) 
+	{
 		LOGE(OG_ID, "Error accessing glTF directory: %s", e.what());
 	}
 
@@ -1266,14 +1296,19 @@ Render::OgTextureHandle* OgModelSample::loadTexture(const tinygltf::Model& model
 	texInfo.type = OgTextureType::TEX_2D;
 	texInfo.extent.width = image.width;
 	texInfo.extent.height = image.height;
-	texInfo.usage = OgTextureUsage::SAMPLED;
+	
+	texInfo.usage = OgTextureUsage::SAMPLED| OgTextureUsage::STAGING;
 	texInfo.isGenerateMipmaps = true;
 	
 	// 포맷 결정
-	if (image.component == 3) {
+	if (image.component == 3) 
+	{
 		texInfo.format = OgPixelFormat::R8G8B8_UNORM;
-	} else if (image.component == 4) {
+		texInfo.byteSize = image.width * image.height * 3;
+	} else if (image.component == 4) 
+	{
 		texInfo.format = OgPixelFormat::R8G8B8A8_UNORM;
+		texInfo.byteSize = image.width * image.height * 4;
 	} else {
 		LOGD(OG_ID, "Unsupported image component count: %d", image.component);
 		return nullptr;
@@ -1400,9 +1435,11 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 	}
 	
 	// 각 primitive 렌더링
-	for (const auto& primitive : mesh.primitives) {
+	for (const auto& primitive : mesh.primitives) 
+	{
 		// Material 설정
-		if (primitive.materialIndex >= 0 && primitive.materialIndex < static_cast<int>(_materials.size())) {
+		if (primitive.materialIndex >= 0 && primitive.materialIndex < static_cast<int>(_materials.size())) 
+		{
 			const Material& material = _materials[primitive.materialIndex];
 			
 			// Material 유니폼 업데이트
@@ -1416,13 +1453,15 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 			_materialUniformData.hasEmissiveTexture = material.emissiveTexture ? 1.0f : 0.0f;
 			
 			void* materialMapped = _renderContext->MapBuffer(_materialUniformBuffer, sizeof(MaterialUniformData));
-			if (materialMapped) {
+			if (materialMapped) 
+			{
 				memcpy(materialMapped, &_materialUniformData, sizeof(MaterialUniformData));
 				_renderContext->UnmapBuffer(_materialUniformBuffer);
 			}
 			
 			// 텍스처 바인딩을 위한 리소스 셋 업데이트
-			if (material.baseColorTexture || material.normalTexture || material.metallicRoughnessTexture) {
+			if (material.baseColorTexture || material.normalTexture || material.metallicRoughnessTexture) 
+			{
 				uint32 zeroOffset = 0;
 				OgResourceUsage usages[5];
 				
@@ -1489,12 +1528,17 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				
 				// 새로운 리소스 셋 생성
 				OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 5);
+				tempResourceSet->Retain();
 				encoder->BindResourceSet(tempResourceSet);
 				tempResourceSet->Release();
-			} else {
+			}
+			else 
+			{
 				encoder->BindResourceSet(_resourceSet);
 			}
-		} else {
+		}
+		else 
+		{
 			// 기본 material 사용
 			_materialUniformData.baseColorFactor = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);
 			_materialUniformData.metallicFactor = 0.0f;

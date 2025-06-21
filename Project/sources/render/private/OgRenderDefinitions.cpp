@@ -399,7 +399,6 @@ void OgHandle::FlushPendingDeletes(class OgRenderContext* rc, bool forceDeferred
 			delete_handle(rc, handle);
 		}
 	};
-	_deferredDeleteArray.Clear();
 	size_t pendingDeleteCount = _pendingDeleteQueue.size();
 	if (pendingDeleteCount > 0)
 	{
@@ -454,6 +453,11 @@ void OgHandle::FlushPendingDeletes(class OgRenderContext* rc, bool forceDeferred
 					break;
 				}
 			}
+			for (size_t delIdx = 0 ; delIdx < deletedRtd ;++delIdx)
+			{
+				_deferredDeleteArray.PopFront();
+			}
+			
 		}
 	}
 }

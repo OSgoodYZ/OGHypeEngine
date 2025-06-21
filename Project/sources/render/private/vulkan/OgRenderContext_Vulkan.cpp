@@ -471,9 +471,9 @@ void OgRenderContextVulkan::initDescriptorPool()
 	_usedUniformBufferFromPool = 0;
 	_usedTextureFromPool = 0;
 	_usedSetFromPool = 0;
-	_maxUniformBufferFromPool = 1024;//256;
-	_maxTextureFromPool = 1024;
-	_maxSetFromPool = 512;//256;
+	_maxUniformBufferFromPool = 2048;//256;
+	_maxTextureFromPool = 2048;
+	_maxSetFromPool = 1024;//256;
 
 	// Manual Initialize for VkDescriptorPool
 	// 나중에 이것을 관리하는 DescriptorPool Manager를 만들어야 함.
@@ -1679,6 +1679,15 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 		{
 			// TODO
 			// buildMipmap(copyCmd, texture, view.subresourceRange);
+			vkSetImageLayout(
+				copyCmd,
+				texture->image,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				texture->imageLayout,					// image가 쓰일 최종 layout
+				view.subresourceRange,
+				VK_PIPELINE_STAGE_TRANSFER_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
 		}
 		else
 		{

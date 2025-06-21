@@ -60,6 +60,13 @@ public:
 		}
 	}
 
+	void PopFront()
+	{
+		if (!_data.empty())
+		{
+			_data.erase(_data.begin());
+		}
+	}
 	void PopBack()
 	{
 		_data.pop_back();
