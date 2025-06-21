@@ -132,7 +132,7 @@ void OgModelSample::OnUpdate(float deltaTime)
 	}
 
 	// 모델 회전
-	_rotation += deltaTime * 0.5f; // 초당 0.5 라디안 회전
+	_rotation += deltaTime * 0.f; // 초당 0.5 라디안 회전
 	if (_rotation > 2.0f * 3.14159f)
 		_rotation -= 2.0f * 3.14159f;
 
