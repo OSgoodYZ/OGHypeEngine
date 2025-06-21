@@ -181,6 +181,7 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 		
 		// 모델 크기 정규화 (카메라 거리에 맞게 스케일 조정)
 		float scale = 5.0f / _modelRadius; // 모델을 적절한 크기로 조정
+		scale *= 10.0f; // 10배 스케일링
 		rootTransform = glm::scale(rootTransform, glm::vec3(scale));
 		
 		// 모델 중심을 원점으로 이동
@@ -193,6 +194,7 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 	} else if (!_meshes.empty()) {
 		// 기본 큐브 렌더링
 		glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
+		modelMatrix = glm::scale(modelMatrix, glm::vec3(10.0f)); // 10배 스케일링
 		renderMesh(encoder, _meshes[0], modelMatrix);
 	}
 
@@ -228,7 +230,7 @@ void OgModelSample::OnResize(uint32 width, uint32 height)
 	}
 	else
 	{
-		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);  // far plane을 1000으로 확장
 	}
 	updateUniformBuffer();
 }
@@ -546,7 +548,7 @@ void OgModelSample::createUniformBuffer()
 			glm::vec3(0.0f, 0.0f, 0.0f),
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);
-		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);  // far plane을 1000으로 확장
 	}
 
 	// 유니폼 버퍼 생성
@@ -755,7 +757,7 @@ void OgModelSample::createPipeline()
 	OgRasterizationDescriptor rsDesc{};
 	rsDesc.polygonMode = OgPolygonMode::FILL;
 	rsDesc.cullMode = OgCullMode::BACK;
-	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;
+	rsDesc.frontFace = OgFrontFace::CLOCKWISE;
 	rsDesc.scissorTest = false;
 	rsDesc.primitiveType = OgPrimitiveType::TRIANGLE_LIST;
 
@@ -1412,7 +1414,8 @@ void OgModelSample::renderNode(Render::OgCommandEncoderHandle* encoder, int node
 	glm::mat4 nodeMatrix = parentMatrix * node.matrix;
 	
 	// 이 노드에 메시가 있으면 렌더링
-	if (node.meshIndex >= 0 && node.meshIndex < static_cast<int>(_meshes.size())) {
+	if (node.meshIndex >= 0 && node.meshIndex < static_cast<int>(_meshes.size())) 
+	{
 		renderMesh(encoder, _meshes[node.meshIndex], nodeMatrix);
 	}
 	
