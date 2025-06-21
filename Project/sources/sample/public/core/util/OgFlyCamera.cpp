@@ -137,7 +137,7 @@ void OgFlyCamera::OnMouseMove(double x, double y)
 		yoffset *= _rotateSpeed;
 
 		_yaw += static_cast<float>(xoffset);
-		_pitch -= static_cast<float>(yoffset);
+		_pitch += static_cast<float>(yoffset);
 
 		// Pitch 제한
 		_pitch = std::clamp(_pitch, -89.0f, 89.0f);
@@ -160,7 +160,7 @@ void OgFlyCamera::OnMouseMove(double x, double y)
 	{
 		// PAN 모드: 화면 평면에서 이동
 		float panX = static_cast<float>(xoffset) * _panSpeed * _orbitDistance;
-		float panY = static_cast<float>(-yoffset) * _panSpeed * _orbitDistance;
+		float panY = static_cast<float>(yoffset) * _panSpeed * _orbitDistance;
 
 		_position += _right * panX + _up * panY;
 		_target += _right * panX + _up * panY;

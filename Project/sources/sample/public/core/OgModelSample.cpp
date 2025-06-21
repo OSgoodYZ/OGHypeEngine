@@ -231,6 +231,8 @@ void OgModelSample::OnResize(uint32 width, uint32 height)
 	else
 	{
 		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);  // far plane을 1000으로 확장
+		// Vulkan의 클립 공간 조정
+		convertProjectionForVulkan(_uniformData.projection);
 	}
 	updateUniformBuffer();
 }
@@ -540,6 +542,8 @@ void OgModelSample::createUniformBuffer()
 		_camera->SetAspectRatio(aspect);
 		_uniformData.view = _camera->GetViewMatrix();
 		_uniformData.projection = _camera->GetProjectionMatrix();
+		// Vulkan의 클립 공간 조정
+		convertProjectionForVulkan(_uniformData.projection);
 	}
 	else
 	{
@@ -549,6 +553,8 @@ void OgModelSample::createUniformBuffer()
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);
 		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);  // far plane을 1000으로 확장
+		// Vulkan의 클립 공간 조정
+		convertProjectionForVulkan(_uniformData.projection);
 	}
 
 	// 유니폼 버퍼 생성
@@ -586,6 +592,8 @@ void OgModelSample::updateUniformBuffer()
 	{
 		_uniformData.view = _camera->GetViewMatrix();
 		_uniformData.projection = _camera->GetProjectionMatrix();
+		// Vulkan의 클립 공간 조정
+		convertProjectionForVulkan(_uniformData.projection);
 	}
 
 	// 유니폼 버퍼 업데이트는 렌더링 시에 수행
@@ -681,8 +689,8 @@ void OgModelSample::createShaders()
 			}
 			
 			// 간단한 PBR 라이팅 (완전한 구현은 아님)
-			vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-			vec3 viewDir = normalize(vec3(5.0, 5.0, 5.0) - fragPosition);
+			vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0) - fragPosition);
+			vec3 viewDir = normalize(vec3(50.0, 50.0, 50.0) - fragPosition);  // 10배 스케일에 맞춰 카메라 위치 조정
 			vec3 halfwayDir = normalize(lightDir + viewDir);
 			
 			// Diffuse
@@ -756,8 +764,8 @@ void OgModelSample::createPipeline()
 
 	OgRasterizationDescriptor rsDesc{};
 	rsDesc.polygonMode = OgPolygonMode::FILL;
-	rsDesc.cullMode = OgCullMode::BACK;
-	rsDesc.frontFace = OgFrontFace::CLOCKWISE;
+	rsDesc.cullMode = OgCullMode::NONE;
+	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;  // Y축 뒤집기로 인해 반대 방향으로 설정
 	rsDesc.scissorTest = false;
 	rsDesc.primitiveType = OgPrimitiveType::TRIANGLE_LIST;
 
@@ -1584,8 +1592,8 @@ void OgModelSample::convertProjectionForVulkan(glm::mat4& projection)
 	projection[1][1] *= -1.0f;
 	
 	// 2. Z 범위 변환: [-1, 1] -> [0, 1]
-	projection[2][2] = projection[2][2] * 0.5f + 0.5f;
-	projection[2][3] = projection[2][3] * 0.5f;
+	//projection[2][2] = projection[2][2] * 0.5f + 0.5f;
+	//projection[2][3] = projection[2][3] * 0.5f;
 }
 
 OG_NAMESPACE_SAMPLE_END
