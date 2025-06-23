@@ -731,60 +731,135 @@ void OgModelSample::createShaders()
 		layout(binding = 7) uniform sampler2D sheenColorTexture;
 		layout(binding = 8) uniform sampler2D sheenRoughnessTexture;
 
-		vec2 transformUV(vec2 uv, mat4 transform) {
-			// 3x3 transform을 2D UV에 적용
-			vec3 transformedUV = mat3(transform) * vec3(uv, 1.0);
-			return transformedUV.xy;
+			vec2 transformUV(vec2 uv, mat4 transform) {
+				// glTF 2.0 스펙에 따른 정확한 UV 변환
+				// 처리 순서: Scale -> Rotation -> Translation
+				mat3 transform3x3 = mat3(transform);
+				
+				// 변환 적용
+				vec3 transformedUV = transform3x3 * vec3(uv, 1.0);
+				
+				// 결과 반환
+				return transformedUV.xy;
+			}
+
+		// PBR 계산을 위한 상수들
+		const float PI = 3.14159265359;
+		const float EPSILON = 1e-6;
+
+		// Fresnel-Schlick approximation
+		vec3 fresnelSchlick(float cosTheta, vec3 F0) {
+			return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+		}
+
+		// Fresnel-Schlick approximation with roughness
+		vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness) {
+			return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+		}
+
+		// GGX/Trowbridge-Reitz normal distribution function
+		float distributionGGX(vec3 N, vec3 H, float roughness) {
+			float a = roughness * roughness;
+			float a2 = a * a;
+			float NdotH = max(dot(N, H), 0.0);
+			float NdotH2 = NdotH * NdotH;
+
+			float num = a2;
+			float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+			denom = PI * denom * denom;
+
+			return num / max(denom, EPSILON);
+		}
+
+		// Smith's method for geometry shadowing/masking
+		float geometrySchlickGGX(float NdotV, float roughness) {
+			float r = (roughness + 1.0);
+			float k = (r * r) / 8.0;
+
+			float num = NdotV;
+			float denom = NdotV * (1.0 - k) + k;
+
+			return num / max(denom, EPSILON);
+		}
+
+		float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness) {
+			float NdotV = max(dot(N, V), 0.0);
+			float NdotL = max(dot(N, L), 0.0);
+			float ggx2 = geometrySchlickGGX(NdotV, roughness);
+			float ggx1 = geometrySchlickGGX(NdotL, roughness);
+
+			return ggx1 * ggx2;
+		}
+
+		// Charlie sheen distribution (approximation)
+		float distributionCharlie(float sheenRoughness, float NdotH) {
+			sheenRoughness = max(sheenRoughness, 0.000001); // avoid division by zero
+			float invR = 1.0 / sheenRoughness;
+			float cos2h = NdotH * NdotH;
+			float sin2h = 1.0 - cos2h;
+			return (2.0 + invR) * pow(sin2h, invR * 0.5) / (2.0 * PI);
+		}
+
+		// Visibility function for sheen
+		float visibilityAshikhmin(float NdotL, float NdotV) {
+			return 1.0 / (4.0 * (NdotL + NdotV - NdotL * NdotV));
+		}
+
+		// Sheen BRDF
+		vec3 sheenBRDF(vec3 sheenColor, float sheenRoughness, float NdotL, float NdotV, float NdotH) {
+			float sheenDistribution = distributionCharlie(sheenRoughness, NdotH);
+			float sheenVisibility = visibilityAshikhmin(NdotL, NdotV);
+			return sheenColor * sheenDistribution * sheenVisibility;
+		}
+
+		// ACES tone mapping
+		vec3 ACESFilm(vec3 x) {
+			float a = 2.51;
+			float b = 0.03;
+			float c = 2.43;
+			float d = 0.59;
+			float e = 0.14;
+			return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
 		}
 
 		void main() {
-			// 디버깅용: UV 좌표를 직접 시각화
-			 //outColor = vec4(fragTexCoord.x, fragTexCoord.y, 0.0, 1.0);
-			// return;
-			
-			// Unlit material
+			// Unlit material - 간단한 처리
 			if (material.unlit > 0.5) {
 				vec4 baseColor = material.baseColorFactor;
 				if (material.hasBaseColorTexture > 0.5) {
 					vec2 uv = transformUV(fragTexCoord, material.baseColorTransform);
-
-					// 디버깅용: 변환된 UV 좌표 시각화
-					 //outColor = vec4(fract(uv.x), fract(uv.y), 0.0, 1.0);
-					 //return;
 					baseColor *= texture(baseColorTexture, uv);
 				}
 				outColor = baseColor;
 				return;
 			}
-			
+
+			// === Material Properties ===
 			// Base color
 			vec4 baseColor = material.baseColorFactor;
 			if (material.hasBaseColorTexture > 0.5) {
 				vec2 uv = transformUV(fragTexCoord, material.baseColorTransform);
-
-				    
-					//if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-					// UV가 0-1 범위를 벗어나면 빨간색으로 표시
-					//outColor = vec4(1.0, 0.0, 0.0, 1.0);
-					//return;
-					//}	
-
 				baseColor *= texture(baseColorTexture, uv);
 			}
-			
+
+			// Alpha test
+			if (baseColor.a < 0.1) {
+				discard;
+			}
+
 			// Normal
-			vec3 normal = normalize(fragNormal);
+			vec3 N = normalize(fragNormal);
 			if (material.hasNormalTexture > 0.5 && length(fragTangent.xyz) > 0.01) {
-				vec3 tangent = normalize(fragTangent.xyz);
-				vec3 bitangent = cross(normal, tangent) * fragTangent.w;
-				mat3 TBN = mat3(tangent, bitangent, normal);
+				vec3 T = normalize(fragTangent.xyz);
+				vec3 B = cross(N, T) * fragTangent.w;
+				mat3 TBN = mat3(T, B, N);
 				
 				vec2 uv = transformUV(fragTexCoord, material.normalTransform);
 				vec3 normalMap = texture(normalTexture, uv).xyz * 2.0 - 1.0;
 				normalMap.xy *= material.normalScale;
-				normal = normalize(TBN * normalMap);
+				N = normalize(TBN * normalMap);
 			}
-			
+
 			// Metallic and roughness
 			float metallic = material.metallicFactor;
 			float roughness = material.roughnessFactor;
@@ -794,7 +869,8 @@ void OgModelSample::createShaders()
 				metallic *= metallicRoughness.b;
 				roughness *= metallicRoughness.g;
 			}
-			
+			roughness = clamp(roughness, 0.04, 1.0); // Avoid completely smooth surfaces
+
 			// Occlusion
 			float occlusion = 1.0;
 			if (material.hasOcclusionTexture > 0.5) {
@@ -802,7 +878,7 @@ void OgModelSample::createShaders()
 				occlusion = texture(occlusionTexture, uv).r;
 				occlusion = mix(1.0, occlusion, material.occlusionStrength);
 			}
-			
+
 			// Sheen
 			vec3 sheenColor = material.sheenColorFactor;
 			float sheenRoughness = material.sheenRoughnessFactor;
@@ -814,42 +890,95 @@ void OgModelSample::createShaders()
 				vec2 uv = transformUV(fragTexCoord, material.sheenRoughnessTransform);
 				sheenRoughness *= texture(sheenRoughnessTexture, uv).a;
 			}
-			
-			// 간단한 PBR 라이팅
-			vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0) - fragPosition);
-			vec3 viewDir = normalize(vec3(50.0, 50.0, 50.0) - fragPosition);
-			vec3 halfwayDir = normalize(lightDir + viewDir);
-			
-			// Diffuse
-			float NdotL = max(dot(normal, lightDir), 0.0);
-			vec3 diffuse = baseColor.rgb * NdotL;
-			
-			// Specular
-			float NdotH = max(dot(normal, halfwayDir), 0.0);
-			float NdotV = max(dot(normal, viewDir), 0.0);
-			float specularStrength = pow(NdotH, mix(4.0, 64.0, 1.0 - roughness));
-			vec3 specular = vec3(specularStrength) * mix(vec3(0.04), baseColor.rgb, metallic);
-			
-			// Sheen contribution (simplified)
-			if (length(sheenColor) > 0.01) {
-				float sheenDistribution = pow(1.0 - NdotV, 2.0);
-				vec3 sheenSpec = sheenColor * sheenDistribution * (1.0 - sheenRoughness);
-				specular += sheenSpec;
+
+			// === Lighting Setup ===
+			// Simple directional light setup (can be expanded to multiple lights)
+			vec3 lightPositions[4] = vec3[](
+				vec3(10.0, 10.0, 10.0),
+				vec3(-10.0, 10.0, 10.0),
+				vec3(10.0, -10.0, 10.0),
+				vec3(0.0, 0.0, 10.0)
+			);
+			vec3 lightColors[4] = vec3[](
+				vec3(300.0, 300.0, 300.0), // Main light
+				vec3(100.0, 100.0, 150.0), // Fill light
+				vec3(150.0, 100.0, 100.0), // Back light
+				vec3(50.0, 50.0, 50.0)     // Ambient
+			);
+
+			vec3 V = normalize(vec3(0.0, 0.0, 10.0) - fragPosition); // View direction
+
+			// === PBR Calculation ===
+			vec3 F0 = vec3(0.04); // Dielectric base reflectance
+			F0 = mix(F0, baseColor.rgb, metallic);
+
+			vec3 Lo = vec3(0.0); // Outgoing radiance
+
+			// Calculate radiance for each light
+			for (int i = 0; i < 4; ++i) {
+				vec3 L = normalize(lightPositions[i] - fragPosition);
+				vec3 H = normalize(V + L);
+				float distance = length(lightPositions[i] - fragPosition);
+				float attenuation = 1.0 / (distance * distance);
+				vec3 radiance = lightColors[i] * attenuation;
+
+				// Cook-Torrance BRDF
+				float NDF = distributionGGX(N, H, roughness);
+				float G = geometrySmith(N, V, L, roughness);
+				vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+				vec3 numerator = NDF * G * F;
+				float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0);
+				vec3 specular = numerator / max(denominator, EPSILON);
+
+				// Energy conservation
+				vec3 kS = F; // Specular contribution
+				vec3 kD = vec3(1.0) - kS; // Diffuse contribution
+				kD *= 1.0 - metallic; // Metallic surfaces don't have diffuse
+
+				float NdotL = max(dot(N, L), 0.0);
+				float NdotV = max(dot(N, V), 0.0);
+				float NdotH = max(dot(N, H), 0.0);
+
+				// Add sheen contribution
+				vec3 sheenContribution = vec3(0.0);
+				if (length(sheenColor) > 0.001) {
+					sheenContribution = sheenBRDF(sheenColor, sheenRoughness, NdotL, NdotV, NdotH);
+				}
+
+				// Combine diffuse, specular, and sheen
+				Lo += (kD * baseColor.rgb / PI + specular + sheenContribution) * radiance * NdotL;
 			}
+
+			// Ambient lighting (very simple IBL approximation)
+			vec3 F = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
+			vec3 kS = F;
+			vec3 kD = 1.0 - kS;
+			kD *= 1.0 - metallic;
 			
-			// Ambient
-			vec3 ambient = baseColor.rgb * 0.03 * occlusion;
+			vec3 irradiance = vec3(0.03); // Very simple ambient
+			vec3 diffuse = irradiance * baseColor.rgb;
 			
+			// Simple specular ambient
+			vec3 prefilteredColor = vec3(0.05);
+			vec3 specular = prefilteredColor * F;
+			
+			vec3 ambient = (kD * diffuse + specular) * occlusion;
+
 			// Emissive
 			vec3 emissive = material.emissiveFactor * material.emissiveStrength;
 			if (material.hasEmissiveTexture > 0.5) {
 				vec2 uv = transformUV(fragTexCoord, material.emissiveTransform);
 				emissive *= texture(emissiveTexture, uv).rgb;
 			}
-			
+
 			// Final color
-			vec3 color = ambient + (diffuse + specular) * occlusion + emissive;
-			
+			vec3 color = ambient + Lo + emissive;
+
+			// Tone mapping and gamma correction
+			//color = ACESFilm(color);
+			//color = pow(color, vec3(1.0/2.2)); // Gamma correction
+
 			outColor = vec4(color, baseColor.a);
 		}
 	)";
@@ -1859,14 +1988,38 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 			_materialUniformData.hasSheenRoughnessTexture = material.sheenRoughnessTexture ? 1.0f : 0.0f;
 			_materialUniformData.unlit = material.unlit ? 1.0f : 0.0f;
 			
-			// Texture transforms
-			_materialUniformData.baseColorTransform = glm::mat4(material.baseColorTransform.GetTransformMatrix());
-			_materialUniformData.normalTransform = glm::mat4(material.normalTransform.GetTransformMatrix());
-			_materialUniformData.metallicRoughnessTransform = glm::mat4(material.metallicRoughnessTransform.GetTransformMatrix());
-			_materialUniformData.emissiveTransform = glm::mat4(material.emissiveTransform.GetTransformMatrix());
-			_materialUniformData.occlusionTransform = glm::mat4(material.occlusionTransform.GetTransformMatrix());
-			_materialUniformData.sheenColorTransform = glm::mat4(material.sheenColorTransform.GetTransformMatrix());
-			_materialUniformData.sheenRoughnessTransform = glm::mat4(material.sheenRoughnessTransform.GetTransformMatrix());
+			// Texture transforms - 3x3 행렬을 4x4로 올바르게 변환
+			auto convertMat3ToMat4 = [](const glm::mat3& mat3) -> glm::mat4 {
+				glm::mat4 mat4(1.0f);
+				// 3x3 행렬을 4x4의 왼쪽 상단 3x3 영역에 복사
+				mat4[0][0] = mat3[0][0]; mat4[0][1] = mat3[0][1]; mat4[0][2] = mat3[0][2];
+				mat4[1][0] = mat3[1][0]; mat4[1][1] = mat3[1][1]; mat4[1][2] = mat3[1][2];
+				mat4[2][0] = mat3[2][0]; mat4[2][1] = mat3[2][1]; mat4[2][2] = mat3[2][2];
+				// 나머지는 단위 행렬로 설정
+				mat4[3][3] = 1.0f;
+				return mat4;
+			};
+			
+			_materialUniformData.baseColorTransform = convertMat3ToMat4(material.baseColorTransform.GetTransformMatrix());
+			_materialUniformData.normalTransform = convertMat3ToMat4(material.normalTransform.GetTransformMatrix());
+			_materialUniformData.metallicRoughnessTransform = convertMat3ToMat4(material.metallicRoughnessTransform.GetTransformMatrix());
+			_materialUniformData.emissiveTransform = convertMat3ToMat4(material.emissiveTransform.GetTransformMatrix());
+			_materialUniformData.occlusionTransform = convertMat3ToMat4(material.occlusionTransform.GetTransformMatrix());
+			_materialUniformData.sheenColorTransform = convertMat3ToMat4(material.sheenColorTransform.GetTransformMatrix());
+			_materialUniformData.sheenRoughnessTransform = convertMat3ToMat4(material.sheenRoughnessTransform.GetTransformMatrix());
+			
+			// 디버깅: Sheen 텍스처 변환 행렬 로그
+			if (material.sheenColorTexture) {
+				glm::mat3 sheenTransform = material.sheenColorTransform.GetTransformMatrix();
+				LOGD(OG_ID, "Sheen Color Transform Matrix:");
+				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[0][0], sheenTransform[0][1], sheenTransform[0][2]);
+				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[1][0], sheenTransform[1][1], sheenTransform[1][2]);
+				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[2][0], sheenTransform[2][1], sheenTransform[2][2]);
+				LOGD(OG_ID, "Scale: (%.2f, %.2f), Offset: (%.2f, %.2f), Rotation: %.2f", 
+					 material.sheenColorTransform.scale.x, material.sheenColorTransform.scale.y,
+					 material.sheenColorTransform.offset.x, material.sheenColorTransform.offset.y,
+					 material.sheenColorTransform.rotation);
+			}
 			
 			void* materialMapped = _renderContext->MapBuffer(_materialUniformBuffer, sizeof(MaterialUniformData));
 			if (materialMapped) 

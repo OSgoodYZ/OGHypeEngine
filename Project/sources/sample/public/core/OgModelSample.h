@@ -96,27 +96,31 @@ private:
 		glm::vec2 scale = glm::vec2(1.0f);
 		
 		// glTF 2.0 스펙에 맞는 변환 행렬 생성
-		// glTF 스펙: UV' = UV * Scale * Rotation + Offset
+		// glTF 스펙: UV' = ((UV * scale) rotated by rotation) + offset
 		glm::mat3 GetTransformMatrix() const
 		{
+			// glTF 스펙에 따른 올바른 변환 행렬 계산
+			// 순서: Scale -> Rotation -> Translation
+			
 			// Scale matrix
-			glm::mat3 S(1.0f);
+			glm::mat3 S = glm::mat3(1.0f);
 			S[0][0] = scale.x;
 			S[1][1] = scale.y;
 			
-			// Rotation matrix
+			// Rotation matrix (Z축 기준 회전)
 			float c = cos(rotation);
 			float s = sin(rotation);
-			glm::mat3 R(1.0f);
+			glm::mat3 R = glm::mat3(1.0f);
 			R[0][0] = c;  R[0][1] = s;
 			R[1][0] = -s; R[1][1] = c;
 			
 			// Translation matrix
-			glm::mat3 T(1.0f);
+			glm::mat3 T = glm::mat3(1.0f);
 			T[2][0] = offset.x;
 			T[2][1] = offset.y;
 			
-			// glTF 스펙: T * R * S 순서
+			// glTF 스펙: Translation * Rotation * Scale
+			// 수학적 순서: 마지막에 적용되는 변환이 왼쪽에 위치
 			return T * R * S;
 		}
 	};
