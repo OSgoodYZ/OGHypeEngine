@@ -903,7 +903,7 @@ void OgModelSample::createPipeline()
 
 	OgRasterizationDescriptor rsDesc{};
 	rsDesc.polygonMode = OgPolygonMode::FILL;
-	rsDesc.cullMode = OgCullMode::NONE;  // 모든 면을 렌더링 (double-sided 지원)
+	rsDesc.cullMode = OgCullMode::BACK;  // 모든 면을 렌더링 (double-sided 지원)
 	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;
 	rsDesc.scissorTest = false;
 	rsDesc.primitiveType = OgPrimitiveType::TRIANGLE_LIST;
@@ -1415,62 +1415,146 @@ void OgModelSample::loadMaterials(const tinygltf::Model& model)
 			}
 		}
 		
-		// Sheen extension
+		// Sheen extension - 완전히 재작성
 		if (gltfMaterial.extensions.find("KHR_materials_sheen") != gltfMaterial.extensions.end()) {
 			const auto& ext = gltfMaterial.extensions.at("KHR_materials_sheen");
 			
+			// Sheen color factor
 			if (ext.Has("sheenColorFactor") && ext.Get("sheenColorFactor").IsArray()) {
 				const auto& colorArray = ext.Get("sheenColorFactor");
-				material.sheenColorFactor = glm::vec3(
-					static_cast<float>(colorArray.Get(0).GetNumberAsDouble()),
-					static_cast<float>(colorArray.Get(1).GetNumberAsDouble()),
-					static_cast<float>(colorArray.Get(2).GetNumberAsDouble())
-				);
+				if (colorArray.ArrayLen() >= 3) {
+					material.sheenColorFactor = glm::vec3(
+						static_cast<float>(colorArray.Get(0).GetNumberAsDouble()),
+						static_cast<float>(colorArray.Get(1).GetNumberAsDouble()),
+						static_cast<float>(colorArray.Get(2).GetNumberAsDouble())
+					);
+					LOGD(OG_ID, "Sheen color factor: (%.2f, %.2f, %.2f)", 
+						 material.sheenColorFactor.x, material.sheenColorFactor.y, material.sheenColorFactor.z);
+				}
 			}
 			
-			if (ext.Has("sheenRoughnessFactor")) {
+			// Sheen roughness factor
+			if (ext.Has("sheenRoughnessFactor") && ext.Get("sheenRoughnessFactor").IsNumber()) {
 				material.sheenRoughnessFactor = static_cast<float>(ext.Get("sheenRoughnessFactor").GetNumberAsDouble());
+				LOGD(OG_ID, "Sheen roughness factor: %.2f", material.sheenRoughnessFactor);
 			}
 			
+			// Sheen color texture
 			if (ext.Has("sheenColorTexture") && ext.Get("sheenColorTexture").IsObject()) {
 				const auto& texInfo = ext.Get("sheenColorTexture");
-				if (texInfo.Has("index")) {
+				
+				// 텍스처 인덱스
+				if (texInfo.Has("index") && texInfo.Get("index").IsNumber()) {
 					int index = static_cast<int>(texInfo.Get("index").GetNumberAsInt());
 					material.sheenColorTexture = loadTexture(model, index);
-					if (texInfo.Has("extensions")) {
-						material.sheenColorTransform = loadTextureTransform(texInfo.Get("extensions"));
+					LOGD(OG_ID, "Loaded sheen color texture with index: %d", index);
+				}
+				
+				// KHR_texture_transform 확장 처리
+				if (texInfo.Has("extensions") && texInfo.Get("extensions").IsObject()) {
+					const auto& texExtensions = texInfo.Get("extensions");
+					if (texExtensions.Has("KHR_texture_transform") && texExtensions.Get("KHR_texture_transform").IsObject()) {
+						const auto& transform = texExtensions.Get("KHR_texture_transform");
+						
+						// Scale 파싱
+						if (transform.Has("scale") && transform.Get("scale").IsArray()) {
+							const auto& scaleArray = transform.Get("scale");
+							if (scaleArray.ArrayLen() >= 2) {
+								material.sheenColorTransform.scale.x = static_cast<float>(scaleArray.Get(0).GetNumberAsDouble());
+								material.sheenColorTransform.scale.y = static_cast<float>(scaleArray.Get(1).GetNumberAsDouble());
+								LOGD(OG_ID, "Sheen color texture scale: (%.2f, %.2f)", 
+									 material.sheenColorTransform.scale.x, material.sheenColorTransform.scale.y);
+							}
+						}
+						
+						// Offset 파싱
+						if (transform.Has("offset") && transform.Get("offset").IsArray()) {
+							const auto& offsetArray = transform.Get("offset");
+							if (offsetArray.ArrayLen() >= 2) {
+								material.sheenColorTransform.offset.x = static_cast<float>(offsetArray.Get(0).GetNumberAsDouble());
+								material.sheenColorTransform.offset.y = static_cast<float>(offsetArray.Get(1).GetNumberAsDouble());
+								LOGD(OG_ID, "Sheen color texture offset: (%.2f, %.2f)", 
+									 material.sheenColorTransform.offset.x, material.sheenColorTransform.offset.y);
+							}
+						}
+						
+						// Rotation 파싱
+						if (transform.Has("rotation") && transform.Get("rotation").IsNumber()) {
+							material.sheenColorTransform.rotation = static_cast<float>(transform.Get("rotation").GetNumberAsDouble());
+							LOGD(OG_ID, "Sheen color texture rotation: %.2f", material.sheenColorTransform.rotation);
+						}
 					}
 				}
 			}
 			
+			// Sheen roughness texture - 동일한 방식으로 처리
 			if (ext.Has("sheenRoughnessTexture") && ext.Get("sheenRoughnessTexture").IsObject()) {
 				const auto& texInfo = ext.Get("sheenRoughnessTexture");
-				if (texInfo.Has("index")) {
+				
+				// 텍스처 인덱스
+				if (texInfo.Has("index") && texInfo.Get("index").IsNumber()) {
 					int index = static_cast<int>(texInfo.Get("index").GetNumberAsInt());
 					material.sheenRoughnessTexture = loadTexture(model, index);
-					if (texInfo.Has("extensions")) {
-						material.sheenRoughnessTransform = loadTextureTransform(texInfo.Get("extensions"));
+					LOGD(OG_ID, "Loaded sheen roughness texture with index: %d", index);
+				}
+				
+				// KHR_texture_transform 확장 처리
+				if (texInfo.Has("extensions") && texInfo.Get("extensions").IsObject()) {
+					const auto& texExtensions = texInfo.Get("extensions");
+					if (texExtensions.Has("KHR_texture_transform") && texExtensions.Get("KHR_texture_transform").IsObject()) {
+						const auto& transform = texExtensions.Get("KHR_texture_transform");
+						
+						// Scale 파싱
+						if (transform.Has("scale") && transform.Get("scale").IsArray()) {
+							const auto& scaleArray = transform.Get("scale");
+							if (scaleArray.ArrayLen() >= 2) {
+								material.sheenRoughnessTransform.scale.x = static_cast<float>(scaleArray.Get(0).GetNumberAsDouble());
+								material.sheenRoughnessTransform.scale.y = static_cast<float>(scaleArray.Get(1).GetNumberAsDouble());
+								LOGD(OG_ID, "Sheen roughness texture scale: (%.2f, %.2f)", 
+									 material.sheenRoughnessTransform.scale.x, material.sheenRoughnessTransform.scale.y);
+							}
+						}
+						
+						// Offset과 Rotation도 동일하게 처리
+						if (transform.Has("offset") && transform.Get("offset").IsArray()) {
+							const auto& offsetArray = transform.Get("offset");
+							if (offsetArray.ArrayLen() >= 2) {
+								material.sheenRoughnessTransform.offset.x = static_cast<float>(offsetArray.Get(0).GetNumberAsDouble());
+								material.sheenRoughnessTransform.offset.y = static_cast<float>(offsetArray.Get(1).GetNumberAsDouble());
+							}
+						}
+						
+						if (transform.Has("rotation") && transform.Get("rotation").IsNumber()) {
+							material.sheenRoughnessTransform.rotation = static_cast<float>(transform.Get("rotation").GetNumberAsDouble());
+						}
 					}
 				}
 			}
 		}
 		
-		// PBR textures from pbrMetallicRoughness
+		// PBR textures - 기존 방식을 더 간소화
 		if (gltfMaterial.pbrMetallicRoughness.baseColorTexture.index >= 0) {
 			const auto& texInfo = gltfMaterial.pbrMetallicRoughness.baseColorTexture;
 			material.baseColorTexture = loadTexture(model, texInfo.index);
-			// KHR_texture_transform from extensions
-			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
-				material.baseColorTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			
+			// KHR_texture_transform 처리 - 기존 tinygltf 방식 활용
+			auto extIt = texInfo.extensions.find("KHR_texture_transform");
+			if (extIt != texInfo.extensions.end()) {
+				material.baseColorTransform = loadTextureTransform(extIt->second);
+				LOGD(OG_ID, "Base color texture transform - scale: (%.2f, %.2f)", 
+					 material.baseColorTransform.scale.x, material.baseColorTransform.scale.y);
 			}
 		}
 		
+		// 다른 텍스처들도 동일한 패턴으로 처리
 		if (gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
 			const auto& texInfo = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture;
 			material.metallicRoughnessTexture = loadTexture(model, texInfo.index);
-			// KHR_texture_transform from extensions
-			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
-				material.metallicRoughnessTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			auto extIt = texInfo.extensions.find("KHR_texture_transform");
+			if (extIt != texInfo.extensions.end()) {
+				material.metallicRoughnessTransform = loadTextureTransform(extIt->second);
+				LOGD(OG_ID, "Metallic roughness texture transform - scale: (%.2f, %.2f)", 
+					 material.metallicRoughnessTransform.scale.x, material.metallicRoughnessTransform.scale.y);
 			}
 		}
 		
@@ -1479,9 +1563,11 @@ void OgModelSample::loadMaterials(const tinygltf::Model& model)
 			const auto& texInfo = gltfMaterial.normalTexture;
 			material.normalTexture = loadTexture(model, texInfo.index);
 			material.normalScale = static_cast<float>(texInfo.scale);
-			// KHR_texture_transform from extensions
-			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
-				material.normalTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			auto extIt = texInfo.extensions.find("KHR_texture_transform");
+			if (extIt != texInfo.extensions.end()) {
+				material.normalTransform = loadTextureTransform(extIt->second);
+				LOGD(OG_ID, "Normal texture transform - scale: (%.2f, %.2f)", 
+					 material.normalTransform.scale.x, material.normalTransform.scale.y);
 			}
 		}
 		
@@ -1489,9 +1575,11 @@ void OgModelSample::loadMaterials(const tinygltf::Model& model)
 		if (gltfMaterial.emissiveTexture.index >= 0) {
 			const auto& texInfo = gltfMaterial.emissiveTexture;
 			material.emissiveTexture = loadTexture(model, texInfo.index);
-			// KHR_texture_transform from extensions
-			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
-				material.emissiveTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			auto extIt = texInfo.extensions.find("KHR_texture_transform");
+			if (extIt != texInfo.extensions.end()) {
+				material.emissiveTransform = loadTextureTransform(extIt->second);
+				LOGD(OG_ID, "Emissive texture transform - scale: (%.2f, %.2f)", 
+					 material.emissiveTransform.scale.x, material.emissiveTransform.scale.y);
 			}
 		}
 		
@@ -1500,9 +1588,11 @@ void OgModelSample::loadMaterials(const tinygltf::Model& model)
 			const auto& texInfo = gltfMaterial.occlusionTexture;
 			material.occlusionTexture = loadTexture(model, texInfo.index);
 			material.occlusionStrength = static_cast<float>(texInfo.strength);
-			// KHR_texture_transform from extensions
-			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
-				material.occlusionTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			auto extIt = texInfo.extensions.find("KHR_texture_transform");
+			if (extIt != texInfo.extensions.end()) {
+				material.occlusionTransform = loadTextureTransform(extIt->second);
+				LOGD(OG_ID, "Occlusion texture transform - scale: (%.2f, %.2f)", 
+					 material.occlusionTransform.scale.x, material.occlusionTransform.scale.y);
 			}
 		}
 		
@@ -1602,18 +1692,41 @@ Render::OgTextureHandle* OgModelSample::loadTexture(const tinygltf::Model& model
 	return textureHandle;
 }
 
-OgModelSample::TextureTransform OgModelSample::loadTextureTransform(const tinygltf::Value& extension)
+OgModelSample::TextureTransform OgModelSample::loadTextureTransform(const tinygltf::Value& extensionsValue)
 {
 	TextureTransform transform;
 	
-	// extension은 이미 KHR_texture_transform 객체입니다
-	if (!extension.IsObject()) {
+	if (!extensionsValue.IsObject()) {
+		LOGD(OG_ID, "Extensions value is not an object");
+		return transform;
+	}
+	
+	// KHR_texture_transform 확장 찾기
+	const tinygltf::Value* transformExt = nullptr;
+	
+	// 직접 KHR_texture_transform 객체인 경우 (기존 호출 방식)
+	if (extensionsValue.Has("offset") || extensionsValue.Has("rotation") || extensionsValue.Has("scale")) {
+		transformExt = &extensionsValue;
+		LOGD(OG_ID, "Direct KHR_texture_transform object detected");
+	}
+	// extensions 객체에서 KHR_texture_transform을 찾는 경우 (새로운 방식)
+	else if (extensionsValue.Has("KHR_texture_transform")) {
+		transformExt = &extensionsValue.Get("KHR_texture_transform");
+		LOGD(OG_ID, "Found KHR_texture_transform in extensions object");
+	}
+	else {
+		LOGD(OG_ID, "KHR_texture_transform extension not found");
+		return transform;
+	}
+	
+	if (!transformExt->IsObject()) {
+		LOGD(OG_ID, "KHR_texture_transform is not an object");
 		return transform;
 	}
 	
 	// offset 파싱
-	if (extension.Has("offset") && extension.Get("offset").IsArray()) {
-		const auto& offsetArray = extension.Get("offset");
+	if (transformExt->Has("offset") && transformExt->Get("offset").IsArray()) {
+		const auto& offsetArray = transformExt->Get("offset");
 		if (offsetArray.ArrayLen() >= 2) {
 			transform.offset.x = static_cast<float>(offsetArray.Get(0).GetNumberAsDouble());
 			transform.offset.y = static_cast<float>(offsetArray.Get(1).GetNumberAsDouble());
@@ -1622,14 +1735,14 @@ OgModelSample::TextureTransform OgModelSample::loadTextureTransform(const tinygl
 	}
 	
 	// rotation 파싱
-	if (extension.Has("rotation") && extension.Get("rotation").IsNumber()) {
-		transform.rotation = static_cast<float>(extension.Get("rotation").GetNumberAsDouble());
+	if (transformExt->Has("rotation") && transformExt->Get("rotation").IsNumber()) {
+		transform.rotation = static_cast<float>(transformExt->Get("rotation").GetNumberAsDouble());
 		LOGD(OG_ID, "Texture transform rotation: %.2f", transform.rotation);
 	}
 	
 	// scale 파싱
-	if (extension.Has("scale") && extension.Get("scale").IsArray()) {
-		const auto& scaleArray = extension.Get("scale");
+	if (transformExt->Has("scale") && transformExt->Get("scale").IsArray()) {
+		const auto& scaleArray = transformExt->Get("scale");
 		if (scaleArray.ArrayLen() >= 2) {
 			transform.scale.x = static_cast<float>(scaleArray.Get(0).GetNumberAsDouble());
 			transform.scale.y = static_cast<float>(scaleArray.Get(1).GetNumberAsDouble());
