@@ -976,8 +976,8 @@ void OgModelSample::createShaders()
 			vec3 color = ambient + Lo + emissive;
 
 			// Tone mapping and gamma correction
-			//color = ACESFilm(color);
-			//color = pow(color, vec3(1.0/2.2)); // Gamma correction
+			color = ACESFilm(color);
+			color = pow(color, vec3(1.0/2.2)); // Gamma correction
 
 			outColor = vec4(color, baseColor.a);
 		}
@@ -1763,7 +1763,7 @@ Render::OgTextureHandle* OgModelSample::loadTexture(const tinygltf::Model& model
 		texInfo.byteSize = image.width * image.height * 3;
 	} else if (image.component == 4) 
 	{
-		texInfo.format = OgPixelFormat::R8G8B8A8_UNORM;
+		texInfo.format = OgPixelFormat::R8G8B8A8_SRGB;
 		texInfo.byteSize = image.width * image.height * 4;
 	} else {
 		LOGD(OG_ID, "Unsupported image component count: %d", image.component);
