@@ -6,14 +6,16 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <tinygltf/tiny_gltf.h>
+
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "sample/public/core/util/OgFlyCamera.h"
 
 // Forward declaration
 namespace tinygltf {
-    class Model;
-    class Node;
+	class Model;
+	class Node;
 }
 
 OG_NAMESPACE_SAMPLE_BEGIN
@@ -86,18 +88,76 @@ private:
 		std::string name;
 	};
 
+	// Texture Transform 정보
+	struct TextureTransform
+	{
+		glm::vec2 offset = glm::vec2(0.0f);
+		float rotation = 0.0f;
+		glm::vec2 scale = glm::vec2(1.0f);
+		
+		// glTF 2.0 스펙에 맞는 변환 행렬 생성
+		// glTF 스펙: UV' = UV * Scale * Rotation + Offset
+		glm::mat3 GetTransformMatrix() const
+		{
+			// Scale matrix
+			glm::mat3 S(1.0f);
+			S[0][0] = scale.x;
+			S[1][1] = scale.y;
+			
+			// Rotation matrix
+			float c = cos(rotation);
+			float s = sin(rotation);
+			glm::mat3 R(1.0f);
+			R[0][0] = c;  R[0][1] = s;
+			R[1][0] = -s; R[1][1] = c;
+			
+			// Translation matrix
+			glm::mat3 T(1.0f);
+			T[2][0] = offset.x;
+			T[2][1] = offset.y;
+			
+			// glTF 스펙: T * R * S 순서
+			return T * R * S;
+		}
+	};
+
 	// Material 정보
 	struct Material
 	{
+		// PBR 기본 속성
 		glm::vec4 baseColorFactor = glm::vec4(1.0f);
 		float metallicFactor = 1.0f;
 		float roughnessFactor = 1.0f;
 		glm::vec3 emissiveFactor = glm::vec3(0.0f);
+		float emissiveStrength = 1.0f; // KHR_materials_emissive_strength
 		
+		// 텍스처
 		Render::OgTextureHandle* baseColorTexture = nullptr;
 		Render::OgTextureHandle* normalTexture = nullptr;
 		Render::OgTextureHandle* metallicRoughnessTexture = nullptr;
 		Render::OgTextureHandle* emissiveTexture = nullptr;
+		Render::OgTextureHandle* occlusionTexture = nullptr;
+		
+		// Texture transforms (KHR_texture_transform)
+		TextureTransform baseColorTransform;
+		TextureTransform normalTransform;
+		TextureTransform metallicRoughnessTransform;
+		TextureTransform emissiveTransform;
+		TextureTransform occlusionTransform;
+		
+		// Sheen 속성 (KHR_materials_sheen)
+		glm::vec3 sheenColorFactor = glm::vec3(0.0f);
+		float sheenRoughnessFactor = 0.0f;
+		Render::OgTextureHandle* sheenColorTexture = nullptr;
+		Render::OgTextureHandle* sheenRoughnessTexture = nullptr;
+		TextureTransform sheenColorTransform;
+		TextureTransform sheenRoughnessTransform;
+		
+		// 추가 속성
+		bool doubleSided = false;
+		bool unlit = false; // KHR_materials_unlit
+		float normalScale = 1.0f;
+		float occlusionStrength = 1.0f;
 		
 		std::string name;
 	};
@@ -114,17 +174,39 @@ private:
 	// Material 유니폼 데이터
 	struct MaterialUniformData
 	{
-		glm::vec4 baseColorFactor;
-		float metallicFactor;
-		float roughnessFactor;
-		float padding1;
-		float padding2;
-		glm::vec3 emissiveFactor;
-		float hasBaseColorTexture;
-		float hasNormalTexture;
-		float hasMetallicRoughnessTexture;
-		float hasEmissiveTexture;
-		float padding3;
+		// 기본 PBR 속성 (16 bytes aligned)
+		glm::vec4 baseColorFactor;           // 16 bytes
+		float metallicFactor;                // 4 bytes
+		float roughnessFactor;               // 4 bytes
+		float normalScale;                   // 4 bytes
+		float occlusionStrength;             // 4 bytes
+		
+		glm::vec3 emissiveFactor;            // 12 bytes
+		float emissiveStrength;              // 4 bytes
+		
+		// Sheen 속성
+		glm::vec3 sheenColorFactor;          // 12 bytes
+		float sheenRoughnessFactor;          // 4 bytes
+		
+		// 텍스처 플래그
+		float hasBaseColorTexture;           // 4 bytes
+		float hasNormalTexture;              // 4 bytes
+		float hasMetallicRoughnessTexture;   // 4 bytes
+		float hasEmissiveTexture;            // 4 bytes
+		
+		float hasOcclusionTexture;           // 4 bytes
+		float hasSheenColorTexture;          // 4 bytes
+		float hasSheenRoughnessTexture;      // 4 bytes
+		float unlit;                         // 4 bytes
+		
+		// Texture transforms (3x3 matrices packed as 4x4 for alignment)
+		glm::mat4 baseColorTransform;        // 64 bytes
+		glm::mat4 normalTransform;           // 64 bytes
+		glm::mat4 metallicRoughnessTransform;// 64 bytes
+		glm::mat4 emissiveTransform;         // 64 bytes
+		glm::mat4 occlusionTransform;        // 64 bytes
+		glm::mat4 sheenColorTransform;       // 64 bytes
+		glm::mat4 sheenRoughnessTransform;   // 64 bytes
 	};
 
 private:
@@ -145,6 +227,7 @@ private:
 	void loadMesh(const tinygltf::Model& model, int meshIndex);
 	void loadMaterials(const tinygltf::Model& model);
 	Render::OgTextureHandle* loadTexture(const tinygltf::Model& model, int textureIndex);
+	TextureTransform loadTextureTransform(const tinygltf::Value& extension);
 	void clearModelData();
 	
 	// 렌더링

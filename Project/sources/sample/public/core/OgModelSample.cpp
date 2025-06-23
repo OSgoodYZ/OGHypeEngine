@@ -315,7 +315,7 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	_defaultNormalTexture->Retain();
 
 	// 리소스 레이아웃 생성
-	OgResourceBinding bindings[5];
+	OgResourceBinding bindings[9];
 	// 유니폼 버퍼
 	bindings[0].type = OgResourceType::UNIFORM_BUFFER;
 	bindings[0].stage = OgShaderType::VERTEX;
@@ -350,14 +350,42 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	bindings[4].binding = 4;
 	bindings[4].arrayCount = 0;
 	bindings[4].name = nullptr;
+	
+	// Emissive texture
+	bindings[5].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+	bindings[5].stage = OgShaderType::FRAGMENT;
+	bindings[5].binding = 5;
+	bindings[5].arrayCount = 0;
+	bindings[5].name = nullptr;
+	
+	// Occlusion texture
+	bindings[6].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+	bindings[6].stage = OgShaderType::FRAGMENT;
+	bindings[6].binding = 6;
+	bindings[6].arrayCount = 0;
+	bindings[6].name = nullptr;
+	
+	// Sheen color texture
+	bindings[7].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+	bindings[7].stage = OgShaderType::FRAGMENT;
+	bindings[7].binding = 7;
+	bindings[7].arrayCount = 0;
+	bindings[7].name = nullptr;
+	
+	// Sheen roughness texture
+	bindings[8].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+	bindings[8].stage = OgShaderType::FRAGMENT;
+	bindings[8].binding = 8;
+	bindings[8].arrayCount = 0;
+	bindings[8].name = nullptr;
 
-	_resourceLayout = _renderContext->CreateResourceLayout(bindings, 5);
+	_resourceLayout = _renderContext->CreateResourceLayout(bindings, 9);
 	_resourceLayout->name = "ModelSampleResourceLayout";
 	_resourceLayout->Retain();
 
 	// 리소스 셋 생성
 	uint32 zeroOffset = 0;
-	OgResourceUsage usages[5];
+	OgResourceUsage usages[9];
 	
 	usages[0].binding = bindings[0];
 	usages[0].buffer.handle = &_uniformBuffer;
@@ -377,8 +405,20 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	
 	usages[4].binding = bindings[4];
 	usages[4].texture.handle = &_defaultWhiteTexture;
+	
+	usages[5].binding = bindings[5];
+	usages[5].texture.handle = &_defaultWhiteTexture;  // emissive
+	
+	usages[6].binding = bindings[6];
+	usages[6].texture.handle = &_defaultWhiteTexture;  // occlusion
+	
+	usages[7].binding = bindings[7];
+	usages[7].texture.handle = &_defaultWhiteTexture;  // sheen color
+	
+	usages[8].binding = bindings[8];
+	usages[8].texture.handle = &_defaultWhiteTexture;  // sheen roughness
 
-	_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 5);
+	_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 9);
 	_resourceSet->name = "ModelSampleResourceSet";
 	_resourceSet->Retain();
 
@@ -567,14 +607,22 @@ void OgModelSample::createUniformBuffer()
 	_uniformBuffer->Retain();
 	
 	// Material 유니폼 버퍼 생성
+	_materialUniformData = MaterialUniformData{};
 	_materialUniformData.baseColorFactor = glm::vec4(1.0f);
 	_materialUniformData.metallicFactor = 0.0f;
 	_materialUniformData.roughnessFactor = 0.5f;
 	_materialUniformData.emissiveFactor = glm::vec3(0.0f);
-	_materialUniformData.hasBaseColorTexture = 0.0f;
-	_materialUniformData.hasNormalTexture = 0.0f;
-	_materialUniformData.hasMetallicRoughnessTexture = 0.0f;
-	_materialUniformData.hasEmissiveTexture = 0.0f;
+	_materialUniformData.emissiveStrength = 1.0f;
+	_materialUniformData.normalScale = 1.0f;
+	_materialUniformData.occlusionStrength = 1.0f;
+	// 모든 transform을 identity matrix로 초기화
+	_materialUniformData.baseColorTransform = glm::mat4(1.0f);
+	_materialUniformData.normalTransform = glm::mat4(1.0f);
+	_materialUniformData.metallicRoughnessTransform = glm::mat4(1.0f);
+	_materialUniformData.emissiveTransform = glm::mat4(1.0f);
+	_materialUniformData.occlusionTransform = glm::mat4(1.0f);
+	_materialUniformData.sheenColorTransform = glm::mat4(1.0f);
+	_materialUniformData.sheenRoughnessTransform = glm::mat4(1.0f);
 	
 	_materialUniformBuffer = _renderContext->CreateBuffer(
 		&_materialUniformData,
@@ -647,25 +695,81 @@ void OgModelSample::createShaders()
 			vec4 baseColorFactor;
 			float metallicFactor;
 			float roughnessFactor;
-			float padding1;
-			float padding2;
+			float normalScale;
+			float occlusionStrength;
+			
 			vec3 emissiveFactor;
+			float emissiveStrength;
+			
+			vec3 sheenColorFactor;
+			float sheenRoughnessFactor;
+			
 			float hasBaseColorTexture;
 			float hasNormalTexture;
 			float hasMetallicRoughnessTexture;
 			float hasEmissiveTexture;
-			float padding3;
+			
+			float hasOcclusionTexture;
+			float hasSheenColorTexture;
+			float hasSheenRoughnessTexture;
+			float unlit;
+			
+			mat4 baseColorTransform;
+			mat4 normalTransform;
+			mat4 metallicRoughnessTransform;
+			mat4 emissiveTransform;
+			mat4 occlusionTransform;
+			mat4 sheenColorTransform;
+			mat4 sheenRoughnessTransform;
 		} material;
 		
 		layout(binding = 2) uniform sampler2D baseColorTexture;
 		layout(binding = 3) uniform sampler2D normalTexture;
 		layout(binding = 4) uniform sampler2D metallicRoughnessTexture;
+		layout(binding = 5) uniform sampler2D emissiveTexture;
+		layout(binding = 6) uniform sampler2D occlusionTexture;
+		layout(binding = 7) uniform sampler2D sheenColorTexture;
+		layout(binding = 8) uniform sampler2D sheenRoughnessTexture;
+
+		vec2 transformUV(vec2 uv, mat4 transform) {
+			// 3x3 transform을 2D UV에 적용
+			vec3 transformedUV = mat3(transform) * vec3(uv, 1.0);
+			return transformedUV.xy;
+		}
 
 		void main() {
+			// 디버깅용: UV 좌표를 직접 시각화
+			 //outColor = vec4(fragTexCoord.x, fragTexCoord.y, 0.0, 1.0);
+			// return;
+			
+			// Unlit material
+			if (material.unlit > 0.5) {
+				vec4 baseColor = material.baseColorFactor;
+				if (material.hasBaseColorTexture > 0.5) {
+					vec2 uv = transformUV(fragTexCoord, material.baseColorTransform);
+
+					// 디버깅용: 변환된 UV 좌표 시각화
+					 //outColor = vec4(fract(uv.x), fract(uv.y), 0.0, 1.0);
+					 //return;
+					baseColor *= texture(baseColorTexture, uv);
+				}
+				outColor = baseColor;
+				return;
+			}
+			
 			// Base color
 			vec4 baseColor = material.baseColorFactor;
 			if (material.hasBaseColorTexture > 0.5) {
-				baseColor *= texture(baseColorTexture, fragTexCoord);
+				vec2 uv = transformUV(fragTexCoord, material.baseColorTransform);
+
+				    
+					//if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+					// UV가 0-1 범위를 벗어나면 빨간색으로 표시
+					//outColor = vec4(1.0, 0.0, 0.0, 1.0);
+					//return;
+					//}	
+
+				baseColor *= texture(baseColorTexture, uv);
 			}
 			
 			// Normal
@@ -675,7 +779,9 @@ void OgModelSample::createShaders()
 				vec3 bitangent = cross(normal, tangent) * fragTangent.w;
 				mat3 TBN = mat3(tangent, bitangent, normal);
 				
-				vec3 normalMap = texture(normalTexture, fragTexCoord).xyz * 2.0 - 1.0;
+				vec2 uv = transformUV(fragTexCoord, material.normalTransform);
+				vec3 normalMap = texture(normalTexture, uv).xyz * 2.0 - 1.0;
+				normalMap.xy *= material.normalScale;
 				normal = normalize(TBN * normalMap);
 			}
 			
@@ -683,14 +789,35 @@ void OgModelSample::createShaders()
 			float metallic = material.metallicFactor;
 			float roughness = material.roughnessFactor;
 			if (material.hasMetallicRoughnessTexture > 0.5) {
-				vec3 metallicRoughness = texture(metallicRoughnessTexture, fragTexCoord).rgb;
+				vec2 uv = transformUV(fragTexCoord, material.metallicRoughnessTransform);
+				vec3 metallicRoughness = texture(metallicRoughnessTexture, uv).rgb;
 				metallic *= metallicRoughness.b;
 				roughness *= metallicRoughness.g;
 			}
 			
-			// 간단한 PBR 라이팅 (완전한 구현은 아님)
+			// Occlusion
+			float occlusion = 1.0;
+			if (material.hasOcclusionTexture > 0.5) {
+				vec2 uv = transformUV(fragTexCoord, material.occlusionTransform);
+				occlusion = texture(occlusionTexture, uv).r;
+				occlusion = mix(1.0, occlusion, material.occlusionStrength);
+			}
+			
+			// Sheen
+			vec3 sheenColor = material.sheenColorFactor;
+			float sheenRoughness = material.sheenRoughnessFactor;
+			if (material.hasSheenColorTexture > 0.5) {
+				vec2 uv = transformUV(fragTexCoord, material.sheenColorTransform);
+				sheenColor *= texture(sheenColorTexture, uv).rgb;
+			}
+			if (material.hasSheenRoughnessTexture > 0.5) {
+				vec2 uv = transformUV(fragTexCoord, material.sheenRoughnessTransform);
+				sheenRoughness *= texture(sheenRoughnessTexture, uv).a;
+			}
+			
+			// 간단한 PBR 라이팅
 			vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0) - fragPosition);
-			vec3 viewDir = normalize(vec3(50.0, 50.0, 50.0) - fragPosition);  // 10배 스케일에 맞춰 카메라 위치 조정
+			vec3 viewDir = normalize(vec3(50.0, 50.0, 50.0) - fragPosition);
 			vec3 halfwayDir = normalize(lightDir + viewDir);
 			
 			// Diffuse
@@ -699,17 +826,29 @@ void OgModelSample::createShaders()
 			
 			// Specular
 			float NdotH = max(dot(normal, halfwayDir), 0.0);
+			float NdotV = max(dot(normal, viewDir), 0.0);
 			float specularStrength = pow(NdotH, mix(4.0, 64.0, 1.0 - roughness));
 			vec3 specular = vec3(specularStrength) * mix(vec3(0.04), baseColor.rgb, metallic);
 			
+			// Sheen contribution (simplified)
+			if (length(sheenColor) > 0.01) {
+				float sheenDistribution = pow(1.0 - NdotV, 2.0);
+				vec3 sheenSpec = sheenColor * sheenDistribution * (1.0 - sheenRoughness);
+				specular += sheenSpec;
+			}
+			
 			// Ambient
-			vec3 ambient = baseColor.rgb * 0.03;
+			vec3 ambient = baseColor.rgb * 0.03 * occlusion;
 			
 			// Emissive
-			vec3 emissive = material.emissiveFactor;
+			vec3 emissive = material.emissiveFactor * material.emissiveStrength;
+			if (material.hasEmissiveTexture > 0.5) {
+				vec2 uv = transformUV(fragTexCoord, material.emissiveTransform);
+				emissive *= texture(emissiveTexture, uv).rgb;
+			}
 			
 			// Final color
-			vec3 color = ambient + diffuse + specular + emissive;
+			vec3 color = ambient + (diffuse + specular) * occlusion + emissive;
 			
 			outColor = vec4(color, baseColor.a);
 		}
@@ -764,8 +903,8 @@ void OgModelSample::createPipeline()
 
 	OgRasterizationDescriptor rsDesc{};
 	rsDesc.polygonMode = OgPolygonMode::FILL;
-	rsDesc.cullMode = OgCullMode::NONE;
-	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;  // Y축 뒤집기로 인해 반대 방향으로 설정
+	rsDesc.cullMode = OgCullMode::NONE;  // 모든 면을 렌더링 (double-sided 지원)
+	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;
 	rsDesc.scissorTest = false;
 	rsDesc.primitiveType = OgPrimitiveType::TRIANGLE_LIST;
 
@@ -821,8 +960,8 @@ void OgModelSample::createRenderTarget(uint16 width, uint16 height)
 	// 샘플러 생성
 	OgSamplerInfo samplerInfo{};
 	samplerInfo.type = OgSamplerType::TEX_2D;
-	samplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE;
-	samplerInfo.addressV = OgSamplerAddressMode::CLAMP_TO_EDGE;
+	samplerInfo.addressU = OgSamplerAddressMode::REPEAT;
+	samplerInfo.addressV = OgSamplerAddressMode::REPEAT;
 	samplerInfo.magFilter = OgFilter::LINEAR;
 	samplerInfo.minFilter = OgFilter::LINEAR;
 	samplerInfo.mipmapMode = OgSamplerMipmapMode::NEAREST;
@@ -1126,7 +1265,8 @@ void OgModelSample::loadMesh(const tinygltf::Model& model, int meshIndex)
 				&buffer.data[bufferView.byteOffset + accessor.byteOffset]
 			);
 			
-			for (size_t i = 0; i < accessor.count; i++) {
+			for (size_t i = 0; i < accessor.count; i++) 
+			{
 				vertices[i].texCoord = glm::vec2(
 					texCoords[i * 2 + 0],
 					texCoords[i * 2 + 1]
@@ -1134,7 +1274,8 @@ void OgModelSample::loadMesh(const tinygltf::Model& model, int meshIndex)
 			}
 		} else {
 			// 텍스처 좌표가 없으면 기본값
-			for (auto& v : vertices) {
+			for (auto& v : vertices) 
+			{
 				v.texCoord = glm::vec2(0.0f, 0.0f);
 			}
 		}
@@ -1225,6 +1366,14 @@ void OgModelSample::loadMaterials(const tinygltf::Model& model)
 		Material material;
 		material.name = gltfMaterial.name;
 		
+		// Double sided
+		material.doubleSided = gltfMaterial.doubleSided;
+		
+		// Check for unlit extension
+		if (gltfMaterial.extensions.find("KHR_materials_unlit") != gltfMaterial.extensions.end()) {
+			material.unlit = true;
+		}
+		
 		// PBR metallic roughness
 		if (gltfMaterial.values.find("baseColorFactor") != gltfMaterial.values.end()) {
 			const tinygltf::Parameter& param = gltfMaterial.values.at("baseColorFactor");
@@ -1258,25 +1407,103 @@ void OgModelSample::loadMaterials(const tinygltf::Model& model)
 			}
 		}
 		
-		// Textures
-		if (gltfMaterial.values.find("baseColorTexture") != gltfMaterial.values.end()) {
-			int index = gltfMaterial.values.at("baseColorTexture").TextureIndex();
-			material.baseColorTexture = loadTexture(model, index);
+		// Emissive strength extension
+		if (gltfMaterial.extensions.find("KHR_materials_emissive_strength") != gltfMaterial.extensions.end()) {
+			const auto& ext = gltfMaterial.extensions.at("KHR_materials_emissive_strength");
+			if (ext.Has("emissiveStrength")) {
+				material.emissiveStrength = static_cast<float>(ext.Get("emissiveStrength").GetNumberAsDouble());
+			}
 		}
 		
-		if (gltfMaterial.additionalValues.find("normalTexture") != gltfMaterial.additionalValues.end()) {
-			int index = gltfMaterial.additionalValues.at("normalTexture").TextureIndex();
-			material.normalTexture = loadTexture(model, index);
+		// Sheen extension
+		if (gltfMaterial.extensions.find("KHR_materials_sheen") != gltfMaterial.extensions.end()) {
+			const auto& ext = gltfMaterial.extensions.at("KHR_materials_sheen");
+			
+			if (ext.Has("sheenColorFactor") && ext.Get("sheenColorFactor").IsArray()) {
+				const auto& colorArray = ext.Get("sheenColorFactor");
+				material.sheenColorFactor = glm::vec3(
+					static_cast<float>(colorArray.Get(0).GetNumberAsDouble()),
+					static_cast<float>(colorArray.Get(1).GetNumberAsDouble()),
+					static_cast<float>(colorArray.Get(2).GetNumberAsDouble())
+				);
+			}
+			
+			if (ext.Has("sheenRoughnessFactor")) {
+				material.sheenRoughnessFactor = static_cast<float>(ext.Get("sheenRoughnessFactor").GetNumberAsDouble());
+			}
+			
+			if (ext.Has("sheenColorTexture") && ext.Get("sheenColorTexture").IsObject()) {
+				const auto& texInfo = ext.Get("sheenColorTexture");
+				if (texInfo.Has("index")) {
+					int index = static_cast<int>(texInfo.Get("index").GetNumberAsInt());
+					material.sheenColorTexture = loadTexture(model, index);
+					if (texInfo.Has("extensions")) {
+						material.sheenColorTransform = loadTextureTransform(texInfo.Get("extensions"));
+					}
+				}
+			}
+			
+			if (ext.Has("sheenRoughnessTexture") && ext.Get("sheenRoughnessTexture").IsObject()) {
+				const auto& texInfo = ext.Get("sheenRoughnessTexture");
+				if (texInfo.Has("index")) {
+					int index = static_cast<int>(texInfo.Get("index").GetNumberAsInt());
+					material.sheenRoughnessTexture = loadTexture(model, index);
+					if (texInfo.Has("extensions")) {
+						material.sheenRoughnessTransform = loadTextureTransform(texInfo.Get("extensions"));
+					}
+				}
+			}
 		}
 		
-		if (gltfMaterial.values.find("metallicRoughnessTexture") != gltfMaterial.values.end()) {
-			int index = gltfMaterial.values.at("metallicRoughnessTexture").TextureIndex();
-			material.metallicRoughnessTexture = loadTexture(model, index);
+		// PBR textures from pbrMetallicRoughness
+		if (gltfMaterial.pbrMetallicRoughness.baseColorTexture.index >= 0) {
+			const auto& texInfo = gltfMaterial.pbrMetallicRoughness.baseColorTexture;
+			material.baseColorTexture = loadTexture(model, texInfo.index);
+			// KHR_texture_transform from extensions
+			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
+				material.baseColorTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			}
 		}
 		
-		if (gltfMaterial.additionalValues.find("emissiveTexture") != gltfMaterial.additionalValues.end()) {
-			int index = gltfMaterial.additionalValues.at("emissiveTexture").TextureIndex();
-			material.emissiveTexture = loadTexture(model, index);
+		if (gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
+			const auto& texInfo = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture;
+			material.metallicRoughnessTexture = loadTexture(model, texInfo.index);
+			// KHR_texture_transform from extensions
+			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
+				material.metallicRoughnessTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			}
+		}
+		
+		// Normal texture
+		if (gltfMaterial.normalTexture.index >= 0) {
+			const auto& texInfo = gltfMaterial.normalTexture;
+			material.normalTexture = loadTexture(model, texInfo.index);
+			material.normalScale = static_cast<float>(texInfo.scale);
+			// KHR_texture_transform from extensions
+			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
+				material.normalTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			}
+		}
+		
+		// Emissive texture
+		if (gltfMaterial.emissiveTexture.index >= 0) {
+			const auto& texInfo = gltfMaterial.emissiveTexture;
+			material.emissiveTexture = loadTexture(model, texInfo.index);
+			// KHR_texture_transform from extensions
+			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
+				material.emissiveTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			}
+		}
+		
+		// Occlusion texture
+		if (gltfMaterial.occlusionTexture.index >= 0) {
+			const auto& texInfo = gltfMaterial.occlusionTexture;
+			material.occlusionTexture = loadTexture(model, texInfo.index);
+			material.occlusionStrength = static_cast<float>(texInfo.strength);
+			// KHR_texture_transform from extensions
+			if (texInfo.extensions.find("KHR_texture_transform") != texInfo.extensions.end()) {
+				material.occlusionTransform = loadTextureTransform(texInfo.extensions.at("KHR_texture_transform"));
+			}
 		}
 		
 		_materials.push_back(material);
@@ -1308,7 +1535,7 @@ Render::OgTextureHandle* OgModelSample::loadTexture(const tinygltf::Model& model
 	texInfo.extent.height = image.height;
 	
 	texInfo.usage = OgTextureUsage::SAMPLED| OgTextureUsage::STAGING;
-	texInfo.isGenerateMipmaps = true;
+	texInfo.isGenerateMipmaps = false;
 	
 	// 포맷 결정
 	if (image.component == 3) 
@@ -1375,6 +1602,44 @@ Render::OgTextureHandle* OgModelSample::loadTexture(const tinygltf::Model& model
 	return textureHandle;
 }
 
+OgModelSample::TextureTransform OgModelSample::loadTextureTransform(const tinygltf::Value& extension)
+{
+	TextureTransform transform;
+	
+	// extension은 이미 KHR_texture_transform 객체입니다
+	if (!extension.IsObject()) {
+		return transform;
+	}
+	
+	// offset 파싱
+	if (extension.Has("offset") && extension.Get("offset").IsArray()) {
+		const auto& offsetArray = extension.Get("offset");
+		if (offsetArray.ArrayLen() >= 2) {
+			transform.offset.x = static_cast<float>(offsetArray.Get(0).GetNumberAsDouble());
+			transform.offset.y = static_cast<float>(offsetArray.Get(1).GetNumberAsDouble());
+			LOGD(OG_ID, "Texture transform offset: (%.2f, %.2f)", transform.offset.x, transform.offset.y);
+		}
+	}
+	
+	// rotation 파싱
+	if (extension.Has("rotation") && extension.Get("rotation").IsNumber()) {
+		transform.rotation = static_cast<float>(extension.Get("rotation").GetNumberAsDouble());
+		LOGD(OG_ID, "Texture transform rotation: %.2f", transform.rotation);
+	}
+	
+	// scale 파싱
+	if (extension.Has("scale") && extension.Get("scale").IsArray()) {
+		const auto& scaleArray = extension.Get("scale");
+		if (scaleArray.ArrayLen() >= 2) {
+			transform.scale.x = static_cast<float>(scaleArray.Get(0).GetNumberAsDouble());
+			transform.scale.y = static_cast<float>(scaleArray.Get(1).GetNumberAsDouble());
+			LOGD(OG_ID, "Texture transform scale: (%.2f, %.2f)", transform.scale.x, transform.scale.y);
+		}
+	}
+	
+	return transform;
+}
+
 void OgModelSample::clearModelData()
 {
 	// 텍스처 해제
@@ -1390,6 +1655,15 @@ void OgModelSample::clearModelData()
 		}
 		if (material.emissiveTexture) {
 			material.emissiveTexture->Release();
+		}
+		if (material.occlusionTexture) {
+			material.occlusionTexture->Release();
+		}
+		if (material.sheenColorTexture) {
+			material.sheenColorTexture->Release();
+		}
+		if (material.sheenRoughnessTexture) {
+			material.sheenRoughnessTexture->Release();
 		}
 	}
 	
@@ -1451,17 +1725,35 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 		// Material 설정
 		if (primitive.materialIndex >= 0 && primitive.materialIndex < static_cast<int>(_materials.size())) 
 		{
-			const Material& material = _materials[primitive.materialIndex];
-			
-			// Material 유니폼 업데이트
-			_materialUniformData.baseColorFactor = material.baseColorFactor;
-			_materialUniformData.metallicFactor = material.metallicFactor;
-			_materialUniformData.roughnessFactor = material.roughnessFactor;
-			_materialUniformData.emissiveFactor = material.emissiveFactor;
+		const Material& material = _materials[primitive.materialIndex];
+		
+		// Material 유니폼 업데이트
+		_materialUniformData.baseColorFactor = material.baseColorFactor;
+		_materialUniformData.metallicFactor = material.metallicFactor;
+		_materialUniformData.roughnessFactor = material.roughnessFactor;
+		_materialUniformData.normalScale = material.normalScale;
+		_materialUniformData.occlusionStrength = material.occlusionStrength;
+		_materialUniformData.emissiveFactor = material.emissiveFactor;
+		_materialUniformData.emissiveStrength = material.emissiveStrength;
+		_materialUniformData.sheenColorFactor = material.sheenColorFactor;
+			_materialUniformData.sheenRoughnessFactor = material.sheenRoughnessFactor;
 			_materialUniformData.hasBaseColorTexture = material.baseColorTexture ? 1.0f : 0.0f;
 			_materialUniformData.hasNormalTexture = material.normalTexture ? 1.0f : 0.0f;
 			_materialUniformData.hasMetallicRoughnessTexture = material.metallicRoughnessTexture ? 1.0f : 0.0f;
 			_materialUniformData.hasEmissiveTexture = material.emissiveTexture ? 1.0f : 0.0f;
+			_materialUniformData.hasOcclusionTexture = material.occlusionTexture ? 1.0f : 0.0f;
+			_materialUniformData.hasSheenColorTexture = material.sheenColorTexture ? 1.0f : 0.0f;
+			_materialUniformData.hasSheenRoughnessTexture = material.sheenRoughnessTexture ? 1.0f : 0.0f;
+			_materialUniformData.unlit = material.unlit ? 1.0f : 0.0f;
+			
+			// Texture transforms
+			_materialUniformData.baseColorTransform = glm::mat4(material.baseColorTransform.GetTransformMatrix());
+			_materialUniformData.normalTransform = glm::mat4(material.normalTransform.GetTransformMatrix());
+			_materialUniformData.metallicRoughnessTransform = glm::mat4(material.metallicRoughnessTransform.GetTransformMatrix());
+			_materialUniformData.emissiveTransform = glm::mat4(material.emissiveTransform.GetTransformMatrix());
+			_materialUniformData.occlusionTransform = glm::mat4(material.occlusionTransform.GetTransformMatrix());
+			_materialUniformData.sheenColorTransform = glm::mat4(material.sheenColorTransform.GetTransformMatrix());
+			_materialUniformData.sheenRoughnessTransform = glm::mat4(material.sheenRoughnessTransform.GetTransformMatrix());
 			
 			void* materialMapped = _renderContext->MapBuffer(_materialUniformBuffer, sizeof(MaterialUniformData));
 			if (materialMapped) 
@@ -1471,10 +1763,11 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 			}
 			
 			// 텍스처 바인딩을 위한 리소스 셋 업데이트
-			if (material.baseColorTexture || material.normalTexture || material.metallicRoughnessTexture) 
+			if (material.baseColorTexture || material.normalTexture || material.metallicRoughnessTexture ||
+				material.emissiveTexture || material.occlusionTexture || material.sheenColorTexture || material.sheenRoughnessTexture) 
 			{
 				uint32 zeroOffset = 0;
-				OgResourceUsage usages[5];
+				OgResourceUsage usages[9];
 				
 				// 유니폼 버퍼들
 				usages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
@@ -1521,6 +1814,18 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 					metallicRoughnessTexs.Add(_defaultWhiteTexture);
 				}
 
+				OgVector<Render::OgTextureHandle*> emissiveTexs;
+				emissiveTexs.Add(material.emissiveTexture ? material.emissiveTexture : _defaultWhiteTexture);
+				
+				OgVector<Render::OgTextureHandle*> occlusionTexs;
+				occlusionTexs.Add(material.occlusionTexture ? material.occlusionTexture : _defaultWhiteTexture);
+				
+				OgVector<Render::OgTextureHandle*> sheenColorTexs;
+				sheenColorTexs.Add(material.sheenColorTexture ? material.sheenColorTexture : _defaultWhiteTexture);
+				
+				OgVector<Render::OgTextureHandle*> sheenRoughnessTexs;
+				sheenRoughnessTexs.Add(material.sheenRoughnessTexture ? material.sheenRoughnessTexture : _defaultWhiteTexture);
+
 				// 텍스처들
 				usages[2].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[2].binding.stage = OgShaderType::FRAGMENT;
@@ -1537,8 +1842,28 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				usages[4].binding.binding = 4;
 				usages[4].texture.handle = metallicRoughnessTexs.Data();
 				
+				usages[5].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[5].binding.stage = OgShaderType::FRAGMENT;
+				usages[5].binding.binding = 5;
+				usages[5].texture.handle = emissiveTexs.Data();
+				
+				usages[6].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[6].binding.stage = OgShaderType::FRAGMENT;
+				usages[6].binding.binding = 6;
+				usages[6].texture.handle = occlusionTexs.Data();
+				
+				usages[7].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[7].binding.stage = OgShaderType::FRAGMENT;
+				usages[7].binding.binding = 7;
+				usages[7].texture.handle = sheenColorTexs.Data();
+				
+				usages[8].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[8].binding.stage = OgShaderType::FRAGMENT;
+				usages[8].binding.binding = 8;
+				usages[8].texture.handle = sheenRoughnessTexs.Data();
+				
 				// 새로운 리소스 셋 생성
-				OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 5);
+				OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 9);
 				tempResourceSet->Retain();
 				encoder->BindResourceSet(tempResourceSet);
 				tempResourceSet->Release();
@@ -1551,14 +1876,22 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 		else 
 		{
 			// 기본 material 사용
+			_materialUniformData = MaterialUniformData{};
 			_materialUniformData.baseColorFactor = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);
 			_materialUniformData.metallicFactor = 0.0f;
 			_materialUniformData.roughnessFactor = 0.5f;
 			_materialUniformData.emissiveFactor = glm::vec3(0.0f);
-			_materialUniformData.hasBaseColorTexture = 0.0f;
-			_materialUniformData.hasNormalTexture = 0.0f;
-			_materialUniformData.hasMetallicRoughnessTexture = 0.0f;
-			_materialUniformData.hasEmissiveTexture = 0.0f;
+			_materialUniformData.emissiveStrength = 1.0f;
+			_materialUniformData.normalScale = 1.0f;
+			_materialUniformData.occlusionStrength = 1.0f;
+			// Identity transforms
+			_materialUniformData.baseColorTransform = glm::mat4(1.0f);
+			_materialUniformData.normalTransform = glm::mat4(1.0f);
+			_materialUniformData.metallicRoughnessTransform = glm::mat4(1.0f);
+			_materialUniformData.emissiveTransform = glm::mat4(1.0f);
+			_materialUniformData.occlusionTransform = glm::mat4(1.0f);
+			_materialUniformData.sheenColorTransform = glm::mat4(1.0f);
+			_materialUniformData.sheenRoughnessTransform = glm::mat4(1.0f);
 			
 			void* materialMapped = _renderContext->MapBuffer(_materialUniformBuffer, sizeof(MaterialUniformData));
 			if (materialMapped) {
