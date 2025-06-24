@@ -74,6 +74,7 @@ private:
 	void renderSampleViewer();
 	void renderDebugInfo();
 	void renderSampleSelector();
+	void renderLightControls();
 	void switchSample(int index);
 	
 	int _currentSampleIndex = 1; // 기본은 FBX 샘플

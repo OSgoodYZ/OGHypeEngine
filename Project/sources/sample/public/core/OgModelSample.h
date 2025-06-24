@@ -4,6 +4,8 @@
 
 #include "OgSampleBase.h"
 #include <memory>
+#include <tinygltf/tiny_gltf.h>
+
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "sample/public/core/util/OgFlyCamera.h"
@@ -19,6 +21,24 @@ OG_NAMESPACE_SAMPLE_BEGIN
 class OG_API OgModelSample : public OgSampleBase
 {
 public:
+	// 라이트 데이터 구조체
+	struct Light
+	{
+		glm::vec3 position;      // 12 bytes
+		float intensity;         // 4 bytes
+		glm::vec3 color;         // 12 bytes
+		float padding;           // 4 bytes (16 바이트 정렬)
+	};
+
+	// 라이트 유니폼 데이터
+	struct LightUniformData
+	{
+		Light lights[4];         // 128 bytes (각 라이트 32바이트 * 4)
+		int lightCount;          // 4 bytes
+		float padding[3];        // 12 bytes (16 바이트 정렬)
+	};
+
+
 	OgModelSample(Render::OgRenderContext* renderContext);
 	~OgModelSample() override;
 
@@ -36,6 +56,12 @@ public:
 	void OnMouseMove(double x, double y);
 	void OnMouseScroll(double xoffset, double yoffset);
 	void OnKeyPress(int key, int action, int mods);
+
+	// 라이트 컨트롤 인터페이스
+	bool GetShowLightControls() const { return _showLightControls; }
+	void SetShowLightControls(bool show) { _showLightControls = show; }
+	LightUniformData& GetLightUniformData() { return _lightUniformData; }
+	void UpdateLightUniformBuffer();
 
 	// 렌더 타겟 인터페이스
 	Render::OgTextureHandle* GetRenderTargetTexture() const override { return _renderTargetTexture; }
@@ -98,6 +124,10 @@ private:
 		glm::mat4 sheenRoughnessTransform;   // 64 bytes
 	};
 
+
+
+
+
 private:
 	// 리소스 관리
 	void createResources(uint16 width, uint16 height);
@@ -159,6 +189,13 @@ private:
 	// 카메라
 	std::unique_ptr<OgFlyCamera> _camera;
 	bool _useFlyCamera = true;
+
+	// 라이트 데이터
+	LightUniformData _lightUniformData;
+	Render::OgBufferHandle* _lightUniformBuffer = nullptr;
+
+	// ImGui 컨트롤을 위한 변수들
+	bool _showLightControls = true;
 };
 
 OG_NAMESPACE_SAMPLE_END

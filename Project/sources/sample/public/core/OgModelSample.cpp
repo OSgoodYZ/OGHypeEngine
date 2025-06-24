@@ -2,6 +2,7 @@
 #include "sample/public/core/util/OgShaderCompiler.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "imgui.h"
 
 #include <cmath>
 #include <algorithm>
@@ -128,6 +129,8 @@ void OgModelSample::OnUpdate(float deltaTime)
 	_rotation += deltaTime * 0.f; // 초당 0.5 라디안 회전
 	if (_rotation > 2.0f * 3.14159f)
 		_rotation -= 2.0f * 3.14159f;
+
+	// ImGui 컨트롤은 OgSampleViewerWindow에서 처리
 
 	updateUniformBuffer();
 }
@@ -268,6 +271,12 @@ void OgModelSample::OnKeyPress(int key, int action, int mods)
 		_useFlyCamera = !_useFlyCamera;
 		updateUniformBuffer();
 	}
+	
+	// L 키로 라이트 컨트롤 윈도우 토글
+	if (key == OG_KEY_L && action == OG_PRESS)
+	{
+		_showLightControls = !_showLightControls;
+	}
 }
 
 void OgModelSample::createResources(uint16 width, uint16 height)
@@ -308,7 +317,7 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	_defaultNormalTexture->Retain();
 
 	// 리소스 레이아웃 생성
-	OgResourceBinding bindings[9];
+	OgResourceBinding bindings[10];
 	// 유니폼 버퍼
 	bindings[0].type = OgResourceType::UNIFORM_BUFFER;
 	bindings[0].stage = OgShaderType::VERTEX;
@@ -371,14 +380,21 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	bindings[8].binding = 8;
 	bindings[8].arrayCount = 0;
 	bindings[8].name = nullptr;
+	
+	// Light uniform buffer
+	bindings[9].type = OgResourceType::UNIFORM_BUFFER;
+	bindings[9].stage = OgShaderType::FRAGMENT;
+	bindings[9].binding = 9;
+	bindings[9].arrayCount = 0;
+	bindings[9].name = nullptr;
 
-	_resourceLayout = _renderContext->CreateResourceLayout(bindings, 9);
+	_resourceLayout = _renderContext->CreateResourceLayout(bindings, 10);
 	_resourceLayout->name = "ModelSampleResourceLayout";
 	_resourceLayout->Retain();
 
 	// 리소스 셋 생성
 	uint32 zeroOffset = 0;
-	OgResourceUsage usages[9];
+	OgResourceUsage usages[10];
 	
 	usages[0].binding = bindings[0];
 	usages[0].buffer.handle = &_uniformBuffer;
@@ -410,8 +426,13 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	
 	usages[8].binding = bindings[8];
 	usages[8].texture.handle = &_defaultWhiteTexture;  // sheen roughness
+	
+	usages[9].binding = bindings[9];
+	usages[9].buffer.handle = &_lightUniformBuffer;
+	usages[9].buffer.offset = &zeroOffset;
+	usages[9].buffer.range = &_lightUniformBuffer->size;
 
-	_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 9);
+	_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 10);
 	_resourceSet->name = "ModelSampleResourceSet";
 	_resourceSet->Retain();
 
@@ -473,6 +494,12 @@ void OgModelSample::destroyResources()
 	{
 		_uniformBuffer->Release();
 		_uniformBuffer = nullptr;
+	}
+	
+	if (_lightUniformBuffer)
+	{
+		_lightUniformBuffer->Release();
+		_lightUniformBuffer = nullptr;
 	}
 	
 	if (_defaultWhiteTexture)
@@ -624,6 +651,35 @@ void OgModelSample::createUniformBuffer()
 		OgMemoryOption::MAP_MANAGED
 	);
 	_materialUniformBuffer->Retain();
+	
+	// Light 유니폼 버퍼 생성 및 초기화
+	_lightUniformData = LightUniformData{};
+	_lightUniformData.lightCount = 4;
+	
+	// 초기 라이트 설정
+	_lightUniformData.lights[0].position = glm::vec3(10.0f, 10.0f, 10.0f);
+	_lightUniformData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+	_lightUniformData.lights[0].intensity = 200.0f;
+	
+	_lightUniformData.lights[1].position = glm::vec3(-10.0f, 10.0f, 10.0f);
+	_lightUniformData.lights[1].color = glm::vec3(0.5f, 0.5f, 0.75f);
+	_lightUniformData.lights[1].intensity = 100.0f;
+	
+	_lightUniformData.lights[2].position = glm::vec3(10.0f, -10.0f, 10.0f);
+	_lightUniformData.lights[2].color = glm::vec3(0.75f, 0.5f, 0.5f);
+	_lightUniformData.lights[2].intensity = 150.0f;
+	
+	_lightUniformData.lights[3].position = glm::vec3(0.0f, 0.0f, 10.0f);
+	_lightUniformData.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
+	_lightUniformData.lights[3].intensity = 50.0f;
+	
+	_lightUniformBuffer = _renderContext->CreateBuffer(
+		&_lightUniformData,
+		sizeof(LightUniformData),
+		Render::OgBufferUsage::UNIFORM,
+		OgMemoryOption::MAP_MANAGED
+	);
+	_lightUniformBuffer->Retain();
 }
 
 void OgModelSample::updateUniformBuffer()
@@ -723,6 +779,20 @@ void OgModelSample::createShaders()
 		layout(binding = 6) uniform sampler2D occlusionTexture;
 		layout(binding = 7) uniform sampler2D sheenColorTexture;
 		layout(binding = 8) uniform sampler2D sheenRoughnessTexture;
+		
+		// Light uniform buffer
+		struct Light {
+			vec3 position;
+			float intensity;
+			vec3 color;
+			float padding;
+		};
+		
+		layout(binding = 9) uniform LightUniforms {
+			Light lights[4];
+			int lightCount;
+			float padding[3];
+		} lightData;
 
 			vec2 transformUV(vec2 uv, mat4 transform) {
 				// glTF 2.0 스펙에 따른 정확한 UV 변환
@@ -887,19 +957,6 @@ void OgModelSample::createShaders()
 			}
 
 			// === Lighting Setup ===
-			// Simple directional light setup (can be expanded to multiple lights)
-			vec3 lightPositions[4] = vec3[](
-				vec3(10.0, 10.0, 10.0),
-				vec3(-10.0, 10.0, 10.0),
-				vec3(10.0, -10.0, 10.0),
-				vec3(0.0, 0.0, 10.0)
-			);
-			vec3 lightColors[4] = vec3[](
-				vec3(200.0, 200.0, 200.0), // Main light
-				vec3(100.0, 100.0, 150.0), // Fill light
-				vec3(150.0, 100.0, 100.0), // Back light
-				vec3(50.0, 50.0, 50.0)     // Ambient
-			);
 
 			vec3 V = normalize(vec3(0.0, 0.0, 10.0) - fragPosition); // View direction
 
@@ -910,12 +967,12 @@ void OgModelSample::createShaders()
 			vec3 Lo = vec3(0.0); // Outgoing radiance
 
 			// Calculate radiance for each light
-			for (int i = 0; i < 4; ++i) {
-				vec3 L = normalize(lightPositions[i] - fragPosition);
+			for (int i = 0; i < lightData.lightCount; ++i) {
+				vec3 L = normalize(lightData.lights[i].position - fragPosition);
 				vec3 H = normalize(V + L);
-				float distance = length(lightPositions[i] - fragPosition);
+				float distance = length(lightData.lights[i].position - fragPosition);
 				float attenuation = 1.0 / (distance * distance);
-				vec3 radiance = lightColors[i] * attenuation;
+				vec3 radiance = lightData.lights[i].color * lightData.lights[i].intensity * attenuation;
 
 				// Cook-Torrance BRDF
 				float NDF = distributionGGX(N, H, roughness);
@@ -1314,10 +1371,10 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 			
 			// 텍스처 바인딩을 위한 리소스 셋 업데이트
 			if (material.baseColorTexture || material.normalTexture || material.metallicRoughnessTexture ||
-				material.emissiveTexture || material.occlusionTexture || material.sheenColorTexture || material.sheenRoughnessTexture) 
+			material.emissiveTexture || material.occlusionTexture || material.sheenColorTexture || material.sheenRoughnessTexture) 
 			{
-				uint32 zeroOffset = 0;
-				OgResourceUsage usages[9];
+			uint32 zeroOffset = 0;
+			OgResourceUsage usages[10];
 				
 				// 유니폼 버퍼들
 				usages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
@@ -1412,8 +1469,15 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				usages[8].binding.binding = 8;
 				usages[8].texture.handle = sheenRoughnessTexs.Data();
 				
+				usages[9].binding.type = OgResourceType::UNIFORM_BUFFER;
+				usages[9].binding.stage = OgShaderType::FRAGMENT;
+				usages[9].binding.binding = 9;
+				usages[9].buffer.handle = &_lightUniformBuffer;
+				usages[9].buffer.offset = &zeroOffset;
+				usages[9].buffer.range = &_lightUniformBuffer->size;
+				
 				// 새로운 리소스 셋 생성
-				OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 9);
+				OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 10);
 				tempResourceSet->Retain();
 				encoder->BindResourceSet(tempResourceSet);
 				tempResourceSet->Release();
@@ -1477,6 +1541,16 @@ void OgModelSample::convertProjectionForVulkan(glm::mat4& projection)
 	// 2. Z 범위 변환: [-1, 1] -> [0, 1] => GLM이 알아서 해서 주석침
 	//projection[2][2] = projection[2][2] * 0.5f + 0.5f;
 	//projection[2][3] = projection[2][3] * 0.5f;
+}
+
+void OgModelSample::UpdateLightUniformBuffer()
+{
+	void* lightMapped = _renderContext->MapBuffer(_lightUniformBuffer, sizeof(LightUniformData));
+	if (lightMapped)
+	{
+		memcpy(lightMapped, &_lightUniformData, sizeof(LightUniformData));
+		_renderContext->UnmapBuffer(_lightUniformBuffer);
+	}
 }
 
 OG_NAMESPACE_SAMPLE_END

@@ -301,12 +301,19 @@ void OgSampleViewerWindow::onRenderUI()
 	// 레이아웃 설정
 	const float leftPanelWidth = 250.0f;
 	const float topPanelHeight = 200.0f;
+	const float lightControlHeight = 300.0f;
 	const float padding = 5.0f;
 	
-	// 왼쪽 패널 - Sample Selector
+	// 왼쪽 상단 패널 - Sample Selector
 	ImGui::SetNextWindowPos(ImVec2(padding, padding), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, io.DisplaySize.y - 2 * padding), ImGuiCond_FirstUseEver);
+	float sampleSelectorHeight = io.DisplaySize.y - lightControlHeight - 3 * padding;
+	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, sampleSelectorHeight), ImGuiCond_FirstUseEver);
 	renderSampleSelector();
+	
+	// 왼쪽 하단 패널 - Light Controls
+	ImGui::SetNextWindowPos(ImVec2(padding, sampleSelectorHeight + 2 * padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, lightControlHeight), ImGuiCond_FirstUseEver);
+	renderLightControls();
 	
 	// 오른쪽 상단 - Debug Info
 	float rightPanelPosX = leftPanelWidth + 2 * padding;
@@ -555,6 +562,129 @@ void OgSampleViewerWindow::switchSample(int index)
 	
 	// 새 샘플로 교체
 	SetSample(std::move(newSample));
+}
+
+void OgSampleViewerWindow::renderLightControls()
+{
+	// 모델 샘플인 경우에만 라이트 컨트롤 표시
+	OgSampleBase* sample = GetSample();
+	OgModelSample* modelSample = dynamic_cast<OgModelSample*>(sample);
+	
+	if (!modelSample)
+		return;
+	
+	if (ImGui::Begin("Light Controls", nullptr))
+	{
+		ImGui::Text("Light Settings");
+		ImGui::Separator();
+		
+		bool lightDataChanged = false;
+		auto& lightData = modelSample->GetLightUniformData();
+		
+		// 라이트 개수 조절
+		int lightCount = lightData.lightCount;
+		if (ImGui::SliderInt("Light Count", &lightCount, 0, 4))
+		{
+			lightData.lightCount = lightCount;
+			lightDataChanged = true;
+		}
+		
+		ImGui::Separator();
+		
+		// 각 라이트에 대한 컨트롤
+		for (int i = 0; i < lightData.lightCount; ++i)
+		{
+			ImGui::PushID(i);
+			
+			char headerLabel[32];
+			snprintf(headerLabel, sizeof(headerLabel), "Light %d", i);
+			
+			if (ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				// 위치
+				if (ImGui::DragFloat3("Position", &lightData.lights[i].position.x, 0.1f))
+				{
+					lightDataChanged = true;
+				}
+				
+				// 강도
+				if (ImGui::SliderFloat("Intensity", &lightData.lights[i].intensity, 0.0f, 500.0f))
+				{
+					lightDataChanged = true;
+				}
+				
+				// 색상
+				if (ImGui::ColorEdit3("Color", &lightData.lights[i].color.x))
+				{
+					lightDataChanged = true;
+				}
+			}
+			
+			ImGui::PopID();
+		}
+		
+		// 라이트 데이터가 변경되면 유니폼 버퍼 업데이트
+		if (lightDataChanged)
+		{
+			modelSample->UpdateLightUniformBuffer();
+		}
+		
+		// 프리셋 버튼들
+		ImGui::Separator();
+		ImGui::Text("Presets");
+		ImGui::Separator();
+		
+		if (ImGui::Button("Default Lighting", ImVec2(-1, 0)))
+		{
+			// 기본 라이팅 설정
+			lightData.lightCount = 4;
+			
+			lightData.lights[0].position = glm::vec3(10.0f, 10.0f, 10.0f);
+			lightData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+			lightData.lights[0].intensity = 200.0f;
+			
+			lightData.lights[1].position = glm::vec3(-10.0f, 10.0f, 10.0f);
+			lightData.lights[1].color = glm::vec3(0.5f, 0.5f, 0.75f);
+			lightData.lights[1].intensity = 100.0f;
+			
+			lightData.lights[2].position = glm::vec3(10.0f, -10.0f, 10.0f);
+			lightData.lights[2].color = glm::vec3(0.75f, 0.5f, 0.5f);
+			lightData.lights[2].intensity = 150.0f;
+			
+			lightData.lights[3].position = glm::vec3(0.0f, 0.0f, 10.0f);
+			lightData.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
+			lightData.lights[3].intensity = 50.0f;
+			
+			modelSample->UpdateLightUniformBuffer();
+		}
+		
+		if (ImGui::Button("Single Key Light", ImVec2(-1, 0)))
+		{
+			// 단일 키 라이트
+			lightData.lightCount = 1;
+			lightData.lights[0].position = glm::vec3(5.0f, 10.0f, 10.0f);
+			lightData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+			lightData.lights[0].intensity = 300.0f;
+			
+			modelSample->UpdateLightUniformBuffer();
+		}
+		
+		if (ImGui::Button("Warm Lighting", ImVec2(-1, 0)))
+		{
+			// 따뜻한 조명
+			lightData.lightCount = 2;
+			lightData.lights[0].position = glm::vec3(8.0f, 8.0f, 8.0f);
+			lightData.lights[0].color = glm::vec3(1.0f, 0.8f, 0.6f);  // 따뜻한 색
+			lightData.lights[0].intensity = 250.0f;
+			
+			lightData.lights[1].position = glm::vec3(-5.0f, 5.0f, 8.0f);
+			lightData.lights[1].color = glm::vec3(0.8f, 0.6f, 0.4f);  // 더 따뜻한 보조 조명
+			lightData.lights[1].intensity = 100.0f;
+			
+			modelSample->UpdateLightUniformBuffer();
+		}
+	}
+	ImGui::End();
 }
 
 OG_NAMESPACE_SAMPLE_END
