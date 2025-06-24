@@ -526,8 +526,8 @@ void OgSampleViewerWindow::renderSampleSelector()
 			if (ImGui::Button("Reset View", ImVec2(-1, 0)))
 			{
 				// 샘플별 리셋 기능 구현 가능
-				OgModelSample* fbxSample = dynamic_cast<OgModelSample*>(GetSample());
-				if (fbxSample)
+				OgModelSample* model_sample = dynamic_cast<OgModelSample*>(GetSample());
+				if (model_sample)
 				{
 					// 카메라 리셋 등의 기능 추가 가능
 				}
