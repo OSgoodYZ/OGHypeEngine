@@ -4,19 +4,10 @@
 
 #include "OgSampleBase.h"
 #include <memory>
-#include <vector>
-#include <string>
-#include <tinygltf/tiny_gltf.h>
-
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "sample/public/core/util/OgFlyCamera.h"
-
-// Forward declaration
-namespace tinygltf {
-	class Model;
-	class Node;
-}
+#include "sample/public/core/util/OgGLTFLoader.h"
 
 OG_NAMESPACE_SAMPLE_BEGIN
 
@@ -52,119 +43,13 @@ public:
 	uint16 GetRenderTargetHeight() const override { return _renderTargetHeight; }
 
 private:
-	// 메시 데이터
-	struct Vertex
-	{
-		glm::vec3 position;
-		glm::vec3 normal;
-		glm::vec2 texCoord;
-		glm::vec4 tangent;  // glTF는 tangent 정보도 포함할 수 있음
-	};
-
-	// Primitive 정보
-	struct Primitive
-	{
-		Render::OgBufferHandle* vertexBuffer = nullptr;
-		Render::OgBufferHandle* indexBuffer = nullptr;
-		uint32 indexCount = 0;
-		uint32 vertexCount = 0;
-		bool hasIndices = false;
-		int materialIndex = -1;
-	};
-
-	// Mesh 정보
-	struct Mesh
-	{
-		std::vector<Primitive> primitives;
-		std::string name;
-	};
-
-	// Node 정보
-	struct Node
-	{
-		glm::mat4 matrix = glm::mat4(1.0f);
-		int meshIndex = -1;
-		std::vector<int> children;
-		std::string name;
-	};
-
-	// Texture Transform 정보
-	struct TextureTransform
-	{
-		glm::vec2 offset = glm::vec2(0.0f);
-		float rotation = 0.0f;
-		glm::vec2 scale = glm::vec2(1.0f);
-		
-		// glTF 2.0 스펙에 맞는 변환 행렬 생성
-		// glTF 스펙: UV' = ((UV * scale) rotated by rotation) + offset
-		glm::mat3 GetTransformMatrix() const
-		{
-			// glTF 스펙에 따른 올바른 변환 행렬 계산
-			// 순서: Scale -> Rotation -> Translation
-			
-			// Scale matrix
-			glm::mat3 S = glm::mat3(1.0f);
-			S[0][0] = scale.x;
-			S[1][1] = scale.y;
-			
-			// Rotation matrix (Z축 기준 회전)
-			float c = cos(rotation);
-			float s = sin(rotation);
-			glm::mat3 R = glm::mat3(1.0f);
-			R[0][0] = c;  R[0][1] = s;
-			R[1][0] = -s; R[1][1] = c;
-			
-			// Translation matrix
-			glm::mat3 T = glm::mat3(1.0f);
-			T[2][0] = offset.x;
-			T[2][1] = offset.y;
-			
-			// glTF 스펙: Translation * Rotation * Scale
-			// 수학적 순서: 마지막에 적용되는 변환이 왼쪽에 위치
-			return T * R * S;
-		}
-	};
-
-	// Material 정보
-	struct Material
-	{
-		// PBR 기본 속성
-		glm::vec4 baseColorFactor = glm::vec4(1.0f);
-		float metallicFactor = 1.0f;
-		float roughnessFactor = 1.0f;
-		glm::vec3 emissiveFactor = glm::vec3(0.0f);
-		float emissiveStrength = 1.0f; // KHR_materials_emissive_strength
-		
-		// 텍스처
-		Render::OgTextureHandle* baseColorTexture = nullptr;
-		Render::OgTextureHandle* normalTexture = nullptr;
-		Render::OgTextureHandle* metallicRoughnessTexture = nullptr;
-		Render::OgTextureHandle* emissiveTexture = nullptr;
-		Render::OgTextureHandle* occlusionTexture = nullptr;
-		
-		// Texture transforms (KHR_texture_transform)
-		TextureTransform baseColorTransform;
-		TextureTransform normalTransform;
-		TextureTransform metallicRoughnessTransform;
-		TextureTransform emissiveTransform;
-		TextureTransform occlusionTransform;
-		
-		// Sheen 속성 (KHR_materials_sheen)
-		glm::vec3 sheenColorFactor = glm::vec3(0.0f);
-		float sheenRoughnessFactor = 0.0f;
-		Render::OgTextureHandle* sheenColorTexture = nullptr;
-		Render::OgTextureHandle* sheenRoughnessTexture = nullptr;
-		TextureTransform sheenColorTransform;
-		TextureTransform sheenRoughnessTransform;
-		
-		// 추가 속성
-		bool doubleSided = false;
-		bool unlit = false; // KHR_materials_unlit
-		float normalScale = 1.0f;
-		float occlusionStrength = 1.0f;
-		
-		std::string name;
-	};
+	// OgGLTFLoader의 타입들을 재사용
+	using Vertex = OgGLTFLoader::Vertex;
+	using Primitive = OgGLTFLoader::Primitive;
+	using Mesh = OgGLTFLoader::Mesh;
+	using Node = OgGLTFLoader::Node;
+	using Material = OgGLTFLoader::Material;
+	using TextureTransform = OgGLTFLoader::TextureTransform;
 
 	// 유니폼 버퍼 데이터
 	struct UniformData
@@ -227,11 +112,6 @@ private:
 
 	// glTF 로딩
 	bool loadGLTFModel(const std::string& filePath);
-	void processNode(const tinygltf::Model& model, const tinygltf::Node& node, int nodeIndex, const glm::mat4& parentMatrix);
-	void loadMesh(const tinygltf::Model& model, int meshIndex);
-	void loadMaterials(const tinygltf::Model& model);
-	Render::OgTextureHandle* loadTexture(const tinygltf::Model& model, int textureIndex);
-	TextureTransform loadTextureTransform(const tinygltf::Value& extension);
 	void clearModelData();
 	
 	// 렌더링
@@ -265,11 +145,11 @@ private:
 	uint16 _renderTargetWidth = 0;
 	uint16 _renderTargetHeight = 0;
 
-	// 모델 데이터
-	std::vector<Mesh> _meshes;
-	std::vector<Node> _nodes;
-	std::vector<Material> _materials;
-	std::vector<int> _rootNodes;
+	// glTF 로더
+	std::unique_ptr<OgGLTFLoader> _gltfLoader;
+	
+	// 로드된 모델 데이터
+	OgGLTFLoader::LoadedModel _loadedModel;
 	
 	// 변환 행렬
 	float _rotation = 0.0f;
@@ -279,11 +159,6 @@ private:
 	// 카메라
 	std::unique_ptr<OgFlyCamera> _camera;
 	bool _useFlyCamera = true;
-	
-	// 모델 정보
-	bool _modelLoaded = false;
-	glm::vec3 _modelCenter = glm::vec3(0.0f);
-	float _modelRadius = 1.0f;
 };
 
 OG_NAMESPACE_SAMPLE_END

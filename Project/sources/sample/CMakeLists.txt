@@ -18,6 +18,8 @@ set(PUBLIC_CORE_UTIL
 	public/core/util/OgShaderCompiler.cpp
 	public/core/util/OgFlyCamera.h
 	public/core/util/OgFlyCamera.cpp
+	public/core/util/OgGLTFLoader.h
+	public/core/util/OgGLTFLoader.cpp
 	)
 source_group("public\\core\\util" FILES ${PUBLIC_CORE_UTIL})
 list(APPEND TOTAL_FILE ${PUBLIC_CORE_UTIL})

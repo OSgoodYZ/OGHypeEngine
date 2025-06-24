@@ -3,14 +3,6 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-// tinygltf 헤더 - single header library
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#define TINYGLTF_NOEXCEPTION
-#define JSON_NOEXCEPTION
-#include "tinygltf/tiny_gltf.h"
-
 #include <cmath>
 #include <algorithm>
 #include <filesystem>
@@ -23,6 +15,7 @@ OG_NAMESPACE_SAMPLE_BEGIN
 OgModelSample::OgModelSample(Render::OgRenderContext* renderContext)
 	: OgSampleBase(renderContext)
 	, _camera(std::make_unique<OgFlyCamera>())
+	, _gltfLoader(std::make_unique<OgGLTFLoader>(renderContext))
 {
 	// 카메라 초기 설정
 	_camera->SetPosition(glm::vec3(5.0f, 5.0f, 5.0f));
@@ -173,29 +166,29 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 	encoder->BindResourceSet(_resourceSet);
 
 	// 모델이 로드되어 있으면 렌더링
-	if (_modelLoaded && !_rootNodes.empty()) {
+	if (_loadedModel.isLoaded && !_loadedModel.rootNodes.empty()) {
 		glm::mat4 rootTransform = glm::mat4(1.0f);
 		
 		// 모델을 중심으로 회전
 		rootTransform = glm::rotate(rootTransform, _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
 		
 		// 모델 크기 정규화 (카메라 거리에 맞게 스케일 조정)
-		float scale = 5.0f / _modelRadius; // 모델을 적절한 크기로 조정
+		float scale = 5.0f / _loadedModel.radius; // 모델을 적절한 크기로 조정
 		scale *= 10.0f; // 10배 스케일링
 		rootTransform = glm::scale(rootTransform, glm::vec3(scale));
 		
 		// 모델 중심을 원점으로 이동
-		rootTransform = glm::translate(rootTransform, -_modelCenter);
+		rootTransform = glm::translate(rootTransform, -_loadedModel.center);
 		
 		// 루트 노드들 렌더링
-		for (int rootNode : _rootNodes) {
+		for (int rootNode : _loadedModel.rootNodes) {
 			renderNode(encoder, rootNode, rootTransform);
 		}
-	} else if (!_meshes.empty()) {
+	} else if (!_loadedModel.meshes.empty()) {
 		// 기본 큐브 렌더링
 		glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(10.0f)); // 10배 스케일링
-		renderMesh(encoder, _meshes[0], modelMatrix);
+		renderMesh(encoder, _loadedModel.meshes[0], modelMatrix);
 	}
 
 	encoder->EndRenderPass();
@@ -543,7 +536,7 @@ void OgModelSample::createDefaultMesh()
 	Mesh mesh;
 	mesh.primitives.push_back(primitive);
 	mesh.name = "Default Cube";
-	_meshes.push_back(mesh);
+	_loadedModel.meshes.push_back(mesh);
 
 	// 기본 Material 생성
 	Material material;
@@ -551,18 +544,18 @@ void OgModelSample::createDefaultMesh()
 	material.baseColorFactor = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);
 	material.metallicFactor = 0.0f;
 	material.roughnessFactor = 0.5f;
-	_materials.push_back(material);
+	_loadedModel.materials.push_back(material);
 
 	// Node 생성
 	Node node;
 	node.meshIndex = 0;
 	node.name = "Default Node";
-	_nodes.push_back(node);
-	_rootNodes.push_back(0);
+	_loadedModel.nodes.push_back(node);
+	_loadedModel.rootNodes.push_back(0);
 
-	_modelLoaded = false;
-	_modelCenter = glm::vec3(0.0f);
-	_modelRadius = 1.0f;
+	_loadedModel.isLoaded = false;
+	_loadedModel.center = glm::vec3(0.0f);
+	_loadedModel.radius = 1.0f;
 }
 
 void OgModelSample::createUniformBuffer()
@@ -614,7 +607,7 @@ void OgModelSample::createUniformBuffer()
 	_materialUniformData.emissiveFactor = glm::vec3(0.0f);
 	_materialUniformData.emissiveStrength = 1.0f;
 	_materialUniformData.normalScale = 1.0f;
-	_materialUniformData.occlusionStrength = 1.0f;
+	_materialUniformData.occlusionStrength = 0.2f;
 	// 모든 transform을 identity matrix로 초기화
 	_materialUniformData.baseColorTransform = glm::mat4(1.0f);
 	_materialUniformData.normalTransform = glm::mat4(1.0f);
@@ -900,7 +893,7 @@ void OgModelSample::createShaders()
 				vec3(0.0, 0.0, 10.0)
 			);
 			vec3 lightColors[4] = vec3[](
-				vec3(300.0, 300.0, 300.0), // Main light
+				vec3(200.0, 200.0, 200.0), // Main light
 				vec3(100.0, 100.0, 150.0), // Fill light
 				vec3(150.0, 100.0, 100.0), // Back light
 				vec3(50.0, 50.0, 50.0)     // Ambient
@@ -1193,754 +1186,43 @@ void OgModelSample::destroyRenderTarget()
 
 bool OgModelSample::loadGLTFModel(const std::string& filePath)
 {
-	tinygltf::TinyGLTF loader;
-	tinygltf::Model model;
-	std::string err;
-	std::string warn;
-	
-	bool ret = false;
-	std::string extension = filePath.substr(filePath.find_last_of(".") + 1);
-	
-	if (extension == "glb") {
-		ret = loader.LoadBinaryFromFile(&model, &err, &warn, filePath);
-	} else {
-		ret = loader.LoadASCIIFromFile(&model, &err, &warn, filePath);
-	}
-	
-	if (!warn.empty()) {
-		LOGD(OG_ID, "glTF Warning: %s", warn.c_str());
-	}
-	
-	if (!err.empty()) {
-		LOGE(OG_ID, "glTF Error: %s", err.c_str());
-	}
-	
-	if (!ret) {
-		LOGE(OG_ID, "Failed to load glTF file: %s", filePath.c_str());
-		return false;
-	}
-	
 	// 기존 모델 데이터 클리어
 	clearModelData();
 	
-	// Material 로드
-	loadMaterials(model);
-	
-	// Mesh 로드
-	for (size_t i = 0; i < model.meshes.size(); i++) {
-		loadMesh(model, static_cast<int>(i));
+	// OgGLTFLoader를 사용해서 모델 로드
+	if (!_gltfLoader->LoadModel(filePath, _loadedModel))
+	{
+		LOGE(OG_ID, "Failed to load glTF model: %s", filePath.c_str());
+		LOGE(OG_ID, "Error: %s", _gltfLoader->GetLastError().c_str());
+		return false;
 	}
 	
-	// Node 계층 구조 로드
-	_nodes.resize(model.nodes.size());
-	for (size_t i = 0; i < model.nodes.size(); i++) {
-		const tinygltf::Node& gltfNode = model.nodes[i];
-		Node& node = _nodes[i];
-		
-		node.name = gltfNode.name;
-		node.meshIndex = gltfNode.mesh;
-		node.children = gltfNode.children;
-		
-		// Transform 행렬 계산
-		if (gltfNode.matrix.size() == 16) {
-			// 행렬이 직접 지정된 경우
-			for (int j = 0; j < 16; j++) {
-				node.matrix[j / 4][j % 4] = static_cast<float>(gltfNode.matrix[j]);
-			}
-		} else {
-			// TRS로부터 행렬 계산
-			glm::mat4 T(1.0f);
-			glm::mat4 R(1.0f);
-			glm::mat4 S(1.0f);
-			
-			if (gltfNode.translation.size() == 3) {
-				T = glm::translate(glm::mat4(1.0f), glm::vec3(
-					static_cast<float>(gltfNode.translation[0]),
-					static_cast<float>(gltfNode.translation[1]),
-					static_cast<float>(gltfNode.translation[2])
-				));
-			}
-			
-			if (gltfNode.rotation.size() == 4) {
-				glm::quat q(
-					static_cast<float>(gltfNode.rotation[3]),
-					static_cast<float>(gltfNode.rotation[0]),
-					static_cast<float>(gltfNode.rotation[1]),
-					static_cast<float>(gltfNode.rotation[2])
-				);
-				R = glm::mat4_cast(q);
-			}
-			
-			if (gltfNode.scale.size() == 3) {
-				S = glm::scale(glm::mat4(1.0f), glm::vec3(
-					static_cast<float>(gltfNode.scale[0]),
-					static_cast<float>(gltfNode.scale[1]),
-					static_cast<float>(gltfNode.scale[2])
-				));
-			}
-			
-			node.matrix = T * R * S;
-		}
-	}
-	
-	// 루트 노드 찾기
-	if (model.scenes.size() > 0) {
-		const tinygltf::Scene& scene = model.scenes[model.defaultScene >= 0 ? model.defaultScene : 0];
-		_rootNodes = scene.nodes;
-	} else {
-		// Scene이 없으면 부모가 없는 노드를 루트로 간주
-		std::vector<bool> hasParent(model.nodes.size(), false);
-		for (const auto& node : model.nodes) {
-			for (int child : node.children) {
-				hasParent[child] = true;
-			}
-		}
-		for (size_t i = 0; i < hasParent.size(); i++) {
-			if (!hasParent[i]) {
-				_rootNodes.push_back(static_cast<int>(i));
-			}
-		}
-	}
-	
-	// 모델 바운딩 박스 계산
-	glm::vec3 minBounds(FLT_MAX);
-	glm::vec3 maxBounds(-FLT_MAX);
-	
-	for (const auto& mesh : _meshes) {
-		for (const auto& primitive : mesh.primitives) {
-			// 버텍스 버퍼에서 바운딩 박스 계산
-			// 실제로는 accessor의 min/max를 사용하는 것이 더 효율적
-		}
-	}
-	
-	// 모델 중심과 반경 계산 (간단히 처리)
-	_modelCenter = glm::vec3(0.0f);
-	_modelRadius = 5.0f; // 기본값
-	
-	_modelLoaded = true;
 	return true;
 }
 
-void OgModelSample::processNode(const tinygltf::Model& model, const tinygltf::Node& node, int nodeIndex, const glm::mat4& parentMatrix)
-{
-	// Node 처리 로직은 loadGLTFModel에서 처리
-}
-
-void OgModelSample::loadMesh(const tinygltf::Model& model, int meshIndex)
-{
-	const tinygltf::Mesh& gltfMesh = model.meshes[meshIndex];
-	Mesh mesh;
-	mesh.name = gltfMesh.name;
-	
-	for (const auto& gltfPrimitive : gltfMesh.primitives) {
-		Primitive primitive;
-		primitive.materialIndex = gltfPrimitive.material;
-		
-		// 정점 데이터 로드
-		std::vector<Vertex> vertices;
-		
-		// Position
-		if (gltfPrimitive.attributes.find("POSITION") != gltfPrimitive.attributes.end()) {
-			const tinygltf::Accessor& accessor = model.accessors[gltfPrimitive.attributes.at("POSITION")];
-			const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-			const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-			
-			vertices.resize(accessor.count);
-			
-			const float* positions = reinterpret_cast<const float*>(
-				&buffer.data[bufferView.byteOffset + accessor.byteOffset]
-			);
-			
-			for (size_t i = 0; i < accessor.count; i++) {
-				vertices[i].position = glm::vec3(
-					positions[i * 3 + 0],
-					positions[i * 3 + 1],
-					positions[i * 3 + 2]
-				);
-			}
-		}
-		
-		// Normal
-		if (gltfPrimitive.attributes.find("NORMAL") != gltfPrimitive.attributes.end()) {
-			const tinygltf::Accessor& accessor = model.accessors[gltfPrimitive.attributes.at("NORMAL")];
-			const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-			const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-			
-			const float* normals = reinterpret_cast<const float*>(
-				&buffer.data[bufferView.byteOffset + accessor.byteOffset]
-			);
-			
-			for (size_t i = 0; i < accessor.count; i++) {
-				vertices[i].normal = glm::vec3(
-					normals[i * 3 + 0],
-					normals[i * 3 + 1],
-					normals[i * 3 + 2]
-				);
-			}
-		} else {
-			// 노말이 없으면 기본값
-			for (auto& v : vertices) {
-				v.normal = glm::vec3(0.0f, 1.0f, 0.0f);
-			}
-		}
-		
-		// TexCoord
-		if (gltfPrimitive.attributes.find("TEXCOORD_0") != gltfPrimitive.attributes.end()) {
-			const tinygltf::Accessor& accessor = model.accessors[gltfPrimitive.attributes.at("TEXCOORD_0")];
-			const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-			const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-			
-			const float* texCoords = reinterpret_cast<const float*>(
-				&buffer.data[bufferView.byteOffset + accessor.byteOffset]
-			);
-			
-			for (size_t i = 0; i < accessor.count; i++) 
-			{
-				vertices[i].texCoord = glm::vec2(
-					texCoords[i * 2 + 0],
-					texCoords[i * 2 + 1]
-				);
-			}
-		} else {
-			// 텍스처 좌표가 없으면 기본값
-			for (auto& v : vertices) 
-			{
-				v.texCoord = glm::vec2(0.0f, 0.0f);
-			}
-		}
-		
-		// Tangent
-		if (gltfPrimitive.attributes.find("TANGENT") != gltfPrimitive.attributes.end()) {
-			const tinygltf::Accessor& accessor = model.accessors[gltfPrimitive.attributes.at("TANGENT")];
-			const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-			const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-			
-			const float* tangents = reinterpret_cast<const float*>(
-				&buffer.data[bufferView.byteOffset + accessor.byteOffset]
-			);
-			
-			for (size_t i = 0; i < accessor.count; i++) {
-				vertices[i].tangent = glm::vec4(
-					tangents[i * 4 + 0],
-					tangents[i * 4 + 1],
-					tangents[i * 4 + 2],
-					tangents[i * 4 + 3]
-				);
-			}
-		} else {
-			// Tangent가 없으면 기본값
-			for (auto& v : vertices) {
-				v.tangent = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-			}
-		}
-		
-		// 버텍스 버퍼 생성
-		primitive.vertexBuffer = _renderContext->CreateBuffer(
-			vertices.data(),
-			sizeof(Vertex) * vertices.size(),
-			Render::OgBufferUsage::VERTEX,
-			OgMemoryOption::MAP_MANAGED
-		);
-		primitive.vertexBuffer->Retain();
-		primitive.vertexCount = static_cast<uint32>(vertices.size());
-		
-		// 인덱스 데이터 로드
-		if (gltfPrimitive.indices >= 0) {
-			const tinygltf::Accessor& accessor = model.accessors[gltfPrimitive.indices];
-			const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-			const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
-			
-			primitive.hasIndices = true;
-			primitive.indexCount = static_cast<uint32>(accessor.count);
-			
-			if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) 
-			{
-				primitive.indexBuffer = _renderContext->CreateBuffer(
-					(void*) & buffer.data[bufferView.byteOffset + accessor.byteOffset],
-					accessor.count * sizeof(uint16_t),
-					Render::OgBufferUsage::INDEX,
-					OgMemoryOption::MAP_MANAGED
-				);
-			} else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT) {
-				// uint32 인덱스를 uint16으로 변환 (엔진이 uint16만 지원하는 경우)
-				const uint32_t* indices32 = reinterpret_cast<const uint32_t*>(
-					&buffer.data[bufferView.byteOffset + accessor.byteOffset]
-				);
-				std::vector<uint16_t> indices16(accessor.count);
-				for (size_t i = 0; i < accessor.count; i++) {
-					indices16[i] = static_cast<uint16_t>(indices32[i]);
-				}
-				primitive.indexBuffer = _renderContext->CreateBuffer(
-					indices16.data(),
-					indices16.size() * sizeof(uint16_t),
-					Render::OgBufferUsage::INDEX,
-					OgMemoryOption::MAP_MANAGED
-				);
-			}
-			
-			if (primitive.indexBuffer) {
-				primitive.indexBuffer->Retain();
-			}
-		}
-		
-		mesh.primitives.push_back(primitive);
-	}
-	
-	_meshes.push_back(mesh);
-}
-
-void OgModelSample::loadMaterials(const tinygltf::Model& model)
-{
-	for (const auto& gltfMaterial : model.materials) {
-		Material material;
-		material.name = gltfMaterial.name;
-		
-		// Double sided
-		material.doubleSided = gltfMaterial.doubleSided;
-		
-		// Check for unlit extension
-		if (gltfMaterial.extensions.find("KHR_materials_unlit") != gltfMaterial.extensions.end()) {
-			material.unlit = true;
-		}
-		
-		// PBR metallic roughness
-		if (gltfMaterial.values.find("baseColorFactor") != gltfMaterial.values.end()) {
-			const tinygltf::Parameter& param = gltfMaterial.values.at("baseColorFactor");
-			if (param.number_array.size() >= 4) {
-				material.baseColorFactor = glm::vec4(
-					static_cast<float>(param.number_array[0]),
-					static_cast<float>(param.number_array[1]),
-					static_cast<float>(param.number_array[2]),
-					static_cast<float>(param.number_array[3])
-				);
-			}
-		}
-		
-		if (gltfMaterial.values.find("metallicFactor") != gltfMaterial.values.end()) {
-			material.metallicFactor = static_cast<float>(gltfMaterial.values.at("metallicFactor").Factor());
-		}
-		
-		if (gltfMaterial.values.find("roughnessFactor") != gltfMaterial.values.end()) {
-			material.roughnessFactor = static_cast<float>(gltfMaterial.values.at("roughnessFactor").Factor());
-		}
-		
-		// Emissive
-		if (gltfMaterial.additionalValues.find("emissiveFactor") != gltfMaterial.additionalValues.end()) {
-			const tinygltf::Parameter& param = gltfMaterial.additionalValues.at("emissiveFactor");
-			if (param.number_array.size() >= 3) {
-				material.emissiveFactor = glm::vec3(
-					static_cast<float>(param.number_array[0]),
-					static_cast<float>(param.number_array[1]),
-					static_cast<float>(param.number_array[2])
-				);
-			}
-		}
-		
-		// Emissive strength extension
-		if (gltfMaterial.extensions.find("KHR_materials_emissive_strength") != gltfMaterial.extensions.end()) {
-			const auto& ext = gltfMaterial.extensions.at("KHR_materials_emissive_strength");
-			if (ext.Has("emissiveStrength")) {
-				material.emissiveStrength = static_cast<float>(ext.Get("emissiveStrength").GetNumberAsDouble());
-			}
-		}
-		
-		// Sheen extension - 완전히 재작성
-		if (gltfMaterial.extensions.find("KHR_materials_sheen") != gltfMaterial.extensions.end()) {
-			const auto& ext = gltfMaterial.extensions.at("KHR_materials_sheen");
-			
-			// Sheen color factor
-			if (ext.Has("sheenColorFactor") && ext.Get("sheenColorFactor").IsArray()) {
-				const auto& colorArray = ext.Get("sheenColorFactor");
-				if (colorArray.ArrayLen() >= 3) {
-					material.sheenColorFactor = glm::vec3(
-						static_cast<float>(colorArray.Get(0).GetNumberAsDouble()),
-						static_cast<float>(colorArray.Get(1).GetNumberAsDouble()),
-						static_cast<float>(colorArray.Get(2).GetNumberAsDouble())
-					);
-					LOGD(OG_ID, "Sheen color factor: (%.2f, %.2f, %.2f)", 
-						 material.sheenColorFactor.x, material.sheenColorFactor.y, material.sheenColorFactor.z);
-				}
-			}
-			
-			// Sheen roughness factor
-			if (ext.Has("sheenRoughnessFactor") && ext.Get("sheenRoughnessFactor").IsNumber()) {
-				material.sheenRoughnessFactor = static_cast<float>(ext.Get("sheenRoughnessFactor").GetNumberAsDouble());
-				LOGD(OG_ID, "Sheen roughness factor: %.2f", material.sheenRoughnessFactor);
-			}
-			
-			// Sheen color texture
-			if (ext.Has("sheenColorTexture") && ext.Get("sheenColorTexture").IsObject()) {
-				const auto& texInfo = ext.Get("sheenColorTexture");
-				
-				// 텍스처 인덱스
-				if (texInfo.Has("index") && texInfo.Get("index").IsNumber()) {
-					int index = static_cast<int>(texInfo.Get("index").GetNumberAsInt());
-					material.sheenColorTexture = loadTexture(model, index);
-					LOGD(OG_ID, "Loaded sheen color texture with index: %d", index);
-				}
-				
-				// KHR_texture_transform 확장 처리
-				if (texInfo.Has("extensions") && texInfo.Get("extensions").IsObject()) {
-					const auto& texExtensions = texInfo.Get("extensions");
-					if (texExtensions.Has("KHR_texture_transform") && texExtensions.Get("KHR_texture_transform").IsObject()) {
-						const auto& transform = texExtensions.Get("KHR_texture_transform");
-						
-						// Scale 파싱
-						if (transform.Has("scale") && transform.Get("scale").IsArray()) {
-							const auto& scaleArray = transform.Get("scale");
-							if (scaleArray.ArrayLen() >= 2) {
-								material.sheenColorTransform.scale.x = static_cast<float>(scaleArray.Get(0).GetNumberAsDouble());
-								material.sheenColorTransform.scale.y = static_cast<float>(scaleArray.Get(1).GetNumberAsDouble());
-								LOGD(OG_ID, "Sheen color texture scale: (%.2f, %.2f)", 
-									 material.sheenColorTransform.scale.x, material.sheenColorTransform.scale.y);
-							}
-						}
-						
-						// Offset 파싱
-						if (transform.Has("offset") && transform.Get("offset").IsArray()) {
-							const auto& offsetArray = transform.Get("offset");
-							if (offsetArray.ArrayLen() >= 2) {
-								material.sheenColorTransform.offset.x = static_cast<float>(offsetArray.Get(0).GetNumberAsDouble());
-								material.sheenColorTransform.offset.y = static_cast<float>(offsetArray.Get(1).GetNumberAsDouble());
-								LOGD(OG_ID, "Sheen color texture offset: (%.2f, %.2f)", 
-									 material.sheenColorTransform.offset.x, material.sheenColorTransform.offset.y);
-							}
-						}
-						
-						// Rotation 파싱
-						if (transform.Has("rotation") && transform.Get("rotation").IsNumber()) {
-							material.sheenColorTransform.rotation = static_cast<float>(transform.Get("rotation").GetNumberAsDouble());
-							LOGD(OG_ID, "Sheen color texture rotation: %.2f", material.sheenColorTransform.rotation);
-						}
-					}
-				}
-			}
-			
-			// Sheen roughness texture - 동일한 방식으로 처리
-			if (ext.Has("sheenRoughnessTexture") && ext.Get("sheenRoughnessTexture").IsObject()) {
-				const auto& texInfo = ext.Get("sheenRoughnessTexture");
-				
-				// 텍스처 인덱스
-				if (texInfo.Has("index") && texInfo.Get("index").IsNumber()) {
-					int index = static_cast<int>(texInfo.Get("index").GetNumberAsInt());
-					material.sheenRoughnessTexture = loadTexture(model, index);
-					LOGD(OG_ID, "Loaded sheen roughness texture with index: %d", index);
-				}
-				
-				// KHR_texture_transform 확장 처리
-				if (texInfo.Has("extensions") && texInfo.Get("extensions").IsObject()) {
-					const auto& texExtensions = texInfo.Get("extensions");
-					if (texExtensions.Has("KHR_texture_transform") && texExtensions.Get("KHR_texture_transform").IsObject()) {
-						const auto& transform = texExtensions.Get("KHR_texture_transform");
-						
-						// Scale 파싱
-						if (transform.Has("scale") && transform.Get("scale").IsArray()) {
-							const auto& scaleArray = transform.Get("scale");
-							if (scaleArray.ArrayLen() >= 2) {
-								material.sheenRoughnessTransform.scale.x = static_cast<float>(scaleArray.Get(0).GetNumberAsDouble());
-								material.sheenRoughnessTransform.scale.y = static_cast<float>(scaleArray.Get(1).GetNumberAsDouble());
-								LOGD(OG_ID, "Sheen roughness texture scale: (%.2f, %.2f)", 
-									 material.sheenRoughnessTransform.scale.x, material.sheenRoughnessTransform.scale.y);
-							}
-						}
-						
-						// Offset과 Rotation도 동일하게 처리
-						if (transform.Has("offset") && transform.Get("offset").IsArray()) {
-							const auto& offsetArray = transform.Get("offset");
-							if (offsetArray.ArrayLen() >= 2) {
-								material.sheenRoughnessTransform.offset.x = static_cast<float>(offsetArray.Get(0).GetNumberAsDouble());
-								material.sheenRoughnessTransform.offset.y = static_cast<float>(offsetArray.Get(1).GetNumberAsDouble());
-							}
-						}
-						
-						if (transform.Has("rotation") && transform.Get("rotation").IsNumber()) {
-							material.sheenRoughnessTransform.rotation = static_cast<float>(transform.Get("rotation").GetNumberAsDouble());
-						}
-					}
-				}
-			}
-		}
-		
-		// PBR textures - 기존 방식을 더 간소화
-		if (gltfMaterial.pbrMetallicRoughness.baseColorTexture.index >= 0) {
-			const auto& texInfo = gltfMaterial.pbrMetallicRoughness.baseColorTexture;
-			material.baseColorTexture = loadTexture(model, texInfo.index);
-			
-			// KHR_texture_transform 처리 - 기존 tinygltf 방식 활용
-			auto extIt = texInfo.extensions.find("KHR_texture_transform");
-			if (extIt != texInfo.extensions.end()) {
-				material.baseColorTransform = loadTextureTransform(extIt->second);
-				LOGD(OG_ID, "Base color texture transform - scale: (%.2f, %.2f)", 
-					 material.baseColorTransform.scale.x, material.baseColorTransform.scale.y);
-			}
-		}
-		
-		// 다른 텍스처들도 동일한 패턴으로 처리
-		if (gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0) {
-			const auto& texInfo = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture;
-			material.metallicRoughnessTexture = loadTexture(model, texInfo.index);
-			auto extIt = texInfo.extensions.find("KHR_texture_transform");
-			if (extIt != texInfo.extensions.end()) {
-				material.metallicRoughnessTransform = loadTextureTransform(extIt->second);
-				LOGD(OG_ID, "Metallic roughness texture transform - scale: (%.2f, %.2f)", 
-					 material.metallicRoughnessTransform.scale.x, material.metallicRoughnessTransform.scale.y);
-			}
-		}
-		
-		// Normal texture
-		if (gltfMaterial.normalTexture.index >= 0) {
-			const auto& texInfo = gltfMaterial.normalTexture;
-			material.normalTexture = loadTexture(model, texInfo.index);
-			material.normalScale = static_cast<float>(texInfo.scale);
-			auto extIt = texInfo.extensions.find("KHR_texture_transform");
-			if (extIt != texInfo.extensions.end()) {
-				material.normalTransform = loadTextureTransform(extIt->second);
-				LOGD(OG_ID, "Normal texture transform - scale: (%.2f, %.2f)", 
-					 material.normalTransform.scale.x, material.normalTransform.scale.y);
-			}
-		}
-		
-		// Emissive texture
-		if (gltfMaterial.emissiveTexture.index >= 0) {
-			const auto& texInfo = gltfMaterial.emissiveTexture;
-			material.emissiveTexture = loadTexture(model, texInfo.index);
-			auto extIt = texInfo.extensions.find("KHR_texture_transform");
-			if (extIt != texInfo.extensions.end()) {
-				material.emissiveTransform = loadTextureTransform(extIt->second);
-				LOGD(OG_ID, "Emissive texture transform - scale: (%.2f, %.2f)", 
-					 material.emissiveTransform.scale.x, material.emissiveTransform.scale.y);
-			}
-		}
-		
-		// Occlusion texture
-		if (gltfMaterial.occlusionTexture.index >= 0) {
-			const auto& texInfo = gltfMaterial.occlusionTexture;
-			material.occlusionTexture = loadTexture(model, texInfo.index);
-			material.occlusionStrength = static_cast<float>(texInfo.strength);
-			auto extIt = texInfo.extensions.find("KHR_texture_transform");
-			if (extIt != texInfo.extensions.end()) {
-				material.occlusionTransform = loadTextureTransform(extIt->second);
-				LOGD(OG_ID, "Occlusion texture transform - scale: (%.2f, %.2f)", 
-					 material.occlusionTransform.scale.x, material.occlusionTransform.scale.y);
-			}
-		}
-		
-		_materials.push_back(material);
-	}
-	
-	// 기본 material이 없으면 생성
-	if (_materials.empty()) {
-		Material defaultMaterial;
-		defaultMaterial.name = "Default";
-		defaultMaterial.baseColorFactor = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);
-		defaultMaterial.metallicFactor = 0.0f;
-		defaultMaterial.roughnessFactor = 0.5f;
-		_materials.push_back(defaultMaterial);
-	}
-}
-
-Render::OgTextureHandle* OgModelSample::loadTexture(const tinygltf::Model& model, int textureIndex)
-{
-	if (textureIndex < 0 || textureIndex >= static_cast<int>(model.textures.size())) {
-		return nullptr;
-	}
-	
-	const tinygltf::Texture& texture = model.textures[textureIndex];
-	const tinygltf::Image& image = model.images[texture.source];
-	
-	OgTextureInfo texInfo{};
-	texInfo.type = OgTextureType::TEX_2D;
-	texInfo.extent.width = image.width;
-	texInfo.extent.height = image.height;
-	
-	texInfo.usage = OgTextureUsage::SAMPLED| OgTextureUsage::STAGING;
-	texInfo.isGenerateMipmaps = false;
-	
-	// 포맷 결정
-	if (image.component == 3) 
-	{
-		texInfo.format = OgPixelFormat::R8G8B8_UNORM;
-		texInfo.byteSize = image.width * image.height * 3;
-	} else if (image.component == 4) 
-	{
-		texInfo.format = OgPixelFormat::R8G8B8A8_SRGB;
-		texInfo.byteSize = image.width * image.height * 4;
-	} else {
-		LOGD(OG_ID, "Unsupported image component count: %d", image.component);
-		return nullptr;
-	}
-	
-	// 샘플러 설정
-	OgSamplerInfo samplerInfo{};
-	samplerInfo.type = OgSamplerType::TEX_2D;
-	samplerInfo.addressU = OgSamplerAddressMode::REPEAT;
-	samplerInfo.addressV = OgSamplerAddressMode::REPEAT;
-	samplerInfo.magFilter = OgFilter::LINEAR;
-	samplerInfo.minFilter = OgFilter::LINEAR;
-	samplerInfo.mipmapMode = OgSamplerMipmapMode::LINEAR;
-	
-	// glTF 샘플러 설정이 있으면 적용
-	if (texture.sampler >= 0) {
-		const tinygltf::Sampler& gltfSampler = model.samplers[texture.sampler];
-		
-		// Wrap modes
-		auto convertWrapMode = [](int mode) {
-			switch (mode) {
-				case TINYGLTF_TEXTURE_WRAP_REPEAT: return OgSamplerAddressMode::REPEAT;
-				case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE: return OgSamplerAddressMode::CLAMP_TO_EDGE;
-				case TINYGLTF_TEXTURE_WRAP_MIRRORED_REPEAT: return OgSamplerAddressMode::MIRRORED_REPEAT;
-				default: return OgSamplerAddressMode::REPEAT;
-			}
-		};
-		
-		samplerInfo.addressU = convertWrapMode(gltfSampler.wrapS);
-		samplerInfo.addressV = convertWrapMode(gltfSampler.wrapT);
-		
-		// Filter modes
-		if (gltfSampler.magFilter == TINYGLTF_TEXTURE_FILTER_NEAREST) {
-			samplerInfo.magFilter = OgFilter::NEAREST;
-		}
-		
-		if (gltfSampler.minFilter == TINYGLTF_TEXTURE_FILTER_NEAREST ||
-			gltfSampler.minFilter == TINYGLTF_TEXTURE_FILTER_NEAREST_MIPMAP_NEAREST) {
-			samplerInfo.minFilter = OgFilter::NEAREST;
-		}
-	}
-	
-	void* imageData = const_cast<unsigned char*>(image.image.data());
-	OgTextureHandle* textureHandle = _renderContext->CreateTexture(
-		&imageData,
-		texInfo,
-		_renderContext->CreateSampler(samplerInfo)
-	);
-	
-	if (textureHandle) {
-		textureHandle->Retain();
-	}
-	
-	return textureHandle;
-}
-
-OgModelSample::TextureTransform OgModelSample::loadTextureTransform(const tinygltf::Value& extensionsValue)
-{
-	TextureTransform transform;
-	
-	if (!extensionsValue.IsObject()) {
-		LOGD(OG_ID, "Extensions value is not an object");
-		return transform;
-	}
-	
-	// KHR_texture_transform 확장 찾기
-	const tinygltf::Value* transformExt = nullptr;
-	
-	// 직접 KHR_texture_transform 객체인 경우 (기존 호출 방식)
-	if (extensionsValue.Has("offset") || extensionsValue.Has("rotation") || extensionsValue.Has("scale")) {
-		transformExt = &extensionsValue;
-		LOGD(OG_ID, "Direct KHR_texture_transform object detected");
-	}
-	// extensions 객체에서 KHR_texture_transform을 찾는 경우 (새로운 방식)
-	else if (extensionsValue.Has("KHR_texture_transform")) {
-		transformExt = &extensionsValue.Get("KHR_texture_transform");
-		LOGD(OG_ID, "Found KHR_texture_transform in extensions object");
-	}
-	else {
-		LOGD(OG_ID, "KHR_texture_transform extension not found");
-		return transform;
-	}
-	
-	if (!transformExt->IsObject()) {
-		LOGD(OG_ID, "KHR_texture_transform is not an object");
-		return transform;
-	}
-	
-	// offset 파싱
-	if (transformExt->Has("offset") && transformExt->Get("offset").IsArray()) {
-		const auto& offsetArray = transformExt->Get("offset");
-		if (offsetArray.ArrayLen() >= 2) {
-			transform.offset.x = static_cast<float>(offsetArray.Get(0).GetNumberAsDouble());
-			transform.offset.y = static_cast<float>(offsetArray.Get(1).GetNumberAsDouble());
-			LOGD(OG_ID, "Texture transform offset: (%.2f, %.2f)", transform.offset.x, transform.offset.y);
-		}
-	}
-	
-	// rotation 파싱
-	if (transformExt->Has("rotation") && transformExt->Get("rotation").IsNumber()) {
-		transform.rotation = static_cast<float>(transformExt->Get("rotation").GetNumberAsDouble());
-		LOGD(OG_ID, "Texture transform rotation: %.2f", transform.rotation);
-	}
-	
-	// scale 파싱
-	if (transformExt->Has("scale") && transformExt->Get("scale").IsArray()) {
-		const auto& scaleArray = transformExt->Get("scale");
-		if (scaleArray.ArrayLen() >= 2) {
-			transform.scale.x = static_cast<float>(scaleArray.Get(0).GetNumberAsDouble());
-			transform.scale.y = static_cast<float>(scaleArray.Get(1).GetNumberAsDouble());
-			LOGD(OG_ID, "Texture transform scale: (%.2f, %.2f)", transform.scale.x, transform.scale.y);
-		}
-	}
-	
-	return transform;
-}
 
 void OgModelSample::clearModelData()
 {
-	// 텍스처 해제
-	for (auto& material : _materials) {
-		if (material.baseColorTexture) {
-			material.baseColorTexture->Release();
-		}
-		if (material.normalTexture) {
-			material.normalTexture->Release();
-		}
-		if (material.metallicRoughnessTexture) {
-			material.metallicRoughnessTexture->Release();
-		}
-		if (material.emissiveTexture) {
-			material.emissiveTexture->Release();
-		}
-		if (material.occlusionTexture) {
-			material.occlusionTexture->Release();
-		}
-		if (material.sheenColorTexture) {
-			material.sheenColorTexture->Release();
-		}
-		if (material.sheenRoughnessTexture) {
-			material.sheenRoughnessTexture->Release();
-		}
+	// OgGLTFLoader를 사용해서 모델 데이터 클리어
+	if (_gltfLoader)
+	{
+		_gltfLoader->ClearModel(_loadedModel);
 	}
-	
-	// 버퍼 해제
-	for (auto& mesh : _meshes) {
-		for (auto& primitive : mesh.primitives) {
-			if (primitive.vertexBuffer) {
-				primitive.vertexBuffer->Release();
-			}
-			if (primitive.indexBuffer) {
-				primitive.indexBuffer->Release();
-			}
-		}
-	}
-	
-	_meshes.clear();
-	_nodes.clear();
-	_materials.clear();
-	_rootNodes.clear();
-	_modelLoaded = false;
 }
 
 void OgModelSample::renderNode(Render::OgCommandEncoderHandle* encoder, int nodeIndex, const glm::mat4& parentMatrix)
 {
-	if (nodeIndex < 0 || nodeIndex >= static_cast<int>(_nodes.size())) {
+	if (nodeIndex < 0 || nodeIndex >= static_cast<int>(_loadedModel.nodes.size())) {
 		return;
 	}
 	
-	const Node& node = _nodes[nodeIndex];
+	const Node& node = _loadedModel.nodes[nodeIndex];
 	glm::mat4 nodeMatrix = parentMatrix * node.matrix;
 	
 	// 이 노드에 메시가 있으면 렌더링
-	if (node.meshIndex >= 0 && node.meshIndex < static_cast<int>(_meshes.size())) 
+	if (node.meshIndex >= 0 && node.meshIndex < static_cast<int>(_loadedModel.meshes.size())) 
 	{
-		renderMesh(encoder, _meshes[node.meshIndex], nodeMatrix);
+		renderMesh(encoder, _loadedModel.meshes[node.meshIndex], nodeMatrix);
 	}
 	
 	// 자식 노드들 렌더링
@@ -1965,9 +1247,9 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 	for (const auto& primitive : mesh.primitives) 
 	{
 		// Material 설정
-		if (primitive.materialIndex >= 0 && primitive.materialIndex < static_cast<int>(_materials.size())) 
+		if (primitive.materialIndex >= 0 && primitive.materialIndex < static_cast<int>(_loadedModel.materials.size())) 
 		{
-		const Material& material = _materials[primitive.materialIndex];
+		const Material& material = _loadedModel.materials[primitive.materialIndex];
 		
 		// Material 유니폼 업데이트
 		_materialUniformData.baseColorFactor = material.baseColorFactor;
