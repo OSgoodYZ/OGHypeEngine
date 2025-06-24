@@ -452,7 +452,7 @@ void OgSampleViewerWindow::renderSampleSelector()
 	{
 		const char* sampleNames[] = {
 			"Triangle Sample",
-			"FBX Model Sample"
+			"GLTF Model Sample"
 		};
 		
 		ImGui::Text("Available Samples");
@@ -498,8 +498,8 @@ void OgSampleViewerWindow::renderSampleSelector()
 			ImGui::BulletText("No user interaction");
 			break;
 		case 1:
-			ImGui::TextWrapped("FBX Model Sample");
-			ImGui::BulletText("3D cube rendering");
+			ImGui::TextWrapped("Model Sample");
+			ImGui::BulletText("Model rendering");
 			ImGui::BulletText("Camera controls");
 			ImGui::BulletText("Y-axis rotation animation");
 			ImGui::BulletText("Mouse & keyboard input");

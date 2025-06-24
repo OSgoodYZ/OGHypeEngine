@@ -140,9 +140,9 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 	float passColor[]{ 0.0f, 0.0f, 1.0f, 1.0f };
 
 	OgCommandEncoderHandle::ClearValue colorClear;
-	colorClear.color.value[0] = 0.1f;
-	colorClear.color.value[1] = 0.1f;
-	colorClear.color.value[2] = 0.2f;
+	colorClear.color.value[0] = 0.4f;
+	colorClear.color.value[1] = 0.4f;
+	colorClear.color.value[2] = 0.4f;
 	colorClear.color.value[3] = 1.0f;
 
 	OgCommandEncoderHandle::ClearValue depthStencilClear;
@@ -870,6 +870,8 @@ void OgModelSample::createShaders()
 				vec2 uv = transformUV(fragTexCoord, material.occlusionTransform);
 				occlusion = texture(occlusionTexture, uv).r;
 				occlusion = mix(1.0, occlusion, material.occlusionStrength);
+				//outColor = occlusion;
+				//return;
 			}
 
 			// Sheen
@@ -1256,7 +1258,7 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 		_materialUniformData.metallicFactor = material.metallicFactor;
 		_materialUniformData.roughnessFactor = material.roughnessFactor;
 		_materialUniformData.normalScale = material.normalScale;
-		_materialUniformData.occlusionStrength = material.occlusionStrength;
+		_materialUniformData.occlusionStrength = material.occlusionStrength; 
 		_materialUniformData.emissiveFactor = material.emissiveFactor;
 		_materialUniformData.emissiveStrength = material.emissiveStrength;
 		_materialUniformData.sheenColorFactor = material.sheenColorFactor;
