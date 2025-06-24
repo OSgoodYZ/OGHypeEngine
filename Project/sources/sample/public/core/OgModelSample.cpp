@@ -656,22 +656,22 @@ void OgModelSample::createUniformBuffer()
 	_lightUniformData = LightUniformData{};
 	_lightUniformData.lightCount = 4;
 	
-	// 초기 라이트 설정
-	_lightUniformData.lights[0].position = glm::vec3(10.0f, 10.0f, 10.0f);
+	// 초기 라이트 설정 (Directional Light 방향)
+	_lightUniformData.lights[0].position = glm::normalize(glm::vec3(1.0f, -1.0f, -1.0f)); // 오른쪽 위에서 비추는 메인 라이트
 	_lightUniformData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
-	_lightUniformData.lights[0].intensity = 200.0f;
+	_lightUniformData.lights[0].intensity = 3.0f;
 	
-	_lightUniformData.lights[1].position = glm::vec3(-10.0f, 10.0f, 10.0f);
+	_lightUniformData.lights[1].position = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f)); // 왼쪽에서 비추는 보조 라이트
 	_lightUniformData.lights[1].color = glm::vec3(0.5f, 0.5f, 0.75f);
-	_lightUniformData.lights[1].intensity = 100.0f;
+	_lightUniformData.lights[1].intensity = 1.5f;
 	
-	_lightUniformData.lights[2].position = glm::vec3(10.0f, -10.0f, 10.0f);
+	_lightUniformData.lights[2].position = glm::normalize(glm::vec3(0.5f, 1.0f, -0.3f)); // 아래에서 올라오는 림 라이트
 	_lightUniformData.lights[2].color = glm::vec3(0.75f, 0.5f, 0.5f);
-	_lightUniformData.lights[2].intensity = 150.0f;
+	_lightUniformData.lights[2].intensity = 1.0f;
 	
-	_lightUniformData.lights[3].position = glm::vec3(0.0f, 0.0f, 10.0f);
+	_lightUniformData.lights[3].position = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f)); // 정면에서 비추는 필 라이트
 	_lightUniformData.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
-	_lightUniformData.lights[3].intensity = 50.0f;
+	_lightUniformData.lights[3].intensity = 0.5f;
 	
 	_lightUniformBuffer = _renderContext->CreateBuffer(
 		&_lightUniformData,
@@ -968,11 +968,12 @@ void OgModelSample::createShaders()
 
 			// Calculate radiance for each light
 			for (int i = 0; i < lightData.lightCount; ++i) {
-				vec3 L = normalize(lightData.lights[i].position - fragPosition);
+				// Directional Light: position은 실제로는 빛의 방향
+				vec3 L = normalize(-lightData.lights[i].position); // 방향 벡터로 사용
 				vec3 H = normalize(V + L);
-				float distance = length(lightData.lights[i].position - fragPosition);
-				float attenuation = 1.0 / (distance * distance);
-				vec3 radiance = lightData.lights[i].color * lightData.lights[i].intensity * attenuation;
+				
+				// Directional Light는 거리 감쇠 없음
+				vec3 radiance = lightData.lights[i].color * lightData.lights[i].intensity;
 
 				// Cook-Torrance BRDF
 				float NDF = distributionGGX(N, H, roughness);
@@ -1084,7 +1085,7 @@ void OgModelSample::createPipeline()
 
 	OgRasterizationDescriptor rsDesc{};
 	rsDesc.polygonMode = OgPolygonMode::FILL;
-	rsDesc.cullMode = OgCullMode::BACK;  // 모든 면을 렌더링 (double-sided 지원)
+	rsDesc.cullMode = OgCullMode::NONE;  // 모든 면을 렌더링 (double-sided 지원)
 	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;
 	rsDesc.scissorTest = false;
 	rsDesc.primitiveType = OgPrimitiveType::TRIANGLE_LIST;

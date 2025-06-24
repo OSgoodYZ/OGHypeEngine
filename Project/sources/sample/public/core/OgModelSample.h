@@ -21,10 +21,10 @@ OG_NAMESPACE_SAMPLE_BEGIN
 class OG_API OgModelSample : public OgSampleBase
 {
 public:
-	// 라이트 데이터 구조체
+	// 라이트 데이터 구조체 (Directional Light)
 	struct Light
 	{
-		glm::vec3 position;      // 12 bytes
+		glm::vec3 position;      // 12 bytes - 라이트 방향 (Directional)
 		float intensity;         // 4 bytes
 		glm::vec3 color;         // 12 bytes
 		float padding;           // 4 bytes (16 바이트 정렬)

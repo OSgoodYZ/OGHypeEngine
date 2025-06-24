@@ -601,14 +601,14 @@ void OgSampleViewerWindow::renderLightControls()
 			
 			if (ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen))
 			{
-				// 위치
-				if (ImGui::DragFloat3("Position", &lightData.lights[i].position.x, 0.1f))
-				{
-					lightDataChanged = true;
-				}
+			// 방향 (Directional Light)
+			if (ImGui::DragFloat3("Direction", &lightData.lights[i].position.x, 0.1f))
+			{
+			lightDataChanged = true;
+			}
 				
 				// 강도
-				if (ImGui::SliderFloat("Intensity", &lightData.lights[i].intensity, 0.0f, 500.0f))
+				if (ImGui::SliderFloat("Intensity", &lightData.lights[i].intensity, 0.0f, 50.0f))
 				{
 					lightDataChanged = true;
 				}
@@ -636,50 +636,50 @@ void OgSampleViewerWindow::renderLightControls()
 		
 		if (ImGui::Button("Default Lighting", ImVec2(-1, 0)))
 		{
-			// 기본 라이팅 설정
+			// 기본 라이팅 설정 (Directional)
 			lightData.lightCount = 4;
 			
-			lightData.lights[0].position = glm::vec3(10.0f, 10.0f, 10.0f);
+			lightData.lights[0].position = glm::normalize(glm::vec3(1.0f, -1.0f, -1.0f));
 			lightData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
-			lightData.lights[0].intensity = 200.0f;
+			lightData.lights[0].intensity = 3.0f;
 			
-			lightData.lights[1].position = glm::vec3(-10.0f, 10.0f, 10.0f);
+			lightData.lights[1].position = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f));
 			lightData.lights[1].color = glm::vec3(0.5f, 0.5f, 0.75f);
-			lightData.lights[1].intensity = 100.0f;
+			lightData.lights[1].intensity = 1.5f;
 			
-			lightData.lights[2].position = glm::vec3(10.0f, -10.0f, 10.0f);
+			lightData.lights[2].position = glm::normalize(glm::vec3(0.5f, 1.0f, -0.3f));
 			lightData.lights[2].color = glm::vec3(0.75f, 0.5f, 0.5f);
-			lightData.lights[2].intensity = 150.0f;
+			lightData.lights[2].intensity = 1.0f;
 			
-			lightData.lights[3].position = glm::vec3(0.0f, 0.0f, 10.0f);
+			lightData.lights[3].position = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
 			lightData.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
-			lightData.lights[3].intensity = 50.0f;
+			lightData.lights[3].intensity = 0.5f;
 			
 			modelSample->UpdateLightUniformBuffer();
 		}
 		
 		if (ImGui::Button("Single Key Light", ImVec2(-1, 0)))
 		{
-			// 단일 키 라이트
+			// 단일 키 라이트 (Directional)
 			lightData.lightCount = 1;
-			lightData.lights[0].position = glm::vec3(5.0f, 10.0f, 10.0f);
+			lightData.lights[0].position = glm::normalize(glm::vec3(0.5f, -1.0f, -0.8f));
 			lightData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
-			lightData.lights[0].intensity = 300.0f;
+			lightData.lights[0].intensity = 4.0f;
 			
 			modelSample->UpdateLightUniformBuffer();
 		}
 		
 		if (ImGui::Button("Warm Lighting", ImVec2(-1, 0)))
 		{
-			// 따뜻한 조명
+			// 따뜻한 조명 (Directional)
 			lightData.lightCount = 2;
-			lightData.lights[0].position = glm::vec3(8.0f, 8.0f, 8.0f);
+			lightData.lights[0].position = glm::normalize(glm::vec3(0.6f, -0.8f, -0.6f));
 			lightData.lights[0].color = glm::vec3(1.0f, 0.8f, 0.6f);  // 따뜻한 색
-			lightData.lights[0].intensity = 250.0f;
+			lightData.lights[0].intensity = 3.5f;
 			
-			lightData.lights[1].position = glm::vec3(-5.0f, 5.0f, 8.0f);
+			lightData.lights[1].position = glm::normalize(glm::vec3(-0.3f, -0.5f, -0.8f));
 			lightData.lights[1].color = glm::vec3(0.8f, 0.6f, 0.4f);  // 더 따뜻한 보조 조명
-			lightData.lights[1].intensity = 100.0f;
+			lightData.lights[1].intensity = 1.5f;
 			
 			modelSample->UpdateLightUniformBuffer();
 		}
