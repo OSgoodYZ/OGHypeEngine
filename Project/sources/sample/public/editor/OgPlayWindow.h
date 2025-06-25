@@ -83,6 +83,9 @@ private:
 	int _currentSampleIndex = 1; // 기본은 FBX 샘플
 	
 	// renderLightGizmos, drawArrow 함수는 renderLightControls로 통합되어 제거됨
+	
+	// XYZ 축 기즘모 렌더링
+	void renderXYZGizmo(ImVec2 imagePos, ImVec2 imageSize);
 };
 
 OG_NAMESPACE_SAMPLE_END

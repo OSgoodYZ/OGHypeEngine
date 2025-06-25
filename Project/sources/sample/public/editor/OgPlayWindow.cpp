@@ -4,6 +4,7 @@
 #include "system/OgSystemContext.h"
 #include "system/OgInput.h"
 #include <algorithm>
+#include <cmath>
 OG_NAMESPACE_SAMPLE_BEGIN
 
 OgPlayWindow::OgPlayWindow(Render::OgRenderContext* renderContext, const Config& config)
@@ -373,6 +374,9 @@ void OgSampleViewerWindow::renderSampleViewer()
 			
 			// 라이트 기즈모는 Light Controls 패널로 이동됨
 			
+			// XYZ 축 기즈모 (오른쪽 상단)
+			renderXYZGizmo(imagePos, imageSize);
+			
 			// 이미지 위에 정보 오버레이
 			ImDrawList* draw_list = ImGui::GetWindowDrawList();
 			ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
@@ -412,6 +416,115 @@ void OgSampleViewerWindow::renderSampleViewer()
 }
 
 // drawArrow 함수도 더이상 사용되지 않아 제거됨
+
+void OgSampleViewerWindow::renderXYZGizmo(ImVec2 imagePos, ImVec2 imageSize)
+{
+	// 모델 샘플인 경우에만 동적 기즈모 표시
+	OgSampleBase* sample = GetSample();
+	OgModelSample* modelSample = dynamic_cast<OgModelSample*>(sample);
+	
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+	
+	// 기즈모 크기와 위치 설정
+	float gizmo_size = 80.0f;
+	float margin = 20.0f;
+	
+	// 오른쪽 상단 위치
+	ImVec2 gizmo_center = ImVec2(
+		imagePos.x + imageSize.x - gizmo_size * 0.5f - margin,
+		imagePos.y + gizmo_size * 0.5f + margin
+	);
+	
+	// 버리는 주석
+	
+	if (modelSample)
+	{
+		// 카메라의 뷰 행렬 가져오기
+		glm::mat4 viewMatrix = modelSample->GetViewMatrix();
+		
+		// 뷰 행렬의 역행렬을 구해서 카메라의 방향 벡터들 추출
+		glm::mat4 invViewMatrix = glm::inverse(viewMatrix);
+		
+		// 월드 공간의 축 벡터들
+		glm::vec3 worldX = glm::vec3(1.0f, 0.0f, 0.0f);
+		glm::vec3 worldY = glm::vec3(0.0f, 1.0f, 0.0f);
+		glm::vec3 worldZ = glm::vec3(0.0f, 0.0f, 1.0f);
+		
+		// 뷰 공간으로 변환 (방향 벡터이므로 w=0)
+		glm::vec4 viewX = viewMatrix * glm::vec4(worldX, 0.0f);
+		glm::vec4 viewY = viewMatrix * glm::vec4(worldY, 0.0f);
+		glm::vec4 viewZ = viewMatrix * glm::vec4(worldZ, 0.0f);
+		
+		// 2D 투영 (정규화 하지 않음 - 3D 공간의 자연스러운 길이 유지)
+		glm::vec2 proj2D_X = glm::vec2(-viewX.x, viewX.y);
+		glm::vec2 proj2D_Y = glm::vec2(-viewY.x, viewY.y);
+		glm::vec2 proj2D_Z = glm::vec2(-viewZ.x, viewZ.y);
+		
+		// 축의 길이 설정 - 3D 공간에서 길이 1인 축을 스케일링
+		float scale_factor = gizmo_size * 0.3f;
+		float line_thickness = 2.5f;
+		
+		// X축 그리기 (빨간색) - 3D 공간의 자연스러운 길이
+		ImVec2 x_end = ImVec2(
+			gizmo_center.x + proj2D_X.x * scale_factor,
+			gizmo_center.y + proj2D_X.y * scale_factor
+		);
+		ImU32 x_color = IM_COL32(220, 60, 60, 255);
+		draw_list->AddLine(gizmo_center, x_end, x_color, line_thickness);
+		
+		// X 라벨
+		ImVec2 x_label_pos = ImVec2(x_end.x + proj2D_X.x * 10, x_end.y + proj2D_X.y * 10);
+		draw_list->AddText(x_label_pos, IM_COL32(255, 255, 255, 255), "X");
+		
+		// Y축 그리기 (녹색) - 3D 공간의 자연스러운 길이
+		ImVec2 y_end = ImVec2(
+			gizmo_center.x + proj2D_Y.x * scale_factor,
+			gizmo_center.y + proj2D_Y.y * scale_factor
+		);
+		ImU32 y_color = IM_COL32(60, 220, 60, 255);
+		draw_list->AddLine(gizmo_center, y_end, y_color, line_thickness);
+		
+		// Y 라벨
+		ImVec2 y_label_pos = ImVec2(y_end.x + proj2D_Y.x * 10, y_end.y + proj2D_Y.y * 10);
+		draw_list->AddText(y_label_pos, IM_COL32(255, 255, 255, 255), "Y");
+		
+		// Z축 그리기 (파란색) - 3D 공간의 자연스러운 길이
+		ImVec2 z_end = ImVec2(
+			gizmo_center.x + proj2D_Z.x * scale_factor,
+			gizmo_center.y + proj2D_Z.y * scale_factor
+		);
+		ImU32 z_color = IM_COL32(60, 120, 220, 255);
+		draw_list->AddLine(gizmo_center, z_end, z_color, line_thickness);
+		
+		// Z 라벨
+		ImVec2 z_label_pos = ImVec2(z_end.x + proj2D_Z.x * 10, z_end.y + proj2D_Z.y * 10);
+		draw_list->AddText(z_label_pos, IM_COL32(255, 255, 255, 255), "Z");
+	}
+	else
+	{
+		// 모델 샘플이 아닌 경우 - 간단한 고정 축 표시
+		float axis_length = gizmo_size * 0.3f;
+		float line_thickness = 2.5f;
+		
+		// X축 (빨간색) - 오른쪽
+		ImVec2 x_end = ImVec2(gizmo_center.x + axis_length, gizmo_center.y);
+		ImU32 x_color = IM_COL32(220, 60, 60, 255);
+		draw_list->AddLine(gizmo_center, x_end, x_color, line_thickness);
+		draw_list->AddText(ImVec2(x_end.x + 10, x_end.y - 6), IM_COL32(255, 255, 255, 255), "X");
+		
+		// Y축 (녹색) - 위쪽
+		ImVec2 y_end = ImVec2(gizmo_center.x, gizmo_center.y - axis_length);
+		ImU32 y_color = IM_COL32(60, 220, 60, 255);
+		draw_list->AddLine(gizmo_center, y_end, y_color, line_thickness);
+		draw_list->AddText(ImVec2(y_end.x - 6, y_end.y - 15), IM_COL32(255, 255, 255, 255), "Y");
+		
+		// Z축 (파란색) - 대각선
+		ImVec2 z_end = ImVec2(gizmo_center.x + axis_length * 0.7f, gizmo_center.y + axis_length * 0.7f);
+		ImU32 z_color = IM_COL32(60, 120, 220, 255);
+		draw_list->AddLine(gizmo_center, z_end, z_color, line_thickness);
+		draw_list->AddText(ImVec2(z_end.x + 5, z_end.y + 2), IM_COL32(255, 255, 255, 255), "Z");
+		}
+}
 
 void OgSampleViewerWindow::renderDebugInfo()
 {
@@ -569,9 +682,6 @@ void OgSampleViewerWindow::switchSample(int index)
 	// 새 샘플로 교체
 	SetSample(std::move(newSample));
 }
-
-// renderLightGizmos 함수는 renderLightControls로 통합되어 제거됨
-
 
 void OgSampleViewerWindow::renderLightControls()
 {
@@ -746,7 +856,7 @@ void OgSampleViewerWindow::renderLightControls()
 				// 라이트 방향을 2D 좌표로 변환
 				glm::vec3 lightDir = glm::normalize(light.position);
 				float dirX = -lightDir.x; // 화면 좌표계에 맞게 조정
-				float dirY = lightDir.y;
+				float dirY = -lightDir.y;
 				
 				// 라이트 강도에 따른 화살표 길이
 				float intensity = std::clamp(light.intensity / 4.0f, 0.3f, 1.0f);
