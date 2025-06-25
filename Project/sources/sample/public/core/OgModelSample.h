@@ -62,6 +62,11 @@ public:
 	void SetShowLightControls(bool show) { _showLightControls = show; }
 	LightUniformData& GetLightUniformData() { return _lightUniformData; }
 	void UpdateLightUniformBuffer();
+	
+	// 라이트 기즈모를 위한 행렬 접근
+	glm::mat4 GetViewMatrix() const { return _uniformData.view; }
+	glm::mat4 GetProjectionMatrix() const { return _uniformData.projection; }
+	glm::mat4 GetModelMatrix() const { return _uniformData.model; }
 
 	// 렌더 타겟 인터페이스
 	Render::OgTextureHandle* GetRenderTargetTexture() const override { return _renderTargetTexture; }

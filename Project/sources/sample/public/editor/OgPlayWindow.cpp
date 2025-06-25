@@ -1,4 +1,4 @@
-﻿#include "OgPlayWindow.h"
+#include "OgPlayWindow.h"
 #include "sample/public/core/OgTriangleSample.h"
 #include "sample/public/core/OgModelSample.h"
 #include "system/OgSystemContext.h"
@@ -365,10 +365,13 @@ void OgSampleViewerWindow::renderSampleViewer()
 			if (centerY > 0) ImGui::SetCursorPosY(ImGui::GetCursorPosY() + centerY);
 			
 			// 이미지 렌더링
+			ImVec2 imagePos = ImGui::GetCursorScreenPos();
 			ImGui::Image(
 				reinterpret_cast<ImTextureID>(sample->GetRenderTargetTexture()),
 				imageSize
 			);
+			
+			// 라이트 기즈모는 Light Controls 패널로 이동됨
 			
 			// 이미지 위에 정보 오버레이
 			ImDrawList* draw_list = ImGui::GetWindowDrawList();
@@ -393,6 +396,7 @@ void OgSampleViewerWindow::renderSampleViewer()
 				IM_COL32(255, 255, 255, 255),
 				info
 			);
+
 		}
 		else
 		{
@@ -406,6 +410,8 @@ void OgSampleViewerWindow::renderSampleViewer()
 	}
 	ImGui::End();
 }
+
+// drawArrow 함수도 더이상 사용되지 않아 제거됨
 
 void OgSampleViewerWindow::renderDebugInfo()
 {
@@ -564,6 +570,9 @@ void OgSampleViewerWindow::switchSample(int index)
 	SetSample(std::move(newSample));
 }
 
+// renderLightGizmos 함수는 renderLightControls로 통합되어 제거됨
+
+
 void OgSampleViewerWindow::renderLightControls()
 {
 	// 모델 샘플인 경우에만 라이트 컨트롤 표시
@@ -682,6 +691,127 @@ void OgSampleViewerWindow::renderLightControls()
 			lightData.lights[1].intensity = 1.5f;
 			
 			modelSample->UpdateLightUniformBuffer();
+		}
+		
+		// Light Gizmo Visualization
+		ImGui::Separator();
+		ImGui::Text("Light Direction Gizmo");
+		ImGui::Separator();
+		
+		// 기즈모 캔버스 영역
+		ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+		ImVec2 canvas_size = ImGui::GetContentRegionAvail();
+		canvas_size.y = std::min(canvas_size.y, 200.0f); // 최대 높이 제한
+		
+		if (canvas_size.x > 100 && canvas_size.y > 100)
+		{
+			ImDrawList* draw_list = ImGui::GetWindowDrawList();
+			
+			// 배경 그리기
+			draw_list->AddRectFilled(canvas_pos, 
+				ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), 
+				IM_COL32(40, 40, 40, 200), 5.0f);
+			
+			// 중심점
+			ImVec2 center = ImVec2(canvas_pos.x + canvas_size.x * 0.5f, canvas_pos.y + canvas_size.y * 0.5f);
+			
+			// 참조 격자 그리기
+			float grid_step = 20.0f;
+			for (float x = canvas_pos.x; x <= canvas_pos.x + canvas_size.x; x += grid_step)
+			{
+				draw_list->AddLine(ImVec2(x, canvas_pos.y), ImVec2(x, canvas_pos.y + canvas_size.y), 
+					IM_COL32(60, 60, 60, 100), 1.0f);
+			}
+			for (float y = canvas_pos.y; y <= canvas_pos.y + canvas_size.y; y += grid_step)
+			{
+				draw_list->AddLine(ImVec2(canvas_pos.x, y), ImVec2(canvas_pos.x + canvas_size.x, y), 
+					IM_COL32(60, 60, 60, 100), 1.0f);
+			}
+			
+			// 중심 십자선
+			draw_list->AddLine(ImVec2(center.x - 10, center.y), ImVec2(center.x + 10, center.y), 
+				IM_COL32(100, 100, 100, 200), 2.0f);
+			draw_list->AddLine(ImVec2(center.x, center.y - 10), ImVec2(center.x, center.y + 10), 
+				IM_COL32(100, 100, 100, 200), 2.0f);
+			
+			// 기즈모 크기 설정
+			float gizmo_size = std::min(canvas_size.x, canvas_size.y) * 0.3f;
+			gizmo_size = std::clamp(gizmo_size, 30.0f, 80.0f);
+			
+			// 각 라이트에 대해 기즈모 그리기
+			for (int i = 0; i < lightData.lightCount; ++i)
+			{
+				const auto& light = lightData.lights[i];
+				
+				// 라이트 방향을 2D 좌표로 변환
+				glm::vec3 lightDir = glm::normalize(light.position);
+				float dirX = -lightDir.x; // 화면 좌표계에 맞게 조정
+				float dirY = lightDir.y;
+				
+				// 라이트 강도에 따른 화살표 길이
+				float intensity = std::clamp(light.intensity / 4.0f, 0.3f, 1.0f);
+				float arrow_length = gizmo_size * intensity;
+				
+				// 화살표 끝점
+				ImVec2 arrow_end = ImVec2(
+					center.x + dirX * arrow_length,
+					center.y + dirY * arrow_length
+				);
+				
+				// 라이트 색상 설정
+				ImU32 light_color = IM_COL32(
+					static_cast<int>(light.color.r * 255),
+					static_cast<int>(light.color.g * 255),
+					static_cast<int>(light.color.b * 255),
+					255
+				);
+				
+				// 화살표 선 그리기
+				float line_thickness = 3.0f + intensity * 2.0f;
+				draw_list->AddLine(center, arrow_end, light_color, line_thickness);
+				
+				// 화살표 머리 그리기
+				float arrow_head_size = 10.0f + intensity * 5.0f;
+				glm::vec2 arrow_dir = glm::normalize(glm::vec2(dirX, dirY));
+				glm::vec2 perp_dir = glm::vec2(-arrow_dir.y, arrow_dir.x);
+				
+				ImVec2 arrow_head1 = ImVec2(
+					arrow_end.x - arrow_dir.x * arrow_head_size + perp_dir.x * arrow_head_size * 0.5f,
+					arrow_end.y - arrow_dir.y * arrow_head_size + perp_dir.y * arrow_head_size * 0.5f
+				);
+				ImVec2 arrow_head2 = ImVec2(
+					arrow_end.x - arrow_dir.x * arrow_head_size - perp_dir.x * arrow_head_size * 0.5f,
+					arrow_end.y - arrow_dir.y * arrow_head_size - perp_dir.y * arrow_head_size * 0.5f
+				);
+				
+				// 화살표 머리 삼각형
+				draw_list->AddTriangleFilled(arrow_end, arrow_head1, arrow_head2, light_color);
+				
+				// 라이트 인덱스 표시
+				char light_label[16];
+				snprintf(light_label, sizeof(light_label), "L%d", i);
+				
+				ImVec2 label_pos = ImVec2(
+					arrow_end.x + dirX * 20.0f,
+					arrow_end.y + dirY * 20.0f
+				);
+				
+				// 라벨 배경
+				ImVec2 label_size = ImGui::CalcTextSize(light_label);
+				ImVec2 label_bg_min = ImVec2(label_pos.x - 3, label_pos.y - 2);
+				ImVec2 label_bg_max = ImVec2(label_pos.x + label_size.x + 3, label_pos.y + label_size.y + 2);
+				draw_list->AddRectFilled(label_bg_min, label_bg_max, IM_COL32(0, 0, 0, 180), 3.0f);
+				
+				// 라벨 텍스트
+				draw_list->AddText(label_pos, IM_COL32(255, 255, 255, 255), light_label);
+			}
+			
+			// 도움말 텍스트
+			ImVec2 help_pos = ImVec2(canvas_pos.x + 5, canvas_pos.y + 5);
+			draw_list->AddText(help_pos, IM_COL32(180, 180, 180, 255), "Light Direction Visualization");
+			
+			// 캔버스 공간 예약
+			ImGui::Dummy(canvas_size);
 		}
 	}
 	ImGui::End();

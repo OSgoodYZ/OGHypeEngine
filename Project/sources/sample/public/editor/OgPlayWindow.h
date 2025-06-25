@@ -15,6 +15,9 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 OG_NAMESPACE_SAMPLE_BEGIN
 
+// Forward declarations
+class OgModelSample;
+
 /**
  * @brief ImGui를 사용하는 플레이 윈도우
  */
@@ -78,6 +81,8 @@ private:
 	void switchSample(int index);
 	
 	int _currentSampleIndex = 1; // 기본은 FBX 샘플
+	
+	// renderLightGizmos, drawArrow 함수는 renderLightControls로 통합되어 제거됨
 };
 
 OG_NAMESPACE_SAMPLE_END
