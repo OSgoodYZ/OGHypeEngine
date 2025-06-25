@@ -136,7 +136,7 @@ void OgFlyCamera::OnMouseMove(double x, double y)
 		xoffset *= _rotateSpeed;
 		yoffset *= _rotateSpeed;
 
-		_yaw += static_cast<float>(xoffset);
+		_yaw -= static_cast<float>(xoffset);
 		_pitch += static_cast<float>(yoffset);
 
 		// Pitch 제한
@@ -257,9 +257,9 @@ void OgFlyCamera::handleFlyMode(float deltaTime)
 	if (_keyS)
 		_moveVelocity -= _forward * velocity;
 	if (_keyA)
-		_moveVelocity -= _right * velocity;
-	if (_keyD)
 		_moveVelocity += _right * velocity;
+	if (_keyD)
+		_moveVelocity -= _right * velocity;
 	if (_keyQ)
 		_moveVelocity -= _worldUp * velocity;
 	if (_keyE)
