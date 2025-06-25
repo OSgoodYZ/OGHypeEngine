@@ -470,6 +470,7 @@ void OgSampleViewerWindow::renderXYZGizmo(ImVec2 imagePos, ImVec2 imageSize)
 			gizmo_center.y + proj2D_X.y * scale_factor
 		);
 		ImU32 x_color = IM_COL32(220, 60, 60, 255);
+
 		draw_list->AddLine(gizmo_center, x_end, x_color, line_thickness);
 		
 		// X 라벨
@@ -848,15 +849,21 @@ void OgSampleViewerWindow::renderLightControls()
 			float gizmo_size = std::min(canvas_size.x, canvas_size.y) * 0.3f;
 			gizmo_size = std::clamp(gizmo_size, 30.0f, 80.0f);
 			
+			// 카메라의 뷰 행렬 가져오기
+			glm::mat4 viewMatrix = modelSample->GetViewMatrix();
+			
 			// 각 라이트에 대해 기즈모 그리기
 			for (int i = 0; i < lightData.lightCount; ++i)
 			{
 				const auto& light = lightData.lights[i];
 				
-				// 라이트 방향을 2D 좌표로 변환
-				glm::vec3 lightDir = glm::normalize(light.position);
-				float dirX = -lightDir.x; // 화면 좌표계에 맞게 조정
-				float dirY = -lightDir.y;
+				// 라이트 방향을 world space에서 view space로 변환
+				glm::vec3 worldLightDir = -glm::normalize(light.position);
+				glm::vec4 viewLightDir = viewMatrix * glm::vec4(worldLightDir, 0.0f);
+				
+				// view space에서 2D로 투영 (카메라 방향을 고려)
+				float dirX = -viewLightDir.x; // 화면 좌표계에 맞게 조정
+				float dirY = viewLightDir.y;
 				
 				// 라이트 강도에 따른 화살표 길이
 				float intensity = std::clamp(light.intensity / 4.0f, 0.3f, 1.0f);
