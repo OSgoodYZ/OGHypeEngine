@@ -19,7 +19,7 @@ OgModelSample::OgModelSample(Render::OgRenderContext* renderContext)
 	, _gltfLoader(std::make_unique<OgGLTFLoader>(renderContext))
 {
 	// 카메라 초기 설정
-	_camera->SetPosition(glm::vec3(5.0f, 5.0f, 5.0f));
+	_camera->SetPosition(glm::vec3(0.0f, 0.0f, 5.0f));
 	_camera->SetTarget(glm::vec3(0.0f, 0.0f, 0.0f));
 }
 
@@ -45,11 +45,11 @@ void OgModelSample::OnInit(Render::OgSwapChain* swapchain)
 	// glTF 폴더에서 첫 번째 glTF 파일을 찾아서 로드
 	// 실행 파일 경로를 기준으로 glTF 폴더 경로 구성
 	std::filesystem::path executablePath = std::filesystem::current_path();
-	std::filesystem::path gltfPath = executablePath / "glTF";
+	std::filesystem::path gltfPath = executablePath / "glTF\\SheenCloth";
 	
 	// 만약 현재 경로에서 찾을 수 없으면, Build/Debug 경로도 시도
 	if (!std::filesystem::exists(gltfPath)) {
-		gltfPath = executablePath / "Build" / "Debug" / "glTF";
+		gltfPath = executablePath / "Build" / "Debug" / "glTF"/ "SheenCloth";
 	}
 	
 	// 그래도 없으면 상위 디렉토리들도 확인
@@ -57,7 +57,7 @@ void OgModelSample::OnInit(Render::OgSwapChain* swapchain)
 		std::filesystem::path searchPath = executablePath;
 		for (int i = 0; i < 3; ++i) {
 			searchPath = searchPath.parent_path();
-			std::filesystem::path testPath = searchPath / "Build" / "Debug" / "glTF";
+			std::filesystem::path testPath = searchPath / "Build" / "Debug" / "glTF" / "SheenCloth";
 			if (std::filesystem::exists(testPath)) {
 				gltfPath = testPath;
 				break;
@@ -177,17 +177,24 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 		
 		// 모델 크기 정규화 (카메라 거리에 맞게 스케일 조정)
 		float scale = 5.0f / _loadedModel.radius; // 모델을 적절한 크기로 조정
-		scale *= 10.0f; // 10배 스케일링
+		scale *= 20.0f; // 20배 스케일링
+
+		
+		//rootTransform = glm::translate(rootTransform, glm::vec3(2, 0, 0));
+		rootTransform = glm::translate(rootTransform, -_loadedModel.center);
+
 		rootTransform = glm::scale(rootTransform, glm::vec3(scale));
 		
 		// 모델 중심을 원점으로 이동
 		rootTransform = glm::translate(rootTransform, -_loadedModel.center);
-		
 		// 루트 노드들 렌더링
-		for (int rootNode : _loadedModel.rootNodes) {
+		for (int rootNode : _loadedModel.rootNodes) 
+		{
 			renderNode(encoder, rootNode, rootTransform);
 		}
-	} else if (!_loadedModel.meshes.empty()) {
+	}
+	else if (!_loadedModel.meshes.empty()) 
+	{
 		// 기본 큐브 렌더링
 		glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(10.0f)); // 10배 스케일링
