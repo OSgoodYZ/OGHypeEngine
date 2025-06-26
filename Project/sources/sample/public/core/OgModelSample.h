@@ -66,7 +66,7 @@ public:
 	// 라이트 기즈모를 위한 행렬 접근
 	glm::mat4 GetViewMatrix() const { return _uniformData.view; }
 	glm::mat4 GetProjectionMatrix() const { return _uniformData.projection; }
-	glm::mat4 GetModelMatrix() const { return _uniformData.model; }
+	glm::mat4 GetModelMatrix() const { return _modelUniformData.model; }
 	
 	// 파일 브라우저 인터페이스
 	const std::vector<std::string>& GetAvailableModels() const { return _availableModels; }
@@ -90,12 +90,17 @@ private:
 	using Material = OgGLTFLoader::Material;
 	using TextureTransform = OgGLTFLoader::TextureTransform;
 
-	// 유니폼 버퍼 데이터
+	// 유니폼 버퍼 데이터 (View/Projection만 포함)
 	struct UniformData
 	{
-		glm::mat4 model;
 		glm::mat4 view;
 		glm::mat4 projection;
+	};
+	
+	// 모델별 유니폼 데이터 (각 노드마다 개별적으로 사용)
+	struct ModelUniformData
+	{
+		glm::mat4 model;
 		glm::mat4 normalMatrix;  // 노말 변환용
 	};
 
@@ -167,6 +172,7 @@ private:
 private:
 	// 렌더링 리소스
 	Render::OgBufferHandle* _uniformBuffer = nullptr;
+	Render::OgBufferHandle* _modelUniformBuffer = nullptr;  // 모델 변환용 별도 버퍼
 	Render::OgBufferHandle* _materialUniformBuffer = nullptr;
 	Render::OgShaderHandle* _vertexShader = nullptr;
 	Render::OgShaderHandle* _fragmentShader = nullptr;
@@ -197,6 +203,7 @@ private:
 	// 변환 행렬
 	float _rotation = 0.0f;
 	UniformData _uniformData;
+	ModelUniformData _modelUniformData;  // 현재 렌더링 중인 모델의 변환
 	MaterialUniformData _materialUniformData;
 
 	// 카메라

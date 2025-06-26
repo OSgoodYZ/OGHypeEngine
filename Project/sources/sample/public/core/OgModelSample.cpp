@@ -164,21 +164,17 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 	if (_loadedModel.isLoaded && !_loadedModel.rootNodes.empty()) {
 		glm::mat4 rootTransform = glm::mat4(1.0f);
 
-		// 모델을 중심으로 회전
-		rootTransform = glm::rotate(rootTransform, _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
+		//// 모델을 중심으로 회전
+		//rootTransform = glm::rotate(rootTransform, _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
 
-		// 모델 크기 정규화 (카메라 거리에 맞게 스케일 조정)
-		float scale = 5.0f / _loadedModel.radius; // 모델을 적절한 크기로 조정
-		//scale *= 20.0f; // 20배 스케일링
+		//// 모델 크기 정규화 (카메라 거리에 맞게 스케일 조정)
+		//float scale = 5.0f / _loadedModel.radius; // 모델을 적절한 크기로 조정
+		//rootTransform = glm::translate(rootTransform, -_loadedModel.center);
 
+		//rootTransform = glm::scale(rootTransform, glm::vec3(scale));
 
-		//rootTransform = glm::translate(rootTransform, glm::vec3(2, 0, 0));
-		rootTransform = glm::translate(rootTransform, -_loadedModel.center);
-
-		rootTransform = glm::scale(rootTransform, glm::vec3(scale));
-
-		// 모델 중심을 원점으로 이동
-		rootTransform = glm::translate(rootTransform, -_loadedModel.center);
+		//// 모델 중심을 원점으로 이동
+		//rootTransform = glm::translate(rootTransform, -_loadedModel.center);
 		// 루트 노드들 렌더링
 		for (int rootNode : _loadedModel.rootNodes)
 		{
@@ -316,8 +312,8 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	_defaultNormalTexture->Retain();
 
 	// 리소스 레이아웃 생성
-	OgResourceBinding bindings[10];
-	// 유니폼 버퍼
+	OgResourceBinding bindings[11];
+	// 유니폼 버퍼 (View/Projection)
 	bindings[0].type = OgResourceType::UNIFORM_BUFFER;
 	bindings[0].stage = OgShaderType::VERTEX;
 	bindings[0].binding = 0;
@@ -387,13 +383,20 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	bindings[9].arrayCount = 0;
 	bindings[9].name = nullptr;
 
-	_resourceLayout = _renderContext->CreateResourceLayout(bindings, 10);
+	// Model uniform buffer
+	bindings[10].type = OgResourceType::UNIFORM_BUFFER;
+	bindings[10].stage = OgShaderType::VERTEX;
+	bindings[10].binding = 10;
+	bindings[10].arrayCount = 0;
+	bindings[10].name = nullptr;
+	
+	_resourceLayout = _renderContext->CreateResourceLayout(bindings, 11);
 	_resourceLayout->name = "ModelSampleResourceLayout";
 	_resourceLayout->Retain();
 
 	// 리소스 셋 생성
 	uint32 zeroOffset = 0;
-	OgResourceUsage usages[10];
+	OgResourceUsage usages[11];
 
 	usages[0].binding = bindings[0];
 	usages[0].buffer.handle = &_uniformBuffer;
@@ -430,8 +433,13 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	usages[9].buffer.handle = &_lightUniformBuffer;
 	usages[9].buffer.offset = &zeroOffset;
 	usages[9].buffer.range = &_lightUniformBuffer->size;
+	
+	usages[10].binding = bindings[10];
+	usages[10].buffer.handle = &_modelUniformBuffer;
+	usages[10].buffer.offset = &zeroOffset;
+	usages[10].buffer.range = &_modelUniformBuffer->size;
 
-	_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 10);
+	_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 11);
 	_resourceSet->name = "ModelSampleResourceSet";
 	_resourceSet->Retain();
 
@@ -493,6 +501,12 @@ void OgModelSample::destroyResources()
 	{
 		_uniformBuffer->Release();
 		_uniformBuffer = nullptr;
+	}
+	
+	if (_modelUniformBuffer)
+	{
+		_modelUniformBuffer->Release();
+		_modelUniformBuffer = nullptr;
 	}
 
 	if (_lightUniformBuffer)
@@ -587,8 +601,8 @@ void OgModelSample::createDefaultMesh()
 void OgModelSample::createUniformBuffer()
 {
 	// 초기 변환 행렬 설정
-	_uniformData.model = glm::mat4(1.0f);
-	_uniformData.normalMatrix = glm::mat4(1.0f);
+	_modelUniformData.model = glm::mat4(1.0f);
+	_modelUniformData.normalMatrix = glm::mat4(1.0f);
 
 	float aspect = 1.0f;
 	if (_renderTargetHeight > 0)
@@ -624,6 +638,15 @@ void OgModelSample::createUniformBuffer()
 		OgMemoryOption::MAP_MANAGED
 	);
 	_uniformBuffer->Retain();
+	
+	// 모델 유니폼 버퍼 생성
+	_modelUniformBuffer = _renderContext->CreateBuffer(
+		&_modelUniformData,
+		sizeof(ModelUniformData),
+		Render::OgBufferUsage::UNIFORM,
+		OgMemoryOption::MAP_MANAGED
+	);
+	_modelUniformBuffer->Retain();
 
 	// Material 유니폼 버퍼 생성
 	_materialUniformData = MaterialUniformData{};
@@ -707,11 +730,14 @@ void OgModelSample::createShaders()
 		layout(location = 3) in vec4 inTangent;
 		
 		layout(binding = 0) uniform UniformBufferObject {
-			mat4 model;
 			mat4 view;
 			mat4 proj;
-			mat4 normalMatrix;
 		} ubo;
+		
+		layout(binding = 10) uniform ModelUniformObject {
+			mat4 model;
+			mat4 normalMatrix;
+		} modelUbo;
 
 		layout(location = 0) out vec3 fragPosition;
 		layout(location = 1) out vec3 fragNormal;
@@ -719,13 +745,13 @@ void OgModelSample::createShaders()
 		layout(location = 3) out vec4 fragTangent;
 
 		void main() {
-			vec4 worldPos = ubo.model * vec4(inPosition, 1.0);
+			vec4 worldPos = modelUbo.model * vec4(inPosition, 1.0);
 			gl_Position = ubo.proj * ubo.view * worldPos;
 			
 			fragPosition = worldPos.xyz;
-			fragNormal = mat3(ubo.normalMatrix) * inNormal;
+			fragNormal = mat3(modelUbo.normalMatrix) * inNormal;
 			fragTexCoord = inTexCoord;
-			fragTangent = vec4(mat3(ubo.normalMatrix) * inTangent.xyz, inTangent.w);
+			fragTangent = vec4(mat3(modelUbo.normalMatrix) * inTangent.xyz, inTangent.w);
 		}
 	)";
 
@@ -1293,13 +1319,19 @@ void OgModelSample::renderNode(Render::OgCommandEncoderHandle* encoder, int node
 void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Mesh& mesh, const glm::mat4& modelMatrix)
 {
 	// 유니폼 버퍼 업데이트
-	_uniformData.model = modelMatrix;
-	_uniformData.normalMatrix = glm::transpose(glm::inverse(modelMatrix));
-
 	void* mappedData = _renderContext->MapBuffer(_uniformBuffer, sizeof(UniformData));
-	if (mappedData) {
+	if (mappedData) 
+	{
 		memcpy(mappedData, &_uniformData, sizeof(UniformData));
 		_renderContext->UnmapBuffer(_uniformBuffer);
+	}
+	// 모델 유니폼 버퍼 업데이트
+	_modelUniformData.model = modelMatrix;
+	_modelUniformData.normalMatrix = glm::transpose(glm::inverse(modelMatrix));
+	void* modelMappedData = _renderContext->MapBuffer(_modelUniformBuffer, sizeof(ModelUniformData));
+	if (modelMappedData) {
+		memcpy(modelMappedData, &_modelUniformData, sizeof(ModelUniformData));
+		_renderContext->UnmapBuffer(_modelUniformBuffer);
 	}
 
 	// 각 primitive 렌더링
@@ -1371,10 +1403,10 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 
 			// 텍스처 바인딩을 위한 리소스 셋 업데이트
 			if (material.baseColorTexture || material.normalTexture || material.metallicRoughnessTexture ||
-				material.emissiveTexture || material.occlusionTexture || material.sheenColorTexture || material.sheenRoughnessTexture)
+			material.emissiveTexture || material.occlusionTexture || material.sheenColorTexture || material.sheenRoughnessTexture)
 			{
-				uint32 zeroOffset = 0;
-				OgResourceUsage usages[10];
+			uint32 zeroOffset = 0;
+			OgResourceUsage usages[11];
 
 				// 유니폼 버퍼들
 				usages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
@@ -1475,9 +1507,16 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				usages[9].buffer.handle = &_lightUniformBuffer;
 				usages[9].buffer.offset = &zeroOffset;
 				usages[9].buffer.range = &_lightUniformBuffer->size;
+					
+				usages[10].binding.type = OgResourceType::UNIFORM_BUFFER;
+				usages[10].binding.stage = OgShaderType::VERTEX;
+					usages[10].binding.binding = 10;
+					usages[10].buffer.handle = &_modelUniformBuffer;
+					usages[10].buffer.offset = &zeroOffset;
+					usages[10].buffer.range = &_modelUniformBuffer->size;
 
-				// 새로운 리소스 셋 생성
-				OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 10);
+					// 새로운 리소스 셋 생성
+					OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 11);
 				tempResourceSet->Retain();
 				encoder->BindResourceSet(tempResourceSet);
 				tempResourceSet->Release();
