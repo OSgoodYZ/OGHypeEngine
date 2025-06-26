@@ -32,3 +32,11 @@ OGHypeEngine 은 VULKAN을 기본 그래픽 api로 이용하여 제작된 render
 
 * 모든 class 앞에는 Og를 prefix로 붙여서 이용한다.
 
+
+## License / 라이선스
+
+### 3D Assets
+3D model assets in `/res` directory are licensed under CC-BY 4.0 from Khronos Group glTF Sample Assets.
+- Source: https://github.com/KhronosGroup/glTF-Sample-Assets
+- License: CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+

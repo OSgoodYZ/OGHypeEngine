@@ -19,7 +19,7 @@ OgModelSample::OgModelSample(Render::OgRenderContext* renderContext)
 	, _gltfLoader(std::make_unique<OgGLTFLoader>(renderContext))
 {
 	// 카메라 초기 설정
-	_camera->SetPosition(glm::vec3(0.0f, 0.0f, 5.0f));
+	_camera->SetPosition(glm::vec3(0.0f, 5.0f, 5.0f));
 	_camera->SetTarget(glm::vec3(0.0f, 0.0f, 0.0f));
 }
 
