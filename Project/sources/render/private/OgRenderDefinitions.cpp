@@ -407,7 +407,7 @@ void OgHandle::FlushPendingDeletes(class OgRenderContext* rc, bool forceDeferred
 		rtd.handles.Resize(pendingDeleteCount);
 		for (size_t i = 0; i < pendingDeleteCount; ++i)
 		{
-			rtd.handles[i] = _pendingDeleteQueue.back();
+			rtd.handles[i] = _pendingDeleteQueue.front();
 			_pendingDeleteQueue.pop();
 		}
 		_deferredDeleteArray.Add(rtd);
