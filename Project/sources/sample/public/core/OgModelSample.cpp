@@ -43,11 +43,11 @@ void OgModelSample::OnInit(Render::OgSwapChain* swapchain)
 
 	// glTF 폴더 경로 찾기
 	std::filesystem::path executablePath = std::filesystem::current_path();
-	std::filesystem::path gltfPath = executablePath / "glTF";
+	std::filesystem::path gltfPath = executablePath / "models";
 
 	// 만약 현재 경로에서 찾을 수 없으면, Build/Debug 경로도 시도
 	if (!std::filesystem::exists(gltfPath)) {
-		gltfPath = executablePath / "Build" / "Debug" / "glTF";
+		gltfPath = executablePath / "Build" / "Debug" / "models";
 	}
 
 	// 그래도 없으면 상위 디렉토리들도 확인
@@ -55,7 +55,7 @@ void OgModelSample::OnInit(Render::OgSwapChain* swapchain)
 		std::filesystem::path searchPath = executablePath;
 		for (int i = 0; i < 3; ++i) {
 			searchPath = searchPath.parent_path();
-			std::filesystem::path testPath = searchPath / "Build" / "Debug" / "glTF";
+			std::filesystem::path testPath = searchPath / "Build" / "Debug" / "models";
 			if (std::filesystem::exists(testPath)) {
 				gltfPath = testPath;
 				break;
