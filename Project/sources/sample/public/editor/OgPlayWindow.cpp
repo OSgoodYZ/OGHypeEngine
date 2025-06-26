@@ -327,22 +327,15 @@ void OgSampleViewerWindow::onRenderUI()
 	
 	// 레이아웃 설정
 	const float leftPanelWidth = 250.0f;
+	const float rightPanelWidth = 300.0f; // 모델 브라우저 패널 너비
 	const float topPanelHeight = 200.0f;
-	const float lightControlHeight = 300.0f;
+	const float sampleSelectorHeight = 250.0f; // Sample Selector 높이 고정
 	const float padding = 5.0f;
 	
-	// 왼쪽 상단 패널 - Sample Selector
-	ImGui::SetNextWindowPos(ImVec2(padding, padding), ImGuiCond_FirstUseEver);
-	float sampleSelectorHeight = io.DisplaySize.y - lightControlHeight - 3 * padding;
-	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, sampleSelectorHeight), ImGuiCond_FirstUseEver);
-	renderSampleSelector();
+	// Light Controls 높이를 나머지 공간으로 계산
+	const float lightControlHeight = io.DisplaySize.y - sampleSelectorHeight - 3 * padding;
 	
-	// 왼쪽 하단 패널 - Light Controls
-	ImGui::SetNextWindowPos(ImVec2(padding, sampleSelectorHeight + 2 * padding), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, lightControlHeight), ImGuiCond_FirstUseEver);
-	renderLightControls();
-	
-	// 모델 브라우저 (필요한 경우)
+	// 모델 브라우저 표시 여부 확인
 	OgModelSample* modelSample = nullptr;
 	if (_currentSampleIndex == 1)
 	{
@@ -351,30 +344,56 @@ void OgSampleViewerWindow::onRenderUI()
 	}
 	
 	// 모델 샘플이고 모델이 선택되지 않았으면 항상 표시
+	bool shouldShowModelBrowser = false;
 	if (modelSample && modelSample->GetSelectedModelIndex() == -1)
 	{
 		_showModelBrowser = true;
-		renderModelBrowser();
+		shouldShowModelBrowser = true;
 	}
 	else if (_showModelBrowser && _currentSampleIndex == 1)
 	{
-		renderModelBrowser();
+		shouldShowModelBrowser = true;
 	}
 	
-	// 오른쪽 상단 - Debug Info
-	float rightPanelPosX = leftPanelWidth + 2 * padding;
-	float rightPanelWidth = io.DisplaySize.x - rightPanelPosX - padding;
+	// 중앙 영역 너비 계산 (모델 브라우저가 표시될 때 조정)
+	float centerAreaWidth = io.DisplaySize.x - leftPanelWidth - 2 * padding - padding;
+	if (shouldShowModelBrowser)
+	{
+		centerAreaWidth -= rightPanelWidth + padding;
+	}
 	
-	ImGui::SetNextWindowPos(ImVec2(rightPanelPosX, padding), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, topPanelHeight), ImGuiCond_FirstUseEver);
+	// 왼쪽 상단 패널 - Sample Selector
+	ImGui::SetNextWindowPos(ImVec2(padding, padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, sampleSelectorHeight), ImGuiCond_FirstUseEver);
+	renderSampleSelector();
+	
+	// 왼쪽 하단 패널 - Light Controls
+	ImGui::SetNextWindowPos(ImVec2(padding, sampleSelectorHeight + 2 * padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, lightControlHeight), ImGuiCond_FirstUseEver);
+	renderLightControls();
+	
+	// 중앙 상단 - Debug Info
+	float centerPanelPosX = leftPanelWidth + 2 * padding;
+	
+	ImGui::SetNextWindowPos(ImVec2(centerPanelPosX, padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(centerAreaWidth, topPanelHeight), ImGuiCond_FirstUseEver);
 	renderDebugInfo();
 	
-	// 오른쪽 하단 - Sample Viewer
+	// 중앙 하단 - Sample Viewer
 	float viewerHeight = io.DisplaySize.y - topPanelHeight - 3 * padding;
 	
-	ImGui::SetNextWindowPos(ImVec2(rightPanelPosX, topPanelHeight + 2 * padding), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, viewerHeight), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(centerPanelPosX, topPanelHeight + 2 * padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(centerAreaWidth, viewerHeight), ImGuiCond_FirstUseEver);
 	renderSampleViewer();
+	
+	// 오른쪽 패널 - Model Browser (필요한 경우)
+	if (shouldShowModelBrowser)
+	{
+		float modelBrowserPosX = io.DisplaySize.x - rightPanelWidth - padding;
+		ImGui::SetNextWindowPos(ImVec2(modelBrowserPosX, padding), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, io.DisplaySize.y - 2 * padding), ImGuiCond_FirstUseEver);
+		renderModelBrowser();
+	}
 }
 
 void OgSampleViewerWindow::renderSampleViewer()
@@ -1013,13 +1032,7 @@ void OgSampleViewerWindow::renderModelBrowser()
 	
 	ImGuiIO& io = ImGui::GetIO();
 	
-	// 화면 중앙에 위치
-	float windowWidth = 500.0f;
-	float windowHeight = 600.0f;
-	ImGui::SetNextWindowPos(ImVec2((io.DisplaySize.x - windowWidth) * 0.5f, 
-	                              (io.DisplaySize.y - windowHeight) * 0.5f), 
-	                       ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight), ImGuiCond_FirstUseEver);
+	// 위치와 크기는 onRenderUI()에서 설정됨
 	
 	if (ImGui::Begin("glTF Model Browser", &_showModelBrowser, ImGuiWindowFlags_NoCollapse))
 	{
@@ -1117,26 +1130,18 @@ void OgSampleViewerWindow::renderModelBrowser()
 		
 		ImGui::Separator();
 		
-		// 하단 버튼들
-		float buttonWidth = 100.0f;
-		float totalButtonWidth = buttonWidth * 3 + ImGui::GetStyle().ItemSpacing.x * 2;
-		float buttonPosX = (ImGui::GetContentRegionAvail().x - totalButtonWidth) * 0.5f;
+		// 하단 버튼들 - 좌은 패널에 맞게 스택 형태로 배치
+		float buttonWidth = ImGui::GetContentRegionAvail().x;
 		
-		ImGui::SetCursorPosX(ImGui::GetCursorPosX() + buttonPosX);
-		
-		if (ImGui::Button("Refresh", ImVec2(buttonWidth, 30)))
+		if (ImGui::Button("Refresh List", ImVec2(buttonWidth, 25)))
 		{
 			modelSample->ScanGLTFDirectory(modelSample->GetGLTFDirectory());
 		}
 		
-		ImGui::SameLine();
-		
-		if (ImGui::Button("Reset View", ImVec2(buttonWidth, 30)))
+		if (ImGui::Button("Reset View", ImVec2(buttonWidth, 25)))
 		{
 			// 카메라 리셋 기능 추가 가능
 		}
-		
-		ImGui::SameLine();
 		
 		// 모델이 선택되지 않았으면 닫기 버튼 비활성화
 		bool canClose = modelSample->GetSelectedModelIndex() != -1;
@@ -1145,7 +1150,7 @@ void OgSampleViewerWindow::renderModelBrowser()
 			ImGui::BeginDisabled();
 		}
 		
-		if (ImGui::Button("Close", ImVec2(buttonWidth, 30)))
+		if (ImGui::Button("Close Browser", ImVec2(buttonWidth, 25)))
 		{
 			_showModelBrowser = false;
 		}
