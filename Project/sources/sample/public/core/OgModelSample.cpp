@@ -169,7 +169,7 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 
 		// 모델 크기 정규화 (카메라 거리에 맞게 스케일 조정)
 		float scale = 5.0f / _loadedModel.radius; // 모델을 적절한 크기로 조정
-		scale *= 20.0f; // 20배 스케일링
+		//scale *= 20.0f; // 20배 스케일링
 
 
 		//rootTransform = glm::translate(rootTransform, glm::vec3(2, 0, 0));
