@@ -15,8 +15,8 @@ OgFlyCamera::OgFlyCamera()
 	, _aspectRatio(16.0f / 9.0f)
 	, _nearPlane(0.1f)
 	, _farPlane(1000.0f)
-	, _moveSpeed(0.1f)
-	, _fastMoveSpeed(10.0f)
+	, _moveSpeed(0.01f)
+	, _fastMoveSpeed(0.02f)
 	, _rotateSpeed(0.1f)
 	, _zoomSpeed(2.0f)
 	, _panSpeed(0.01f)
@@ -136,8 +136,8 @@ void OgFlyCamera::OnMouseMove(double x, double y)
 		xoffset *= _rotateSpeed;
 		yoffset *= _rotateSpeed;
 
-		_yaw += static_cast<float>(xoffset);
-		_pitch -= static_cast<float>(yoffset);
+		_yaw -= static_cast<float>(xoffset);
+		_pitch += static_cast<float>(yoffset);
 
 		// Pitch 제한
 		_pitch = std::clamp(_pitch, -89.0f, 89.0f);
@@ -160,7 +160,7 @@ void OgFlyCamera::OnMouseMove(double x, double y)
 	{
 		// PAN 모드: 화면 평면에서 이동
 		float panX = static_cast<float>(xoffset) * _panSpeed * _orbitDistance;
-		float panY = static_cast<float>(-yoffset) * _panSpeed * _orbitDistance;
+		float panY = static_cast<float>(yoffset) * _panSpeed * _orbitDistance;
 
 		_position += _right * panX + _up * panY;
 		_target += _right * panX + _up * panY;
@@ -257,9 +257,9 @@ void OgFlyCamera::handleFlyMode(float deltaTime)
 	if (_keyS)
 		_moveVelocity -= _forward * velocity;
 	if (_keyA)
-		_moveVelocity -= _right * velocity;
-	if (_keyD)
 		_moveVelocity += _right * velocity;
+	if (_keyD)
+		_moveVelocity -= _right * velocity;
 	if (_keyQ)
 		_moveVelocity -= _worldUp * velocity;
 	if (_keyE)

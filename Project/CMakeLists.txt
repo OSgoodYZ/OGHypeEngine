@@ -312,6 +312,10 @@ ENDIF()
 OPTION(OG_SAMPLE_ON "sample on" ON)
 
 
+# GLM 좌표계 설정
+add_definitions("-DGLM_FORCE_LEFT_HANDED")
+add_definitions("-DGLM_FORCE_DEPTH_ZERO_TO_ONE")
+
 include_directories(sources)
 include_directories(deps/include)
 

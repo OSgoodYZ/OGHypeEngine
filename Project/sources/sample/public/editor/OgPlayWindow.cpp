@@ -1,9 +1,10 @@
-﻿#include "OgPlayWindow.h"
+#include "OgPlayWindow.h"
 #include "sample/public/core/OgTriangleSample.h"
-#include "sample/public/core/OgFBXSample.h"
+#include "sample/public/core/OgModelSample.h"
 #include "system/OgSystemContext.h"
 #include "system/OgInput.h"
 #include <algorithm>
+#include <cmath>
 OG_NAMESPACE_SAMPLE_BEGIN
 
 OgPlayWindow::OgPlayWindow(Render::OgRenderContext* renderContext, const Config& config)
@@ -132,9 +133,9 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 			// ImGui가 키보드 입력을 사용하지 않는 경우에만 전달
 			if (!io.WantCaptureKeyboard && _currentSample)
 			{
-				// OgFBXSample로 다운캐스트 시도
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
-				if (fbxSample)
+				// OgModelSample로 다운캐스트 시도
+				OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+				if (modelSample)
 				{
 					int action = (evt.type == OG_KEY_PRESS) ? OG_PRESS : OG_RELEASE;
 					int mods = 0;
@@ -143,7 +144,7 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 					if (evt.key.alt) mods |= OG_MOD_ALT;
 					if (evt.key.system) mods |= OG_MOD_SUPER;
 					
-					fbxSample->OnKeyPress(evt.key.keyCode, action, mods);
+					modelSample->OnKeyPress(evt.key.keyCode, action, mods);
 				}
 			}
 		}
@@ -155,11 +156,11 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 			// ImGui가 마우스 입력을 사용하지 않는 경우에만 전달
 			if (_currentSample)// !io.WantCaptureMouse && 
 			{
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
-				if (fbxSample)
+				OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+				if (modelSample)
 				{
 					int action = (evt.type == OG_MOUSE_PRESS) ? OG_PRESS : OG_RELEASE;
-					fbxSample->OnMouseButton(evt.mouse.button, action, evt.mouse.mods);
+					modelSample->OnMouseButton(evt.mouse.button, action, evt.mouse.mods);
 				}
 			}
 		}
@@ -169,10 +170,10 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 		{
 			if (_currentSample) // !io.WantCaptureMouse && 
 			{
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
-				if (fbxSample)
+				OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+				if (modelSample)
 				{
-					fbxSample->OnMouseMove(evt.mouse.pos.x, evt.mouse.pos.y);
+					modelSample->OnMouseMove(evt.mouse.pos.x, evt.mouse.pos.y);
 				}
 			}
 		}
@@ -182,11 +183,11 @@ void OgPlayWindow::onEvent(const OgNativeEvent& evt)
 		{
 			if (_currentSample) // !io.WantCaptureMouse && 
 			{
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(_currentSample.get());
-				if (fbxSample)
+				OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+				if (modelSample)
 				{
 					// wheelDelta를 yoffset으로 사용 (수직 스크롤)
-					fbxSample->OnMouseScroll(0.0, static_cast<double>(evt.mouse.wheelDelta));
+					modelSample->OnMouseScroll(0.0, static_cast<double>(evt.mouse.wheelDelta));
 				}
 			}
 		}
@@ -301,12 +302,19 @@ void OgSampleViewerWindow::onRenderUI()
 	// 레이아웃 설정
 	const float leftPanelWidth = 250.0f;
 	const float topPanelHeight = 200.0f;
+	const float lightControlHeight = 300.0f;
 	const float padding = 5.0f;
 	
-	// 왼쪽 패널 - Sample Selector
+	// 왼쪽 상단 패널 - Sample Selector
 	ImGui::SetNextWindowPos(ImVec2(padding, padding), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, io.DisplaySize.y - 2 * padding), ImGuiCond_FirstUseEver);
+	float sampleSelectorHeight = io.DisplaySize.y - lightControlHeight - 3 * padding;
+	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, sampleSelectorHeight), ImGuiCond_FirstUseEver);
 	renderSampleSelector();
+	
+	// 왼쪽 하단 패널 - Light Controls
+	ImGui::SetNextWindowPos(ImVec2(padding, sampleSelectorHeight + 2 * padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, lightControlHeight), ImGuiCond_FirstUseEver);
+	renderLightControls();
 	
 	// 오른쪽 상단 - Debug Info
 	float rightPanelPosX = leftPanelWidth + 2 * padding;
@@ -358,10 +366,16 @@ void OgSampleViewerWindow::renderSampleViewer()
 			if (centerY > 0) ImGui::SetCursorPosY(ImGui::GetCursorPosY() + centerY);
 			
 			// 이미지 렌더링
+			ImVec2 imagePos = ImGui::GetCursorScreenPos();
 			ImGui::Image(
 				reinterpret_cast<ImTextureID>(sample->GetRenderTargetTexture()),
 				imageSize
 			);
+			
+			// 라이트 기즈모는 Light Controls 패널로 이동됨
+			
+			// XYZ 축 기즈모 (오른쪽 상단)
+			renderXYZGizmo(imagePos, imageSize);
 			
 			// 이미지 위에 정보 오버레이
 			ImDrawList* draw_list = ImGui::GetWindowDrawList();
@@ -386,6 +400,7 @@ void OgSampleViewerWindow::renderSampleViewer()
 				IM_COL32(255, 255, 255, 255),
 				info
 			);
+
 		}
 		else
 		{
@@ -400,6 +415,110 @@ void OgSampleViewerWindow::renderSampleViewer()
 	ImGui::End();
 }
 
+// drawArrow 함수도 더이상 사용되지 않아 제거됨
+void OgSampleViewerWindow::renderXYZGizmo(ImVec2 imagePos, ImVec2 imageSize)
+{
+	// 모델 샘플인 경우에만 동적 기즈모 표시
+	OgSampleBase* sample = GetSample();
+	OgModelSample* modelSample = dynamic_cast<OgModelSample*>(sample);
+
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+	// 기즈모 크기와 위치 설정
+	float gizmo_size = 80.0f;
+	float margin = 20.0f;
+
+	// 오른쪽 상단 위치
+	ImVec2 gizmo_center = ImVec2(
+		imagePos.x + imageSize.x - gizmo_size * 0.5f - margin,
+		imagePos.y + gizmo_size * 0.5f + margin
+	);
+
+	if (modelSample)
+	{
+		// 카메라의 뷰 행렬 가져오기
+		glm::mat4 viewMatrix = modelSample->GetViewMatrix();
+
+		// 월드 공간의 축 벡터들
+		glm::vec3 worldX = glm::vec3(1.0f, 0.0f, 0.0f);
+		glm::vec3 worldY = glm::vec3(0.0f, 1.0f, 0.0f);
+		glm::vec3 worldZ = glm::vec3(0.0f, 0.0f, 1.0f);
+
+		// 뷰 공간으로 변환 (뷰 행렬을 직접 사용, 방향 벡터이므로 w=0)
+		glm::vec4 viewX = viewMatrix * glm::vec4(worldX, 0.0f);
+		glm::vec4 viewY = viewMatrix * glm::vec4(worldY, 0.0f);
+		glm::vec4 viewZ = viewMatrix * glm::vec4(worldZ, 0.0f);
+
+		// 2D 투영 (Y축은 스크린 좌표계에 맞게 뒤집기)
+		glm::vec2 proj2D_X = glm::vec2(viewX.x, -viewX.y);  // Y축 뒤집기
+		glm::vec2 proj2D_Y = glm::vec2(viewY.x, -viewY.y);  // Y축 뒤집기
+		glm::vec2 proj2D_Z = glm::vec2(viewZ.x, -viewZ.y);  // Y축 뒤집기
+
+		// 축의 길이 설정 - 3D 공간에서 길이 1인 축을 스케일링
+		float scale_factor = gizmo_size * 0.3f;
+		float line_thickness = 2.5f;
+
+		// X축 그리기 (빨간색)
+		ImVec2 x_end = ImVec2(
+			gizmo_center.x + proj2D_X.x * scale_factor,
+			gizmo_center.y + proj2D_X.y * scale_factor
+		);
+		ImU32 x_color = IM_COL32(220, 60, 60, 255);
+		draw_list->AddLine(gizmo_center, x_end, x_color, line_thickness);
+
+		// X 라벨
+		ImVec2 x_label_pos = ImVec2(x_end.x + proj2D_X.x * 10, x_end.y + proj2D_X.y * 10);
+		draw_list->AddText(x_label_pos, IM_COL32(255, 255, 255, 255), "X");
+
+		// Y축 그리기 (녹색)
+		ImVec2 y_end = ImVec2(
+			gizmo_center.x + proj2D_Y.x * scale_factor,
+			gizmo_center.y + proj2D_Y.y * scale_factor
+		);
+		ImU32 y_color = IM_COL32(60, 220, 60, 255);
+		draw_list->AddLine(gizmo_center, y_end, y_color, line_thickness);
+
+		// Y 라벨
+		ImVec2 y_label_pos = ImVec2(y_end.x + proj2D_Y.x * 10, y_end.y + proj2D_Y.y * 10);
+		draw_list->AddText(y_label_pos, IM_COL32(255, 255, 255, 255), "Y");
+
+		// Z축 그리기 (파란색)
+		ImVec2 z_end = ImVec2(
+			gizmo_center.x + proj2D_Z.x * scale_factor,
+			gizmo_center.y + proj2D_Z.y * scale_factor
+		);
+		ImU32 z_color = IM_COL32(60, 120, 220, 255);
+		draw_list->AddLine(gizmo_center, z_end, z_color, line_thickness);
+
+		// Z 라벨
+		ImVec2 z_label_pos = ImVec2(z_end.x + proj2D_Z.x * 10, z_end.y + proj2D_Z.y * 10);
+		draw_list->AddText(z_label_pos, IM_COL32(255, 255, 255, 255), "Z");
+	}
+	else
+	{
+		// 모델 샘플이 아닌 경우 - 간단한 고정 축 표시
+		float axis_length = gizmo_size * 0.3f;
+		float line_thickness = 2.5f;
+
+		// X축 (빨간색) - 오른쪽
+		ImVec2 x_end = ImVec2(gizmo_center.x + axis_length, gizmo_center.y);
+		ImU32 x_color = IM_COL32(220, 60, 60, 255);
+		draw_list->AddLine(gizmo_center, x_end, x_color, line_thickness);
+		draw_list->AddText(ImVec2(x_end.x + 10, x_end.y - 6), IM_COL32(255, 255, 255, 255), "X");
+
+		// Y축 (녹색) - 위쪽
+		ImVec2 y_end = ImVec2(gizmo_center.x, gizmo_center.y - axis_length);
+		ImU32 y_color = IM_COL32(60, 220, 60, 255);
+		draw_list->AddLine(gizmo_center, y_end, y_color, line_thickness);
+		draw_list->AddText(ImVec2(y_end.x - 6, y_end.y - 15), IM_COL32(255, 255, 255, 255), "Y");
+
+		// Z축 (파란색) - 대각선 (화면에서 나오는 방향을 표현)
+		ImVec2 z_end = ImVec2(gizmo_center.x - axis_length * 0.7f, gizmo_center.y + axis_length * 0.7f);
+		ImU32 z_color = IM_COL32(60, 120, 220, 255);
+		draw_list->AddLine(gizmo_center, z_end, z_color, line_thickness);
+		draw_list->AddText(ImVec2(z_end.x - 15, z_end.y + 2), IM_COL32(255, 255, 255, 255), "Z");
+	}
+}
 void OgSampleViewerWindow::renderDebugInfo()
 {
 	if (ImGui::Begin("Debug Info", nullptr))
@@ -452,7 +571,7 @@ void OgSampleViewerWindow::renderSampleSelector()
 	{
 		const char* sampleNames[] = {
 			"Triangle Sample",
-			"FBX Model Sample"
+			"GLTF Model Sample"
 		};
 		
 		ImGui::Text("Available Samples");
@@ -498,8 +617,8 @@ void OgSampleViewerWindow::renderSampleSelector()
 			ImGui::BulletText("No user interaction");
 			break;
 		case 1:
-			ImGui::TextWrapped("FBX Model Sample");
-			ImGui::BulletText("3D cube rendering");
+			ImGui::TextWrapped("Model Sample");
+			ImGui::BulletText("Model rendering");
 			ImGui::BulletText("Camera controls");
 			ImGui::BulletText("Y-axis rotation animation");
 			ImGui::BulletText("Mouse & keyboard input");
@@ -526,8 +645,8 @@ void OgSampleViewerWindow::renderSampleSelector()
 			if (ImGui::Button("Reset View", ImVec2(-1, 0)))
 			{
 				// 샘플별 리셋 기능 구현 가능
-				OgFBXSample* fbxSample = dynamic_cast<OgFBXSample*>(GetSample());
-				if (fbxSample)
+				OgModelSample* model_sample = dynamic_cast<OgModelSample*>(GetSample());
+				if (model_sample)
 				{
 					// 카메라 리셋 등의 기능 추가 가능
 				}
@@ -547,7 +666,7 @@ void OgSampleViewerWindow::switchSample(int index)
 		newSample = std::make_unique<OgTriangleSample>(_renderContext);
 		break;
 	case 1:
-		newSample = std::make_unique<OgFBXSample>(_renderContext);
+		newSample = std::make_unique<OgModelSample>(_renderContext);
 		break;
 	default:
 		return;
@@ -555,6 +674,256 @@ void OgSampleViewerWindow::switchSample(int index)
 	
 	// 새 샘플로 교체
 	SetSample(std::move(newSample));
+}
+
+void OgSampleViewerWindow::renderLightControls()
+{
+	// 모델 샘플인 경우에만 라이트 컨트롤 표시
+	OgSampleBase* sample = GetSample();
+	OgModelSample* modelSample = dynamic_cast<OgModelSample*>(sample);
+	
+	if (!modelSample)
+		return;
+	
+	if (ImGui::Begin("Light Controls", nullptr))
+	{
+		ImGui::Text("Light Settings");
+		ImGui::Separator();
+		
+		bool lightDataChanged = false;
+		auto& lightData = modelSample->GetLightUniformData();
+		
+		// 라이트 개수 조절
+		int lightCount = lightData.lightCount;
+		if (ImGui::SliderInt("Light Count", &lightCount, 0, 4))
+		{
+			lightData.lightCount = lightCount;
+			lightDataChanged = true;
+		}
+		
+		ImGui::Separator();
+		
+		// 각 라이트에 대한 컨트롤
+		for (int i = 0; i < lightData.lightCount; ++i)
+		{
+			ImGui::PushID(i);
+			
+			char headerLabel[32];
+			snprintf(headerLabel, sizeof(headerLabel), "Light %d", i);
+			
+			if (ImGui::CollapsingHeader(headerLabel, ImGuiTreeNodeFlags_DefaultOpen))
+			{
+			// 방향 (Directional Light)
+			if (ImGui::DragFloat3("Direction", &lightData.lights[i].position.x, 0.1f))
+			{
+			lightDataChanged = true;
+			}
+				
+				// 강도
+				if (ImGui::SliderFloat("Intensity", &lightData.lights[i].intensity, 0.0f, 50.0f))
+				{
+					lightDataChanged = true;
+				}
+				
+				// 색상
+				if (ImGui::ColorEdit3("Color", &lightData.lights[i].color.x))
+				{
+					lightDataChanged = true;
+				}
+			}
+			
+			ImGui::PopID();
+		}
+		
+		// 라이트 데이터가 변경되면 유니폼 버퍼 업데이트
+		if (lightDataChanged)
+		{
+			modelSample->UpdateLightUniformBuffer();
+		}
+		
+		// 프리셋 버튼들
+		ImGui::Separator();
+		ImGui::Text("Presets");
+		ImGui::Separator();
+		
+		if (ImGui::Button("Default Lighting", ImVec2(-1, 0)))
+		{
+			// 기본 라이팅 설정 (Directional)
+			lightData.lightCount = 4;
+			
+			lightData.lights[0].position = glm::normalize(glm::vec3(1.0f, -1.0f, -1.0f));
+			lightData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+			lightData.lights[0].intensity = 3.0f;
+			
+			lightData.lights[1].position = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f));
+			lightData.lights[1].color = glm::vec3(0.5f, 0.5f, 0.75f);
+			lightData.lights[1].intensity = 1.5f;
+			
+			lightData.lights[2].position = glm::normalize(glm::vec3(0.5f, 1.0f, -0.3f));
+			lightData.lights[2].color = glm::vec3(0.75f, 0.5f, 0.5f);
+			lightData.lights[2].intensity = 1.0f;
+			
+			lightData.lights[3].position = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
+			lightData.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
+			lightData.lights[3].intensity = 0.5f;
+			
+			modelSample->UpdateLightUniformBuffer();
+		}
+		
+		if (ImGui::Button("Single Key Light", ImVec2(-1, 0)))
+		{
+			// 단일 키 라이트 (Directional)
+			lightData.lightCount = 1;
+			lightData.lights[0].position = glm::normalize(glm::vec3(0.5f, -1.0f, -0.8f));
+			lightData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+			lightData.lights[0].intensity = 4.0f;
+			
+			modelSample->UpdateLightUniformBuffer();
+		}
+		
+		if (ImGui::Button("Warm Lighting", ImVec2(-1, 0)))
+		{
+			// 따뜻한 조명 (Directional)
+			lightData.lightCount = 2;
+			lightData.lights[0].position = glm::normalize(glm::vec3(0.6f, -0.8f, -0.6f));
+			lightData.lights[0].color = glm::vec3(1.0f, 0.8f, 0.6f);  // 따뜻한 색
+			lightData.lights[0].intensity = 3.5f;
+			
+			lightData.lights[1].position = glm::normalize(glm::vec3(-0.3f, -0.5f, -0.8f));
+			lightData.lights[1].color = glm::vec3(0.8f, 0.6f, 0.4f);  // 더 따뜻한 보조 조명
+			lightData.lights[1].intensity = 1.5f;
+			
+			modelSample->UpdateLightUniformBuffer();
+		}
+		
+		// Light Gizmo Visualization
+		ImGui::Separator();
+		ImGui::Text("Light Direction Gizmo");
+		ImGui::Separator();
+		
+		// 기즈모 캔버스 영역
+		ImVec2 canvas_pos = ImGui::GetCursorScreenPos();
+		ImVec2 canvas_size = ImGui::GetContentRegionAvail();
+		canvas_size.y = std::min(canvas_size.y, 200.0f); // 최대 높이 제한
+		
+		if (canvas_size.x > 100 && canvas_size.y > 100)
+		{
+			ImDrawList* draw_list = ImGui::GetWindowDrawList();
+			
+			// 배경 그리기
+			draw_list->AddRectFilled(canvas_pos, 
+				ImVec2(canvas_pos.x + canvas_size.x, canvas_pos.y + canvas_size.y), 
+				IM_COL32(40, 40, 40, 200), 5.0f);
+			
+			// 중심점
+			ImVec2 center = ImVec2(canvas_pos.x + canvas_size.x * 0.5f, canvas_pos.y + canvas_size.y * 0.5f);
+			
+			// 참조 격자 그리기
+			float grid_step = 20.0f;
+			for (float x = canvas_pos.x; x <= canvas_pos.x + canvas_size.x; x += grid_step)
+			{
+				draw_list->AddLine(ImVec2(x, canvas_pos.y), ImVec2(x, canvas_pos.y + canvas_size.y), 
+					IM_COL32(60, 60, 60, 100), 1.0f);
+			}
+			for (float y = canvas_pos.y; y <= canvas_pos.y + canvas_size.y; y += grid_step)
+			{
+				draw_list->AddLine(ImVec2(canvas_pos.x, y), ImVec2(canvas_pos.x + canvas_size.x, y), 
+					IM_COL32(60, 60, 60, 100), 1.0f);
+			}
+			
+			// 중심 십자선
+			draw_list->AddLine(ImVec2(center.x - 10, center.y), ImVec2(center.x + 10, center.y), 
+				IM_COL32(100, 100, 100, 200), 2.0f);
+			draw_list->AddLine(ImVec2(center.x, center.y - 10), ImVec2(center.x, center.y + 10), 
+				IM_COL32(100, 100, 100, 200), 2.0f);
+			
+			// 기즈모 크기 설정
+			float gizmo_size = std::min(canvas_size.x, canvas_size.y) * 0.3f;
+			gizmo_size = std::clamp(gizmo_size, 30.0f, 80.0f);
+			
+			// 카메라의 뷰 행렬 가져오기
+			glm::mat4 viewMatrix = modelSample->GetViewMatrix();
+			
+			// 각 라이트에 대해 기즈모 그리기
+			for (int i = 0; i < lightData.lightCount; ++i)
+			{
+				const auto& light = lightData.lights[i];
+				
+				// 라이트 방향을 world space에서 view space로 변환
+				glm::vec3 worldLightDir = -glm::normalize(light.position);
+				glm::vec4 viewLightDir = viewMatrix * glm::vec4(worldLightDir, 0.0f);
+				
+				// view space에서 2D로 투영 (카메라 방향을 고려)
+				float dirX = -viewLightDir.x; // 화면 좌표계에 맞게 조정
+				float dirY = viewLightDir.y;
+				
+				// 라이트 강도에 따른 화살표 길이
+				float intensity = std::clamp(light.intensity / 4.0f, 0.3f, 1.0f);
+				float arrow_length = gizmo_size * intensity;
+				
+				// 화살표 끝점
+				ImVec2 arrow_end = ImVec2(
+					center.x + dirX * arrow_length,
+					center.y + dirY * arrow_length
+				);
+				
+				// 라이트 색상 설정
+				ImU32 light_color = IM_COL32(
+					static_cast<int>(light.color.r * 255),
+					static_cast<int>(light.color.g * 255),
+					static_cast<int>(light.color.b * 255),
+					255
+				);
+				
+				// 화살표 선 그리기
+				float line_thickness = 3.0f + intensity * 2.0f;
+				draw_list->AddLine(center, arrow_end, light_color, line_thickness);
+				
+				// 화살표 머리 그리기
+				float arrow_head_size = 10.0f + intensity * 5.0f;
+				glm::vec2 arrow_dir = glm::normalize(glm::vec2(dirX, dirY));
+				glm::vec2 perp_dir = glm::vec2(-arrow_dir.y, arrow_dir.x);
+				
+				ImVec2 arrow_head1 = ImVec2(
+					arrow_end.x - arrow_dir.x * arrow_head_size + perp_dir.x * arrow_head_size * 0.5f,
+					arrow_end.y - arrow_dir.y * arrow_head_size + perp_dir.y * arrow_head_size * 0.5f
+				);
+				ImVec2 arrow_head2 = ImVec2(
+					arrow_end.x - arrow_dir.x * arrow_head_size - perp_dir.x * arrow_head_size * 0.5f,
+					arrow_end.y - arrow_dir.y * arrow_head_size - perp_dir.y * arrow_head_size * 0.5f
+				);
+				
+				// 화살표 머리 삼각형
+				draw_list->AddTriangleFilled(arrow_end, arrow_head1, arrow_head2, light_color);
+				
+				// 라이트 인덱스 표시
+				char light_label[16];
+				snprintf(light_label, sizeof(light_label), "L%d", i);
+				
+				ImVec2 label_pos = ImVec2(
+					arrow_end.x + dirX * 20.0f,
+					arrow_end.y + dirY * 20.0f
+				);
+				
+				// 라벨 배경
+				ImVec2 label_size = ImGui::CalcTextSize(light_label);
+				ImVec2 label_bg_min = ImVec2(label_pos.x - 3, label_pos.y - 2);
+				ImVec2 label_bg_max = ImVec2(label_pos.x + label_size.x + 3, label_pos.y + label_size.y + 2);
+				draw_list->AddRectFilled(label_bg_min, label_bg_max, IM_COL32(0, 0, 0, 180), 3.0f);
+				
+				// 라벨 텍스트
+				draw_list->AddText(label_pos, IM_COL32(255, 255, 255, 255), light_label);
+			}
+			
+			// 도움말 텍스트
+			ImVec2 help_pos = ImVec2(canvas_pos.x + 5, canvas_pos.y + 5);
+			draw_list->AddText(help_pos, IM_COL32(180, 180, 180, 255), "Light Direction Visualization");
+			
+			// 캔버스 공간 예약
+			ImGui::Dummy(canvas_size);
+		}
+	}
+	ImGui::End();
 }
 
 OG_NAMESPACE_SAMPLE_END
