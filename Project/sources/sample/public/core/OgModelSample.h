@@ -5,6 +5,7 @@
 #include "OgSampleBase.h"
 #include <memory>
 #include <tinygltf/tiny_gltf.h>
+#include <unordered_map>
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -164,7 +165,7 @@ private:
 	
 	// 렌더링
 	void renderNode(Render::OgCommandEncoderHandle* encoder, int nodeIndex, const glm::mat4& parentMatrix);
-	void renderMesh(Render::OgCommandEncoderHandle* encoder, const Mesh& mesh, const glm::mat4& modelMatrix);
+	void renderMesh(Render::OgCommandEncoderHandle* encoder, const Mesh& mesh, const glm::mat4& modelMatrix, int nodeIndex);
 
 	// Vulkan용 프로젝션 행렬 변환
 	void convertProjectionForVulkan(glm::mat4& projection);
@@ -172,7 +173,7 @@ private:
 private:
 	// 렌더링 리소스
 	Render::OgBufferHandle* _uniformBuffer = nullptr;
-	Render::OgBufferHandle* _modelUniformBuffer = nullptr;  // 모델 변환용 별도 버퍼
+	std::unordered_map<int, Render::OgBufferHandle*> _nodeUniformBuffers;  // 노드별 모델 변환 버퍼
 	Render::OgBufferHandle* _materialUniformBuffer = nullptr;
 	Render::OgShaderHandle* _vertexShader = nullptr;
 	Render::OgShaderHandle* _fragmentShader = nullptr;

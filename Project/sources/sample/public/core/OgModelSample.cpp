@@ -186,7 +186,7 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 		// 기본 큐브 렌더링
 		glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
 		modelMatrix = glm::scale(modelMatrix, glm::vec3(10.0f)); // 10배 스케일링
-		renderMesh(encoder, _loadedModel.meshes[0], modelMatrix);
+		renderMesh(encoder, _loadedModel.meshes[0], modelMatrix, -1); // -1은 기본 큐브용 특수 인덱스
 	}
 
 	encoder->EndRenderPass();
@@ -434,10 +434,28 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	usages[9].buffer.offset = &zeroOffset;
 	usages[9].buffer.range = &_lightUniformBuffer->size;
 	
+	// 모델 uniform buffer는 나중에 동적으로 바인딩
+	// 기본적으로 nullptr로 둘 수 없으므로, 더미 버퍼 생성
+	static Render::OgBufferHandle* dummyModelBuffer = nullptr;
+	if (!dummyModelBuffer)
+	{
+		ModelUniformData dummyData{};
+		dummyData.model = glm::mat4(1.0f);
+		dummyData.normalMatrix = glm::mat4(1.0f);
+		dummyModelBuffer = _renderContext->CreateBuffer(
+			&dummyData,
+			sizeof(ModelUniformData),
+			Render::OgBufferUsage::UNIFORM,
+			OgMemoryOption::MAP_MANAGED
+		);
+		dummyModelBuffer->Retain();
+	}
+	
 	usages[10].binding = bindings[10];
-	usages[10].buffer.handle = &_modelUniformBuffer;
+	usages[10].buffer.handle = &dummyModelBuffer;
 	usages[10].buffer.offset = &zeroOffset;
-	usages[10].buffer.range = &_modelUniformBuffer->size;
+	uint32 modelBufferSize = sizeof(ModelUniformData);
+	usages[10].buffer.range = &modelBufferSize;
 
 	_resourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 11);
 	_resourceSet->name = "ModelSampleResourceSet";
@@ -503,11 +521,15 @@ void OgModelSample::destroyResources()
 		_uniformBuffer = nullptr;
 	}
 	
-	if (_modelUniformBuffer)
+	// 노드별 uniform buffer들 해제
+	for (auto& pair : _nodeUniformBuffers)
 	{
-		_modelUniformBuffer->Release();
-		_modelUniformBuffer = nullptr;
+		if (pair.second)
+		{
+			pair.second->Release();
+		}
 	}
+	_nodeUniformBuffers.clear();
 
 	if (_lightUniformBuffer)
 	{
@@ -639,14 +661,7 @@ void OgModelSample::createUniformBuffer()
 	);
 	_uniformBuffer->Retain();
 	
-	// 모델 유니폼 버퍼 생성
-	_modelUniformBuffer = _renderContext->CreateBuffer(
-		&_modelUniformData,
-		sizeof(ModelUniformData),
-		Render::OgBufferUsage::UNIFORM,
-		OgMemoryOption::MAP_MANAGED
-	);
-	_modelUniformBuffer->Retain();
+	// 모델 유니폼 버퍼는 각 노드별로 필요할 때 생성
 
 	// Material 유니폼 버퍼 생성
 	_materialUniformData = MaterialUniformData{};
@@ -1288,6 +1303,16 @@ bool OgModelSample::loadGLTFModel(const std::string& filePath)
 
 void OgModelSample::clearModelData()
 {
+	// 노드별 uniform buffer들 해제
+	for (auto& pair : _nodeUniformBuffers)
+	{
+		if (pair.second)
+		{
+			pair.second->Release();
+		}
+	}
+	_nodeUniformBuffers.clear();
+	
 	// OgGLTFLoader를 사용해서 모델 데이터 클리어
 	if (_gltfLoader)
 	{
@@ -1307,7 +1332,7 @@ void OgModelSample::renderNode(Render::OgCommandEncoderHandle* encoder, int node
 	// 이 노드에 메시가 있으면 렌더링
 	if (node.meshIndex >= 0 && node.meshIndex < static_cast<int>(_loadedModel.meshes.size()))
 	{
-		renderMesh(encoder, _loadedModel.meshes[node.meshIndex], nodeMatrix);
+		renderMesh(encoder, _loadedModel.meshes[node.meshIndex], nodeMatrix, nodeIndex);
 	}
 
 	// 자식 노드들 렌더링
@@ -1316,22 +1341,50 @@ void OgModelSample::renderNode(Render::OgCommandEncoderHandle* encoder, int node
 	}
 }
 
-void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Mesh& mesh, const glm::mat4& modelMatrix)
+void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Mesh& mesh, const glm::mat4& modelMatrix, int nodeIndex)
 {
-	// 유니폼 버퍼 업데이트
+	// View/Projection 유니폼 버퍼 업데이트
 	void* mappedData = _renderContext->MapBuffer(_uniformBuffer, sizeof(UniformData));
 	if (mappedData) 
 	{
 		memcpy(mappedData, &_uniformData, sizeof(UniformData));
 		_renderContext->UnmapBuffer(_uniformBuffer);
 	}
-	// 모델 유니폼 버퍼 업데이트
-	_modelUniformData.model = modelMatrix;
-	_modelUniformData.normalMatrix = glm::transpose(glm::inverse(modelMatrix));
-	void* modelMappedData = _renderContext->MapBuffer(_modelUniformBuffer, sizeof(ModelUniformData));
-	if (modelMappedData) {
-		memcpy(modelMappedData, &_modelUniformData, sizeof(ModelUniformData));
-		_renderContext->UnmapBuffer(_modelUniformBuffer);
+	
+	// 노드별 모델 유니폼 버퍼 확인/생성
+	Render::OgBufferHandle* modelUniformBuffer = nullptr;
+	
+	if (_nodeUniformBuffers.find(nodeIndex) == _nodeUniformBuffers.end())
+	{
+		// 해당 노드의 uniform buffer가 없으면 생성
+		ModelUniformData modelData;
+		modelData.model = modelMatrix;
+		modelData.normalMatrix = glm::transpose(glm::inverse(modelMatrix));
+		
+		modelUniformBuffer = _renderContext->CreateBuffer(
+			&modelData,
+			sizeof(ModelUniformData),
+			Render::OgBufferUsage::UNIFORM,
+			OgMemoryOption::MAP_MANAGED
+		);
+		modelUniformBuffer->Retain();
+		
+		_nodeUniformBuffers[nodeIndex] = modelUniformBuffer;
+	}
+	else
+	{
+		// 기존 버퍼 사용 및 업데이트
+		modelUniformBuffer = _nodeUniformBuffers[nodeIndex];
+		
+		ModelUniformData modelData;
+		modelData.model = modelMatrix;
+		modelData.normalMatrix = glm::transpose(glm::inverse(modelMatrix));
+		
+		void* modelMappedData = _renderContext->MapBuffer(modelUniformBuffer, sizeof(ModelUniformData));
+		if (modelMappedData) {
+			memcpy(modelMappedData, &modelData, sizeof(ModelUniformData));
+			_renderContext->UnmapBuffer(modelUniformBuffer);
+		}
 	}
 
 	// 각 primitive 렌더링
@@ -1510,10 +1563,11 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 					
 				usages[10].binding.type = OgResourceType::UNIFORM_BUFFER;
 				usages[10].binding.stage = OgShaderType::VERTEX;
-					usages[10].binding.binding = 10;
-					usages[10].buffer.handle = &_modelUniformBuffer;
-					usages[10].buffer.offset = &zeroOffset;
-					usages[10].buffer.range = &_modelUniformBuffer->size;
+				usages[10].binding.binding = 10;
+				usages[10].buffer.handle = &modelUniformBuffer;
+				usages[10].buffer.offset = &zeroOffset;
+				uint32 modelBufferSize = sizeof(ModelUniformData);
+				usages[10].buffer.range = &modelBufferSize;
 
 					// 새로운 리소스 셋 생성
 					OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 11);
@@ -1523,7 +1577,78 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 			}
 			else
 			{
-				encoder->BindResourceSet(_resourceSet);
+				// 텍스처가 없어도 모델 uniform buffer를 포함한 리소스 셋을 생성해야 함
+				uint32 zeroOffset = 0;
+				OgResourceUsage usages[11];
+				
+				usages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
+				usages[0].binding.stage = OgShaderType::VERTEX;
+				usages[0].binding.binding = 0;
+				usages[0].buffer.handle = &_uniformBuffer;
+				usages[0].buffer.offset = &zeroOffset;
+				usages[0].buffer.range = &_uniformBuffer->size;
+				
+				usages[1].binding.type = OgResourceType::UNIFORM_BUFFER;
+				usages[1].binding.stage = OgShaderType::FRAGMENT;
+				usages[1].binding.binding = 1;
+				usages[1].buffer.handle = &_materialUniformBuffer;
+				usages[1].buffer.offset = &zeroOffset;
+				usages[1].buffer.range = &_materialUniformBuffer->size;
+				
+				usages[2].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[2].binding.stage = OgShaderType::FRAGMENT;
+				usages[2].binding.binding = 2;
+				usages[2].texture.handle = &_defaultWhiteTexture;
+				
+				usages[3].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[3].binding.stage = OgShaderType::FRAGMENT;
+				usages[3].binding.binding = 3;
+				usages[3].texture.handle = &_defaultNormalTexture;
+				
+				usages[4].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[4].binding.stage = OgShaderType::FRAGMENT;
+				usages[4].binding.binding = 4;
+				usages[4].texture.handle = &_defaultWhiteTexture;
+				
+				usages[5].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[5].binding.stage = OgShaderType::FRAGMENT;
+				usages[5].binding.binding = 5;
+				usages[5].texture.handle = &_defaultWhiteTexture;
+				
+				usages[6].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[6].binding.stage = OgShaderType::FRAGMENT;
+				usages[6].binding.binding = 6;
+				usages[6].texture.handle = &_defaultWhiteTexture;
+				
+				usages[7].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[7].binding.stage = OgShaderType::FRAGMENT;
+				usages[7].binding.binding = 7;
+				usages[7].texture.handle = &_defaultWhiteTexture;
+				
+				usages[8].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+				usages[8].binding.stage = OgShaderType::FRAGMENT;
+				usages[8].binding.binding = 8;
+				usages[8].texture.handle = &_defaultWhiteTexture;
+				
+				usages[9].binding.type = OgResourceType::UNIFORM_BUFFER;
+				usages[9].binding.stage = OgShaderType::FRAGMENT;
+				usages[9].binding.binding = 9;
+				usages[9].buffer.handle = &_lightUniformBuffer;
+				usages[9].buffer.offset = &zeroOffset;
+				usages[9].buffer.range = &_lightUniformBuffer->size;
+				
+				usages[10].binding.type = OgResourceType::UNIFORM_BUFFER;
+				usages[10].binding.stage = OgShaderType::VERTEX;
+				usages[10].binding.binding = 10;
+				usages[10].buffer.handle = &modelUniformBuffer;
+				usages[10].buffer.offset = &zeroOffset;
+				uint32 modelBufferSize = sizeof(ModelUniformData);
+				usages[10].buffer.range = &modelBufferSize;
+				
+				OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 11);
+				tempResourceSet->Retain();
+				encoder->BindResourceSet(tempResourceSet);
+				tempResourceSet->Release();
 			}
 		}
 		else
@@ -1552,7 +1677,78 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				_renderContext->UnmapBuffer(_materialUniformBuffer);
 			}
 
-			encoder->BindResourceSet(_resourceSet);
+			// 기본 material에서도 모델 uniform buffer를 포함한 리소스 셋 생성
+			uint32 zeroOffset = 0;
+			OgResourceUsage usages[11];
+			
+			usages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
+			usages[0].binding.stage = OgShaderType::VERTEX;
+			usages[0].binding.binding = 0;
+			usages[0].buffer.handle = &_uniformBuffer;
+			usages[0].buffer.offset = &zeroOffset;
+			usages[0].buffer.range = &_uniformBuffer->size;
+			
+			usages[1].binding.type = OgResourceType::UNIFORM_BUFFER;
+			usages[1].binding.stage = OgShaderType::FRAGMENT;
+			usages[1].binding.binding = 1;
+			usages[1].buffer.handle = &_materialUniformBuffer;
+			usages[1].buffer.offset = &zeroOffset;
+			usages[1].buffer.range = &_materialUniformBuffer->size;
+			
+			usages[2].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+			usages[2].binding.stage = OgShaderType::FRAGMENT;
+			usages[2].binding.binding = 2;
+			usages[2].texture.handle = &_defaultWhiteTexture;
+			
+			usages[3].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+			usages[3].binding.stage = OgShaderType::FRAGMENT;
+			usages[3].binding.binding = 3;
+			usages[3].texture.handle = &_defaultNormalTexture;
+			
+			usages[4].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+			usages[4].binding.stage = OgShaderType::FRAGMENT;
+			usages[4].binding.binding = 4;
+			usages[4].texture.handle = &_defaultWhiteTexture;
+			
+			usages[5].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+			usages[5].binding.stage = OgShaderType::FRAGMENT;
+			usages[5].binding.binding = 5;
+			usages[5].texture.handle = &_defaultWhiteTexture;
+			
+			usages[6].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+			usages[6].binding.stage = OgShaderType::FRAGMENT;
+			usages[6].binding.binding = 6;
+			usages[6].texture.handle = &_defaultWhiteTexture;
+			
+			usages[7].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+			usages[7].binding.stage = OgShaderType::FRAGMENT;
+			usages[7].binding.binding = 7;
+			usages[7].texture.handle = &_defaultWhiteTexture;
+			
+			usages[8].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
+			usages[8].binding.stage = OgShaderType::FRAGMENT;
+			usages[8].binding.binding = 8;
+			usages[8].texture.handle = &_defaultWhiteTexture;
+			
+			usages[9].binding.type = OgResourceType::UNIFORM_BUFFER;
+			usages[9].binding.stage = OgShaderType::FRAGMENT;
+			usages[9].binding.binding = 9;
+			usages[9].buffer.handle = &_lightUniformBuffer;
+			usages[9].buffer.offset = &zeroOffset;
+			usages[9].buffer.range = &_lightUniformBuffer->size;
+			
+			usages[10].binding.type = OgResourceType::UNIFORM_BUFFER;
+			usages[10].binding.stage = OgShaderType::VERTEX;
+			usages[10].binding.binding = 10;
+			usages[10].buffer.handle = &modelUniformBuffer;
+			usages[10].buffer.offset = &zeroOffset;
+			uint32 modelBufferSize = sizeof(ModelUniformData);
+			usages[10].buffer.range = &modelBufferSize;
+			
+			OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 11);
+			tempResourceSet->Retain();
+			encoder->BindResourceSet(tempResourceSet);
+			tempResourceSet->Release();
 		}
 
 		// 버텍스 버퍼 바인딩
