@@ -50,6 +50,10 @@ protected:
 	// UI 렌더링 (서브클래스에서 오버라이드)
 	virtual void onRenderUI() {}
 
+protected:
+	// 모델 브라우저 표시 여부 (서브클래스에서 접근 가능)
+	bool _showModelBrowser = false;
+
 private:
 	// ImGui 렌더러
 	std::unique_ptr<OgImguiRenderer> _imguiRenderer;
@@ -57,6 +61,7 @@ private:
 
 	// 현재 샘플
 	std::unique_ptr<OgSampleBase> _currentSample;
+	
 };
 
 /**
@@ -78,6 +83,7 @@ private:
 	void renderDebugInfo();
 	void renderSampleSelector();
 	void renderLightControls();
+	void renderModelBrowser();
 	void switchSample(int index);
 	
 	int _currentSampleIndex = 1; // 기본은 FBX 샘플

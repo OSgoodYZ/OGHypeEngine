@@ -67,6 +67,14 @@ public:
 	glm::mat4 GetViewMatrix() const { return _uniformData.view; }
 	glm::mat4 GetProjectionMatrix() const { return _uniformData.projection; }
 	glm::mat4 GetModelMatrix() const { return _uniformData.model; }
+	
+	// 파일 브라우저 인터페이스
+	const std::vector<std::string>& GetAvailableModels() const { return _availableModels; }
+	int GetSelectedModelIndex() const { return _selectedModelIndex; }
+	const std::string& GetCurrentModelPath() const { return _currentModelPath; }
+	const std::string& GetGLTFDirectory() const { return _glTFDirectory; }
+	void ScanGLTFDirectory(const std::string& directory);
+	void LoadSelectedModel(int index);
 
 	// 렌더 타겟 인터페이스
 	Render::OgTextureHandle* GetRenderTargetTexture() const override { return _renderTargetTexture; }
@@ -201,6 +209,12 @@ private:
 
 	// ImGui 컨트롤을 위한 변수들
 	bool _showLightControls = true;
+	
+	// 파일 브라우저를 위한 변수들
+	std::string _currentModelPath;
+	std::string _glTFDirectory;
+	std::vector<std::string> _availableModels;
+	int _selectedModelIndex = -1;
 };
 
 OG_NAMESPACE_SAMPLE_END

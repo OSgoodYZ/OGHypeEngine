@@ -2,7 +2,6 @@
 #include "sample/public/core/util/OgShaderCompiler.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
-#include "imgui.h"
 
 #include <cmath>
 #include <algorithm>
@@ -42,68 +41,41 @@ void OgModelSample::OnInit(Render::OgSwapChain* swapchain)
 
 	createResources(width, height);
 
-	// glTF 폴더에서 첫 번째 glTF 파일을 찾아서 로드
-	// 실행 파일 경로를 기준으로 glTF 폴더 경로 구성
+	// glTF 폴더 경로 찾기
 	std::filesystem::path executablePath = std::filesystem::current_path();
-	std::filesystem::path gltfPath = executablePath / "glTF\\SheenCloth";
-	
+	std::filesystem::path gltfPath = executablePath / "glTF";
+
 	// 만약 현재 경로에서 찾을 수 없으면, Build/Debug 경로도 시도
 	if (!std::filesystem::exists(gltfPath)) {
-		gltfPath = executablePath / "Build" / "Debug" / "glTF"/ "SheenCloth";
+		gltfPath = executablePath / "Build" / "Debug" / "glTF";
 	}
-	
+
 	// 그래도 없으면 상위 디렉토리들도 확인
 	if (!std::filesystem::exists(gltfPath)) {
 		std::filesystem::path searchPath = executablePath;
 		for (int i = 0; i < 3; ++i) {
 			searchPath = searchPath.parent_path();
-			std::filesystem::path testPath = searchPath / "Build" / "Debug" / "glTF" / "SheenCloth";
+			std::filesystem::path testPath = searchPath / "Build" / "Debug" / "glTF";
 			if (std::filesystem::exists(testPath)) {
 				gltfPath = testPath;
 				break;
 			}
 		}
 	}
-	
-	bool modelLoaded = false;
-	
-	try 
-	{
-		if (std::filesystem::exists(gltfPath) && std::filesystem::is_directory(gltfPath)) {
-			LOGD(OG_ID, "Found glTF directory at: %s", gltfPath.string().c_str());
-			
-			for (const auto& entry : std::filesystem::directory_iterator(gltfPath)) 
-			{
-				if (entry.is_regular_file()) 
-				{
-					std::string extension = entry.path().extension().string();
-					if (extension == ".gltf" || extension == ".glb") 
-					{
-						std::string filePath = entry.path().string();
-						
-						LOGD(OG_ID, "Loading glTF model: %s", filePath.c_str());
-						if (loadGLTFModel(filePath)) {
-							modelLoaded = true;
-							LOGD(OG_ID, "Successfully loaded glTF model");
-							break;
-						}
-					}
-				}
-			}
-		} else {
-			LOGE(OG_ID, "glTF directory not found at: %s", gltfPath.string().c_str());
-			LOGD(OG_ID, "Current working directory: %s", executablePath.string().c_str());
-		}
-	} catch (const std::exception& e) 
-	{
-		LOGE(OG_ID, "Error accessing glTF directory: %s", e.what());
+
+	// glTF 디렉토리가 존재하면 모든 모델 스캔
+	if (std::filesystem::exists(gltfPath)) {
+		_glTFDirectory = gltfPath.string();
+		ScanGLTFDirectory(_glTFDirectory);
+
+		// 모델을 자동으로 로드하지 않고 사용자가 선택하도록 대기
+	}
+	else {
+		LOGE(OG_ID, "glTF directory not found");
+		LOGD(OG_ID, "Current working directory: %s", executablePath.string().c_str());
 	}
 
-	if (!modelLoaded) 
-	{
-		LOGD(OG_ID, "No glTF model found in ./glTF/ directory, using default cube");
-		createDefaultMesh();
-	}
+	// 기본 큐브도 생성하지 않음 - 사용자가 모델을 선택할 때까지 대기
 
 	_isInitialized = true;
 }
@@ -130,8 +102,6 @@ void OgModelSample::OnUpdate(float deltaTime)
 	if (_rotation > 2.0f * 3.14159f)
 		_rotation -= 2.0f * 3.14159f;
 
-	// ImGui 컨트롤은 OgSampleViewerWindow에서 처리
-
 	updateUniformBuffer();
 }
 
@@ -139,6 +109,28 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 {
 	if (!_isInitialized || !_renderTargetFrameBuffer)
 		return;
+
+	// 모델이 선택되지 않았으면 클리어만 하고 리턴
+	if (_selectedModelIndex == -1)
+	{
+		float clearColor[]{ 0.1f, 0.1f, 0.1f, 1.0f };
+
+		OgCommandEncoderHandle::ClearValue colorClear;
+		colorClear.color.value[0] = clearColor[0];
+		colorClear.color.value[1] = clearColor[1];
+		colorClear.color.value[2] = clearColor[2];
+		colorClear.color.value[3] = clearColor[3];
+
+		OgCommandEncoderHandle::ClearValue depthStencilClear;
+		depthStencilClear.depthStencil.depth = 1.f;
+		depthStencilClear.depthStencil.stencil = 0.f;
+
+		OgCommandEncoderHandle::Area area(0, 0, _renderTargetWidth, _renderTargetHeight);
+
+		encoder->BeginRenderPass(_renderTargetRenderPass, _renderTargetFrameBuffer, area, 1, &colorClear, 0, nullptr, &depthStencilClear);
+		encoder->EndRenderPass();
+		return;
+	}
 
 	float passColor[]{ 0.0f, 0.0f, 1.0f, 1.0f };
 
@@ -171,29 +163,29 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 	// 모델이 로드되어 있으면 렌더링
 	if (_loadedModel.isLoaded && !_loadedModel.rootNodes.empty()) {
 		glm::mat4 rootTransform = glm::mat4(1.0f);
-		
+
 		// 모델을 중심으로 회전
 		rootTransform = glm::rotate(rootTransform, _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
-		
+
 		// 모델 크기 정규화 (카메라 거리에 맞게 스케일 조정)
 		float scale = 5.0f / _loadedModel.radius; // 모델을 적절한 크기로 조정
 		scale *= 20.0f; // 20배 스케일링
 
-		
+
 		//rootTransform = glm::translate(rootTransform, glm::vec3(2, 0, 0));
 		rootTransform = glm::translate(rootTransform, -_loadedModel.center);
 
 		rootTransform = glm::scale(rootTransform, glm::vec3(scale));
-		
+
 		// 모델 중심을 원점으로 이동
 		rootTransform = glm::translate(rootTransform, -_loadedModel.center);
 		// 루트 노드들 렌더링
-		for (int rootNode : _loadedModel.rootNodes) 
+		for (int rootNode : _loadedModel.rootNodes)
 		{
 			renderNode(encoder, rootNode, rootTransform);
 		}
 	}
-	else if (!_loadedModel.meshes.empty()) 
+	else if (!_loadedModel.meshes.empty())
 	{
 		// 기본 큐브 렌더링
 		glm::mat4 modelMatrix = glm::rotate(glm::mat4(1.0f), _rotation, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -278,7 +270,7 @@ void OgModelSample::OnKeyPress(int key, int action, int mods)
 		_useFlyCamera = !_useFlyCamera;
 		updateUniformBuffer();
 	}
-	
+
 	// L 키로 라이트 컨트롤 윈도우 토글
 	if (key == OG_KEY_L && action == OG_PRESS)
 	{
@@ -305,18 +297,18 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	whiteTexInfo.extent.width = 1;
 	whiteTexInfo.extent.height = 1;
 	whiteTexInfo.usage = OgTextureUsage::SAMPLED;
-	
+
 	OgSamplerInfo samplerInfo{};
 	samplerInfo.type = OgSamplerType::TEX_2D;
 	samplerInfo.addressU = OgSamplerAddressMode::REPEAT;
 	samplerInfo.addressV = OgSamplerAddressMode::REPEAT;
 	samplerInfo.magFilter = OgFilter::LINEAR;
 	samplerInfo.minFilter = OgFilter::LINEAR;
-	
+
 	void* whiteData = &whitePixel;
 	_defaultWhiteTexture = _renderContext->CreateTexture(&whiteData, whiteTexInfo, _renderContext->CreateSampler(samplerInfo));
 	_defaultWhiteTexture->Retain();
-	
+
 	// 기본 노말 텍스처 (0.5, 0.5, 1.0, 1.0) - 중성 노말
 	uint32_t normalPixel = 0xFFFF8080; // RGBA = (128, 128, 255, 255)
 	void* normalData = &normalPixel;
@@ -331,63 +323,63 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	bindings[0].binding = 0;
 	bindings[0].arrayCount = 0;
 	bindings[0].name = nullptr;
-	
+
 	// Material 유니폼 버퍼
 	bindings[1].type = OgResourceType::UNIFORM_BUFFER;
 	bindings[1].stage = OgShaderType::FRAGMENT;
 	bindings[1].binding = 1;
 	bindings[1].arrayCount = 0;
 	bindings[1].name = nullptr;
-	
+
 	// Base color texture
 	bindings[2].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	bindings[2].stage = OgShaderType::FRAGMENT;
 	bindings[2].binding = 2;
 	bindings[2].arrayCount = 0;
 	bindings[2].name = nullptr;
-	
+
 	// Normal texture
 	bindings[3].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	bindings[3].stage = OgShaderType::FRAGMENT;
 	bindings[3].binding = 3;
 	bindings[3].arrayCount = 0;
 	bindings[3].name = nullptr;
-	
+
 	// Metallic roughness texture
 	bindings[4].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	bindings[4].stage = OgShaderType::FRAGMENT;
 	bindings[4].binding = 4;
 	bindings[4].arrayCount = 0;
 	bindings[4].name = nullptr;
-	
+
 	// Emissive texture
 	bindings[5].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	bindings[5].stage = OgShaderType::FRAGMENT;
 	bindings[5].binding = 5;
 	bindings[5].arrayCount = 0;
 	bindings[5].name = nullptr;
-	
+
 	// Occlusion texture
 	bindings[6].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	bindings[6].stage = OgShaderType::FRAGMENT;
 	bindings[6].binding = 6;
 	bindings[6].arrayCount = 0;
 	bindings[6].name = nullptr;
-	
+
 	// Sheen color texture
 	bindings[7].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	bindings[7].stage = OgShaderType::FRAGMENT;
 	bindings[7].binding = 7;
 	bindings[7].arrayCount = 0;
 	bindings[7].name = nullptr;
-	
+
 	// Sheen roughness texture
 	bindings[8].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	bindings[8].stage = OgShaderType::FRAGMENT;
 	bindings[8].binding = 8;
 	bindings[8].arrayCount = 0;
 	bindings[8].name = nullptr;
-	
+
 	// Light uniform buffer
 	bindings[9].type = OgResourceType::UNIFORM_BUFFER;
 	bindings[9].stage = OgShaderType::FRAGMENT;
@@ -402,38 +394,38 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	// 리소스 셋 생성
 	uint32 zeroOffset = 0;
 	OgResourceUsage usages[10];
-	
+
 	usages[0].binding = bindings[0];
 	usages[0].buffer.handle = &_uniformBuffer;
 	usages[0].buffer.offset = &zeroOffset;
 	usages[0].buffer.range = &_uniformBuffer->size;
-	
+
 	usages[1].binding = bindings[1];
 	usages[1].buffer.handle = &_materialUniformBuffer;
 	usages[1].buffer.offset = &zeroOffset;
 	usages[1].buffer.range = &_materialUniformBuffer->size;
-	
+
 	usages[2].binding = bindings[2];
 	usages[2].texture.handle = &_defaultWhiteTexture;
-	
+
 	usages[3].binding = bindings[3];
 	usages[3].texture.handle = &_defaultNormalTexture;
-	
+
 	usages[4].binding = bindings[4];
 	usages[4].texture.handle = &_defaultWhiteTexture;
-	
+
 	usages[5].binding = bindings[5];
 	usages[5].texture.handle = &_defaultWhiteTexture;  // emissive
-	
+
 	usages[6].binding = bindings[6];
 	usages[6].texture.handle = &_defaultWhiteTexture;  // occlusion
-	
+
 	usages[7].binding = bindings[7];
 	usages[7].texture.handle = &_defaultWhiteTexture;  // sheen color
-	
+
 	usages[8].binding = bindings[8];
 	usages[8].texture.handle = &_defaultWhiteTexture;  // sheen roughness
-	
+
 	usages[9].binding = bindings[9];
 	usages[9].buffer.handle = &_lightUniformBuffer;
 	usages[9].buffer.offset = &zeroOffset;
@@ -502,19 +494,19 @@ void OgModelSample::destroyResources()
 		_uniformBuffer->Release();
 		_uniformBuffer = nullptr;
 	}
-	
+
 	if (_lightUniformBuffer)
 	{
 		_lightUniformBuffer->Release();
 		_lightUniformBuffer = nullptr;
 	}
-	
+
 	if (_defaultWhiteTexture)
 	{
 		_defaultWhiteTexture->Release();
 		_defaultWhiteTexture = nullptr;
 	}
-	
+
 	if (_defaultNormalTexture)
 	{
 		_defaultNormalTexture->Release();
@@ -597,7 +589,7 @@ void OgModelSample::createUniformBuffer()
 	// 초기 변환 행렬 설정
 	_uniformData.model = glm::mat4(1.0f);
 	_uniformData.normalMatrix = glm::mat4(1.0f);
-	
+
 	float aspect = 1.0f;
 	if (_renderTargetHeight > 0)
 	{
@@ -632,7 +624,7 @@ void OgModelSample::createUniformBuffer()
 		OgMemoryOption::MAP_MANAGED
 	);
 	_uniformBuffer->Retain();
-	
+
 	// Material 유니폼 버퍼 생성
 	_materialUniformData = MaterialUniformData{};
 	_materialUniformData.baseColorFactor = glm::vec4(1.0f);
@@ -650,7 +642,7 @@ void OgModelSample::createUniformBuffer()
 	_materialUniformData.occlusionTransform = glm::mat4(1.0f);
 	_materialUniformData.sheenColorTransform = glm::mat4(1.0f);
 	_materialUniformData.sheenRoughnessTransform = glm::mat4(1.0f);
-	
+
 	_materialUniformBuffer = _renderContext->CreateBuffer(
 		&_materialUniformData,
 		sizeof(MaterialUniformData),
@@ -658,28 +650,28 @@ void OgModelSample::createUniformBuffer()
 		OgMemoryOption::MAP_MANAGED
 	);
 	_materialUniformBuffer->Retain();
-	
+
 	// Light 유니폼 버퍼 생성 및 초기화
 	_lightUniformData = LightUniformData{};
 	_lightUniformData.lightCount = 4;
-	
+
 	// 초기 라이트 설정 (Directional Light 방향)
 	_lightUniformData.lights[0].position = glm::normalize(glm::vec3(1.0f, -1.0f, -1.0f)); // 오른쪽 위에서 비추는 메인 라이트
 	_lightUniformData.lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
 	_lightUniformData.lights[0].intensity = 3.0f;
-	
+
 	_lightUniformData.lights[1].position = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.5f)); // 왼쪽에서 비추는 보조 라이트
 	_lightUniformData.lights[1].color = glm::vec3(0.5f, 0.5f, 0.75f);
 	_lightUniformData.lights[1].intensity = 1.5f;
-	
+
 	_lightUniformData.lights[2].position = glm::normalize(glm::vec3(0.5f, 1.0f, -0.3f)); // 아래에서 올라오는 림 라이트
 	_lightUniformData.lights[2].color = glm::vec3(0.75f, 0.5f, 0.5f);
 	_lightUniformData.lights[2].intensity = 1.0f;
-	
+
 	_lightUniformData.lights[3].position = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f)); // 정면에서 비추는 필 라이트
 	_lightUniformData.lights[3].color = glm::vec3(1.0f, 1.0f, 1.0f);
 	_lightUniformData.lights[3].intensity = 0.5f;
-	
+
 	_lightUniformBuffer = _renderContext->CreateBuffer(
 		&_lightUniformData,
 		sizeof(LightUniformData),
@@ -1061,18 +1053,18 @@ void OgModelSample::createShaders()
 
 	// 컴파일된 SPIR-V로 셰이더 생성
 	_vertexShader = _renderContext->CreateShader(
-		OgShaderType::VERTEX, 
-		reinterpret_cast<const char*>(vertexSPIRV.data()), 
-		vertexSPIRV.size() * sizeof(uint32_t), 
+		OgShaderType::VERTEX,
+		reinterpret_cast<const char*>(vertexSPIRV.data()),
+		vertexSPIRV.size() * sizeof(uint32_t),
 		"main"
 	);
 	_vertexShader->name = "ModelSampleVertexShader";
 	_vertexShader->Retain();
 
 	_fragmentShader = _renderContext->CreateShader(
-		OgShaderType::FRAGMENT, 
-		reinterpret_cast<const char*>(fragmentSPIRV.data()), 
-		fragmentSPIRV.size() * sizeof(uint32_t), 
+		OgShaderType::FRAGMENT,
+		reinterpret_cast<const char*>(fragmentSPIRV.data()),
+		fragmentSPIRV.size() * sizeof(uint32_t),
 		"main"
 	);
 	_fragmentShader->name = "ModelSampleFragmentShader";
@@ -1255,7 +1247,7 @@ bool OgModelSample::loadGLTFModel(const std::string& filePath)
 {
 	// 기존 모델 데이터 클리어
 	clearModelData();
-	
+
 	// OgGLTFLoader를 사용해서 모델 로드
 	if (!_gltfLoader->LoadModel(filePath, _loadedModel))
 	{
@@ -1263,7 +1255,7 @@ bool OgModelSample::loadGLTFModel(const std::string& filePath)
 		LOGE(OG_ID, "Error: %s", _gltfLoader->GetLastError().c_str());
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -1282,16 +1274,16 @@ void OgModelSample::renderNode(Render::OgCommandEncoderHandle* encoder, int node
 	if (nodeIndex < 0 || nodeIndex >= static_cast<int>(_loadedModel.nodes.size())) {
 		return;
 	}
-	
+
 	const Node& node = _loadedModel.nodes[nodeIndex];
 	glm::mat4 nodeMatrix = parentMatrix * node.matrix;
-	
+
 	// 이 노드에 메시가 있으면 렌더링
-	if (node.meshIndex >= 0 && node.meshIndex < static_cast<int>(_loadedModel.meshes.size())) 
+	if (node.meshIndex >= 0 && node.meshIndex < static_cast<int>(_loadedModel.meshes.size()))
 	{
 		renderMesh(encoder, _loadedModel.meshes[node.meshIndex], nodeMatrix);
 	}
-	
+
 	// 자식 노드들 렌더링
 	for (int childIndex : node.children) {
 		renderNode(encoder, childIndex, nodeMatrix);
@@ -1303,30 +1295,30 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 	// 유니폼 버퍼 업데이트
 	_uniformData.model = modelMatrix;
 	_uniformData.normalMatrix = glm::transpose(glm::inverse(modelMatrix));
-	
+
 	void* mappedData = _renderContext->MapBuffer(_uniformBuffer, sizeof(UniformData));
 	if (mappedData) {
 		memcpy(mappedData, &_uniformData, sizeof(UniformData));
 		_renderContext->UnmapBuffer(_uniformBuffer);
 	}
-	
+
 	// 각 primitive 렌더링
-	for (const auto& primitive : mesh.primitives) 
+	for (const auto& primitive : mesh.primitives)
 	{
 		// Material 설정
-		if (primitive.materialIndex >= 0 && primitive.materialIndex < static_cast<int>(_loadedModel.materials.size())) 
+		if (primitive.materialIndex >= 0 && primitive.materialIndex < static_cast<int>(_loadedModel.materials.size()))
 		{
-		const Material& material = _loadedModel.materials[primitive.materialIndex];
-		
-		// Material 유니폼 업데이트
-		_materialUniformData.baseColorFactor = material.baseColorFactor;
-		_materialUniformData.metallicFactor = material.metallicFactor;
-		_materialUniformData.roughnessFactor = material.roughnessFactor;
-		_materialUniformData.normalScale = material.normalScale;
-		_materialUniformData.occlusionStrength = material.occlusionStrength; 
-		_materialUniformData.emissiveFactor = material.emissiveFactor;
-		_materialUniformData.emissiveStrength = material.emissiveStrength;
-		_materialUniformData.sheenColorFactor = material.sheenColorFactor;
+			const Material& material = _loadedModel.materials[primitive.materialIndex];
+
+			// Material 유니폼 업데이트
+			_materialUniformData.baseColorFactor = material.baseColorFactor;
+			_materialUniformData.metallicFactor = material.metallicFactor;
+			_materialUniformData.roughnessFactor = material.roughnessFactor;
+			_materialUniformData.normalScale = material.normalScale;
+			_materialUniformData.occlusionStrength = material.occlusionStrength;
+			_materialUniformData.emissiveFactor = material.emissiveFactor;
+			_materialUniformData.emissiveStrength = material.emissiveStrength;
+			_materialUniformData.sheenColorFactor = material.sheenColorFactor;
 			_materialUniformData.sheenRoughnessFactor = material.sheenRoughnessFactor;
 			_materialUniformData.hasBaseColorTexture = material.baseColorTexture ? 1.0f : 0.0f;
 			_materialUniformData.hasNormalTexture = material.normalTexture ? 1.0f : 0.0f;
@@ -1336,7 +1328,7 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 			_materialUniformData.hasSheenColorTexture = material.sheenColorTexture ? 1.0f : 0.0f;
 			_materialUniformData.hasSheenRoughnessTexture = material.sheenRoughnessTexture ? 1.0f : 0.0f;
 			_materialUniformData.unlit = material.unlit ? 1.0f : 0.0f;
-			
+
 			// Texture transforms - 3x3 행렬을 4x4로 올바르게 변환
 			auto convertMat3ToMat4 = [](const glm::mat3& mat3) -> glm::mat4 {
 				glm::mat4 mat4(1.0f);
@@ -1347,8 +1339,8 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				// 나머지는 단위 행렬로 설정
 				mat4[3][3] = 1.0f;
 				return mat4;
-			};
-			
+				};
+
 			_materialUniformData.baseColorTransform = convertMat3ToMat4(material.baseColorTransform.GetTransformMatrix());
 			_materialUniformData.normalTransform = convertMat3ToMat4(material.normalTransform.GetTransformMatrix());
 			_materialUniformData.metallicRoughnessTransform = convertMat3ToMat4(material.metallicRoughnessTransform.GetTransformMatrix());
@@ -1356,7 +1348,7 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 			_materialUniformData.occlusionTransform = convertMat3ToMat4(material.occlusionTransform.GetTransformMatrix());
 			_materialUniformData.sheenColorTransform = convertMat3ToMat4(material.sheenColorTransform.GetTransformMatrix());
 			_materialUniformData.sheenRoughnessTransform = convertMat3ToMat4(material.sheenRoughnessTransform.GetTransformMatrix());
-			
+
 			// 디버깅: Sheen 텍스처 변환 행렬 로그
 			if (material.sheenColorTexture) {
 				glm::mat3 sheenTransform = material.sheenColorTransform.GetTransformMatrix();
@@ -1364,26 +1356,26 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[0][0], sheenTransform[0][1], sheenTransform[0][2]);
 				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[1][0], sheenTransform[1][1], sheenTransform[1][2]);
 				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[2][0], sheenTransform[2][1], sheenTransform[2][2]);
-				LOGD(OG_ID, "Scale: (%.2f, %.2f), Offset: (%.2f, %.2f), Rotation: %.2f", 
-					 material.sheenColorTransform.scale.x, material.sheenColorTransform.scale.y,
-					 material.sheenColorTransform.offset.x, material.sheenColorTransform.offset.y,
-					 material.sheenColorTransform.rotation);
+				LOGD(OG_ID, "Scale: (%.2f, %.2f), Offset: (%.2f, %.2f), Rotation: %.2f",
+					material.sheenColorTransform.scale.x, material.sheenColorTransform.scale.y,
+					material.sheenColorTransform.offset.x, material.sheenColorTransform.offset.y,
+					material.sheenColorTransform.rotation);
 			}
-			
+
 			void* materialMapped = _renderContext->MapBuffer(_materialUniformBuffer, sizeof(MaterialUniformData));
-			if (materialMapped) 
+			if (materialMapped)
 			{
 				memcpy(materialMapped, &_materialUniformData, sizeof(MaterialUniformData));
 				_renderContext->UnmapBuffer(_materialUniformBuffer);
 			}
-			
+
 			// 텍스처 바인딩을 위한 리소스 셋 업데이트
 			if (material.baseColorTexture || material.normalTexture || material.metallicRoughnessTexture ||
-			material.emissiveTexture || material.occlusionTexture || material.sheenColorTexture || material.sheenRoughnessTexture) 
+				material.emissiveTexture || material.occlusionTexture || material.sheenColorTexture || material.sheenRoughnessTexture)
 			{
-			uint32 zeroOffset = 0;
-			OgResourceUsage usages[10];
-				
+				uint32 zeroOffset = 0;
+				OgResourceUsage usages[10];
+
 				// 유니폼 버퍼들
 				usages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
 				usages[0].binding.stage = OgShaderType::VERTEX;
@@ -1391,7 +1383,7 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				usages[0].buffer.handle = &_uniformBuffer;
 				usages[0].buffer.offset = &zeroOffset;
 				usages[0].buffer.range = &_uniformBuffer->size;
-				
+
 				usages[1].binding.type = OgResourceType::UNIFORM_BUFFER;
 				usages[1].binding.stage = OgShaderType::FRAGMENT;
 				usages[1].binding.binding = 1;
@@ -1404,7 +1396,7 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				{
 					baseTexs.Add(material.baseColorTexture);
 				}
-				else 
+				else
 				{
 					baseTexs.Add(_defaultWhiteTexture);
 				}
@@ -1431,13 +1423,13 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 
 				OgVector<Render::OgTextureHandle*> emissiveTexs;
 				emissiveTexs.Add(material.emissiveTexture ? material.emissiveTexture : _defaultWhiteTexture);
-				
+
 				OgVector<Render::OgTextureHandle*> occlusionTexs;
 				occlusionTexs.Add(material.occlusionTexture ? material.occlusionTexture : _defaultWhiteTexture);
-				
+
 				OgVector<Render::OgTextureHandle*> sheenColorTexs;
 				sheenColorTexs.Add(material.sheenColorTexture ? material.sheenColorTexture : _defaultWhiteTexture);
-				
+
 				OgVector<Render::OgTextureHandle*> sheenRoughnessTexs;
 				sheenRoughnessTexs.Add(material.sheenRoughnessTexture ? material.sheenRoughnessTexture : _defaultWhiteTexture);
 
@@ -1446,56 +1438,56 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				usages[2].binding.stage = OgShaderType::FRAGMENT;
 				usages[2].binding.binding = 2;
 				usages[2].texture.handle = baseTexs.Data();
-				
+
 				usages[3].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[3].binding.stage = OgShaderType::FRAGMENT;
 				usages[3].binding.binding = 3;
 				usages[3].texture.handle = normalTexs.Data();
-				
+
 				usages[4].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[4].binding.stage = OgShaderType::FRAGMENT;
 				usages[4].binding.binding = 4;
 				usages[4].texture.handle = metallicRoughnessTexs.Data();
-				
+
 				usages[5].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[5].binding.stage = OgShaderType::FRAGMENT;
 				usages[5].binding.binding = 5;
 				usages[5].texture.handle = emissiveTexs.Data();
-				
+
 				usages[6].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[6].binding.stage = OgShaderType::FRAGMENT;
 				usages[6].binding.binding = 6;
 				usages[6].texture.handle = occlusionTexs.Data();
-				
+
 				usages[7].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[7].binding.stage = OgShaderType::FRAGMENT;
 				usages[7].binding.binding = 7;
 				usages[7].texture.handle = sheenColorTexs.Data();
-				
+
 				usages[8].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[8].binding.stage = OgShaderType::FRAGMENT;
 				usages[8].binding.binding = 8;
 				usages[8].texture.handle = sheenRoughnessTexs.Data();
-				
+
 				usages[9].binding.type = OgResourceType::UNIFORM_BUFFER;
 				usages[9].binding.stage = OgShaderType::FRAGMENT;
 				usages[9].binding.binding = 9;
 				usages[9].buffer.handle = &_lightUniformBuffer;
 				usages[9].buffer.offset = &zeroOffset;
 				usages[9].buffer.range = &_lightUniformBuffer->size;
-				
+
 				// 새로운 리소스 셋 생성
 				OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 10);
 				tempResourceSet->Retain();
 				encoder->BindResourceSet(tempResourceSet);
 				tempResourceSet->Release();
 			}
-			else 
+			else
 			{
 				encoder->BindResourceSet(_resourceSet);
 			}
 		}
-		else 
+		else
 		{
 			// 기본 material 사용
 			_materialUniformData = MaterialUniformData{};
@@ -1514,26 +1506,26 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 			_materialUniformData.occlusionTransform = glm::mat4(1.0f);
 			_materialUniformData.sheenColorTransform = glm::mat4(1.0f);
 			_materialUniformData.sheenRoughnessTransform = glm::mat4(1.0f);
-			
+
 			void* materialMapped = _renderContext->MapBuffer(_materialUniformBuffer, sizeof(MaterialUniformData));
 			if (materialMapped) {
 				memcpy(materialMapped, &_materialUniformData, sizeof(MaterialUniformData));
 				_renderContext->UnmapBuffer(_materialUniformBuffer);
 			}
-			
+
 			encoder->BindResourceSet(_resourceSet);
 		}
-		
+
 		// 버텍스 버퍼 바인딩
 		encoder->BindVertexBuffers(&primitive.vertexBuffer, 0, 1);
-		
+
 		// 렌더링
-		if (primitive.hasIndices && primitive.indexBuffer) 
+		if (primitive.hasIndices && primitive.indexBuffer)
 		{
 			encoder->BindIndexBuffer(primitive.indexBuffer, Render::OgIndexType::UINT16);
 			encoder->DrawIndexed(0, primitive.indexCount, 1, 0);
 		}
-		else 
+		else
 		{
 			//encoder->Draw(0, primitive.vertexCount, 1);
 		}
@@ -1545,7 +1537,7 @@ void OgModelSample::convertProjectionForVulkan(glm::mat4& projection)
 	// GLM의 기본 프로젝션은 OpenGL을 위한 것이므로 Vulkan용으로 변환
 	// 1. Y축 뒤집기 (Vulkan은 Y축이 아래로 향함)
 	projection[1][1] *= -1.0f;
-	
+
 	// 2. Z 범위 변환: [-1, 1] -> [0, 1] => GLM이 알아서 해서 주석침
 	//projection[2][2] = projection[2][2] * 0.5f + 0.5f;
 	//projection[2][3] = projection[2][3] * 0.5f;
@@ -1558,6 +1550,67 @@ void OgModelSample::UpdateLightUniformBuffer()
 	{
 		memcpy(lightMapped, &_lightUniformData, sizeof(LightUniformData));
 		_renderContext->UnmapBuffer(_lightUniformBuffer);
+	}
+}
+
+void OgModelSample::ScanGLTFDirectory(const std::string& directory)
+{
+	_availableModels.clear();
+
+	try
+	{
+		// 하위 폴더들을 포함하여 모든 glTF 파일 찾기
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(directory))
+		{
+			if (entry.is_regular_file())
+			{
+				std::string extension = entry.path().extension().string();
+				// 확장자를 소문자로 변환하여 비교
+				std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+
+				if (extension == ".gltf" || extension == ".glb")
+				{
+					// 상대 경로로 저장
+					std::filesystem::path relativePath = std::filesystem::relative(entry.path(), directory);
+					_availableModels.push_back(relativePath.string());
+				}
+			}
+		}
+
+		// 알파벳 순으로 정렬
+		std::sort(_availableModels.begin(), _availableModels.end());
+
+		LOGD(OG_ID, "Found %zu glTF models in directory: %s", _availableModels.size(), directory.c_str());
+	}
+	catch (const std::exception& e)
+	{
+		LOGE(OG_ID, "Error scanning glTF directory: %s", e.what());
+	}
+}
+
+void OgModelSample::LoadSelectedModel(int index)
+{
+	if (index < 0 || index >= static_cast<int>(_availableModels.size()))
+		return;
+
+	_selectedModelIndex = index;
+	std::string fullPath = _glTFDirectory + "/" + _availableModels[index];
+
+	// 기존 모델 데이터 클리어
+	clearModelData();
+
+	// 새 모델 로드
+	LOGD(OG_ID, "Loading model: %s", _availableModels[index].c_str());
+	if (loadGLTFModel(fullPath))
+	{
+		_currentModelPath = _availableModels[index];
+		LOGD(OG_ID, "Successfully loaded model: %s", _currentModelPath.c_str());
+	}
+	else
+	{
+		LOGE(OG_ID, "Failed to load model: %s", _availableModels[index].c_str());
+		// 로드 실패 시 기본 큐브 생성
+		createDefaultMesh();
 	}
 }
 
