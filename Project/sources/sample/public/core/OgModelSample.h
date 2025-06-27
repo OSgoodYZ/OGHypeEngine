@@ -122,6 +122,20 @@ private:
 		glm::vec3 sheenColorFactor;          // 12 bytes
 		float sheenRoughnessFactor;          // 4 bytes
 		
+		// Transmission 속성
+		float transmissionFactor;            // 4 bytes
+		float hasTransmissionTexture;        // 4 bytes
+		float padding1;                      // 4 bytes
+		float padding2;                      // 4 bytes
+		
+		// Volume 속성
+		float thicknessFactor;               // 4 bytes
+		float attenuationDistance;           // 4 bytes
+		float hasThicknessTexture;           // 4 bytes
+		float padding3;                      // 4 bytes
+		glm::vec3 attenuationColor;          // 12 bytes
+		float padding4;                      // 4 bytes
+		
 		// 텍스처 플래그
 		float hasBaseColorTexture;           // 4 bytes
 		float hasNormalTexture;              // 4 bytes
@@ -141,6 +155,8 @@ private:
 		glm::mat4 occlusionTransform;        // 64 bytes
 		glm::mat4 sheenColorTransform;       // 64 bytes
 		glm::mat4 sheenRoughnessTransform;   // 64 bytes
+		glm::mat4 transmissionTransform;     // 64 bytes
+		glm::mat4 thicknessTransform;        // 64 bytes
 	};
 
 

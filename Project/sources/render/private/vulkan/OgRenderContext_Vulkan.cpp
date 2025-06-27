@@ -471,8 +471,8 @@ void OgRenderContextVulkan::initDescriptorPool()
 	_usedUniformBufferFromPool = 0;
 	_usedTextureFromPool = 0;
 	_usedSetFromPool = 0;
-	_maxUniformBufferFromPool = 2048;//256;
-	_maxTextureFromPool = 2048;
+	_maxUniformBufferFromPool = 4096;//256;
+	_maxTextureFromPool = 4096;
 	_maxSetFromPool = 1024;//256;
 
 	// Manual Initialize for VkDescriptorPool
