@@ -59,6 +59,7 @@ public:
 		uint32 vertexCount = 0;
 		bool hasIndices = false;
 		int materialIndex = -1;
+		int indexType = 5123; // GLTF index component type (5123=UINT16, 5125=UINT32)
 	};
 
 	/**

@@ -973,7 +973,8 @@ void OgModelSample::createShaders()
 			// Unlit material - 간단한 처리
 			if (material.unlit > 0.5) {
 				vec4 baseColor = material.baseColorFactor;
-				if (material.hasBaseColorTexture > 0.5) {
+				//if (material.hasBaseColorTexture > 0.5) 
+				{
 					vec2 uv = transformUV(fragTexCoord, material.baseColorTransform);
 					baseColor *= texture(baseColorTexture, uv);
 				}
@@ -984,7 +985,8 @@ void OgModelSample::createShaders()
 			// === Material Properties ===
 			// Base color
 			vec4 baseColor = material.baseColorFactor;
-			if (material.hasBaseColorTexture > 0.5) {
+			if (material.hasBaseColorTexture > 0.5) 
+			{
 				vec2 uv = transformUV(fragTexCoord, material.baseColorTransform);
 				baseColor *= texture(baseColorTexture, uv);
 			}
@@ -1021,11 +1023,9 @@ void OgModelSample::createShaders()
 			// Occlusion
 			float occlusion = 1.0;
 			if (material.hasOcclusionTexture > 0.5) {
-				vec2 uv = transformUV(fragTexCoord, material.occlusionTransform);
-				occlusion = texture(occlusionTexture, uv).r;
-				occlusion = mix(1.0, occlusion, material.occlusionStrength);
-				//outColor = occlusion;
-				//return;
+			vec2 uv = transformUV(fragTexCoord, material.occlusionTransform);
+			occlusion = texture(occlusionTexture, uv).r;
+			occlusion = mix(1.0, occlusion, material.occlusionStrength);
 			}
 
 			// Sheen
@@ -1895,7 +1895,10 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 		// 렌더링
 		if (primitive.hasIndices && primitive.indexBuffer)
 		{
-			encoder->BindIndexBuffer(primitive.indexBuffer, Render::OgIndexType::UINT16);
+			// primitive의 indexType에 따라 올바른 타입 사용
+			Render::OgIndexType indexType = (primitive.indexType == 5125) ? 
+				Render::OgIndexType::UINT32 : Render::OgIndexType::UINT16;
+			encoder->BindIndexBuffer(primitive.indexBuffer, indexType);
 			encoder->DrawIndexed(0, primitive.indexCount, 1, 0);
 		}
 		else

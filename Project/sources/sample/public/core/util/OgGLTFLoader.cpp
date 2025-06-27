@@ -696,6 +696,7 @@ void OgGLTFLoader::loadMesh(const tinygltf::Model& gltfModel, int meshIndex, Loa
 			
 			primitive.hasIndices = true;
 			primitive.indexCount = static_cast<uint32>(accessor.count);
+			primitive.indexType = accessor.componentType; // Store the original index type
 			
 			if (_renderContext)
 			{
@@ -710,38 +711,15 @@ void OgGLTFLoader::loadMesh(const tinygltf::Model& gltfModel, int meshIndex, Loa
 				}
 				else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
 				{
-					// uint32 인덱스를 uint16으로 변환
-					const uint32_t* indices32 = reinterpret_cast<const uint32_t*>(
-						&buffer.data[bufferView.byteOffset + accessor.byteOffset]
-					);
-					std::vector<uint16_t> indices16(accessor.count);
-					
-					bool hasLargeIndex = false;
-					for (size_t i = 0; i < accessor.count; i++)
-					{
-						if (indices32[i] > UINT16_MAX)
-						{
-							hasLargeIndex = true;
-							LOGD(OG_ID, "Index value %u exceeds uint16 max, clamping to %u", indices32[i], UINT16_MAX);
-							indices16[i] = UINT16_MAX;
-						}
-						else
-						{
-							indices16[i] = static_cast<uint16_t>(indices32[i]);
-						}
-					}
-					
-					if (hasLargeIndex)
-					{
-						LOGD(OG_ID, "Some indices were clamped to fit uint16 range");
-					}
-					
+					// uint32 인덱스를 그대로 사용
 					primitive.indexBuffer = _renderContext->CreateBuffer(
-						indices16.data(),
-						indices16.size() * sizeof(uint16_t),
+						(void*)&buffer.data[bufferView.byteOffset + accessor.byteOffset],
+						accessor.count * sizeof(uint32_t),
 						Render::OgBufferUsage::INDEX,
 						OgMemoryOption::MAP_MANAGED
 					);
+					
+					LOGD(OG_ID, "Using UINT32 indices for primitive with %u indices", accessor.count);
 				}
 				else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
 				{
