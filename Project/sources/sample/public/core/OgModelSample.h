@@ -91,11 +91,13 @@ private:
 	using Material = OgGLTFLoader::Material;
 	using TextureTransform = OgGLTFLoader::TextureTransform;
 
-	// 유니폼 버퍼 데이터 (View/Projection만 포함)
+	// 유니폼 버퍼 데이터 (View/Projection과 카메라 위치)
 	struct UniformData
 	{
 		glm::mat4 view;
 		glm::mat4 projection;
+		glm::vec3 viewPos;
+		float padding;
 	};
 	
 	// 모델별 유니폼 데이터 (각 노드마다 개별적으로 사용)
@@ -190,7 +192,8 @@ private:
 	// 렌더링 리소스
 	Render::OgBufferHandle* _uniformBuffer = nullptr;
 	std::unordered_map<int, Render::OgBufferHandle*> _nodeUniformBuffers;  // 노드별 모델 변환 버퍼
-	Render::OgBufferHandle* _materialUniformBuffer = nullptr;
+	std::unordered_map<int, Render::OgBufferHandle*> _materialUniformBuffers;  // Material별 유니폼 버퍼
+	Render::OgBufferHandle* _materialUniformBuffer = nullptr;  // 기본 material용
 	Render::OgShaderHandle* _vertexShader = nullptr;
 	Render::OgShaderHandle* _fragmentShader = nullptr;
 	Render::OgProgramHandle* _program = nullptr;

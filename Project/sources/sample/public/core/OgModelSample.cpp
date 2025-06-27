@@ -176,9 +176,11 @@ void OgModelSample::OnRender(Render::OgCommandEncoderHandle* encoder, Render::Og
 		//// 모델 중심을 원점으로 이동
 		//rootTransform = glm::translate(rootTransform, -_loadedModel.center);
 		// 루트 노드들 렌더링
+		// 불투명한 객체(Cloth)가 먼저 그려지고 투명한 객체(Dragon)가 나중에 그려져야 함
 		for (int rootNode : _loadedModel.rootNodes)
 		{
 			renderNode(encoder, rootNode, rootTransform);
+			//break;
 		}
 	}
 	else if (!_loadedModel.meshes.empty())
@@ -218,9 +220,17 @@ void OgModelSample::OnResize(uint32 width, uint32 height)
 	{
 		_camera->SetAspectRatio(aspect);
 		_uniformData.projection = _camera->GetProjectionMatrix();
+		_uniformData.view = _camera->GetViewMatrix();
+		_uniformData.viewPos = _camera->GetPosition();
 	}
 	else
 	{
+		_uniformData.viewPos = glm::vec3(5.0f, 5.0f, 5.0f);
+		_uniformData.view = glm::lookAt(
+			_uniformData.viewPos,
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 1.0f, 0.0f)
+		);
 		_uniformData.projection = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);  // far plane을 1000으로 확장
 		// Vulkan의 클립 공간 조정
 		convertProjectionForVulkan(_uniformData.projection);
@@ -313,9 +323,9 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 
 	// 리소스 레이아웃 생성
 	OgResourceBinding bindings[13];
-	// 유니폼 버퍼 (View/Projection)
+	// 유니폼 버퍼 (View/Projection) - Vertex와 Fragment 모두에서 사용
 	bindings[0].type = OgResourceType::UNIFORM_BUFFER;
-	bindings[0].stage = OgShaderType::VERTEX;
+	bindings[0].stage = OgShaderType::VERTEX | OgShaderType::FRAGMENT;
 	bindings[0].binding = 0;
 	bindings[0].arrayCount = 0;
 	bindings[0].name = nullptr;
@@ -408,6 +418,40 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	_resourceLayout->name = "ModelSampleResourceLayout";
 	_resourceLayout->Retain();
 
+	// 더미 버퍼들 생성 (리소스 셋에서 사용하기 전에)
+	// 모델 uniform buffer를 위한 더미 버퍼
+	static Render::OgBufferHandle* dummyModelBuffer = nullptr;
+	if (!dummyModelBuffer)
+	{
+		ModelUniformData dummyData{};
+		dummyData.model = glm::mat4(1.0f);
+		dummyData.normalMatrix = glm::mat4(1.0f);
+		dummyModelBuffer = _renderContext->CreateBuffer(
+			&dummyData,
+			sizeof(ModelUniformData),
+			Render::OgBufferUsage::UNIFORM,
+			OgMemoryOption::MAP_MANAGED
+		);
+		dummyModelBuffer->Retain();
+	}
+	
+	// Material uniform buffer를 위한 더미 버퍼
+	static Render::OgBufferHandle* dummyMaterialBuffer = nullptr;
+	if (!dummyMaterialBuffer)
+	{
+		MaterialUniformData dummyMaterialData{};
+		dummyMaterialData.baseColorFactor = glm::vec4(1.0f);
+		dummyMaterialData.metallicFactor = 0.0f;
+		dummyMaterialData.roughnessFactor = 0.5f;
+		dummyMaterialBuffer = _renderContext->CreateBuffer(
+			&dummyMaterialData,
+			sizeof(MaterialUniformData),
+			Render::OgBufferUsage::UNIFORM,
+			OgMemoryOption::MAP_MANAGED
+		);
+		dummyMaterialBuffer->Retain();
+	}
+
 	// 리소스 셋 생성
 	uint32 zeroOffset = 0;
 	OgResourceUsage usages[13];
@@ -418,9 +462,10 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	usages[0].buffer.range = &_uniformBuffer->size;
 
 	usages[1].binding = bindings[1];
-	usages[1].buffer.handle = &_materialUniformBuffer;
+	usages[1].buffer.handle = &dummyMaterialBuffer;
 	usages[1].buffer.offset = &zeroOffset;
-	usages[1].buffer.range = &_materialUniformBuffer->size;
+	uint32 materialBufferSize = sizeof(MaterialUniformData);
+	usages[1].buffer.range = &materialBufferSize;
 
 	usages[2].binding = bindings[2];
 	usages[2].texture.handle = &_defaultWhiteTexture;
@@ -447,23 +492,6 @@ void OgModelSample::createResources(uint16 width, uint16 height)
 	usages[9].buffer.handle = &_lightUniformBuffer;
 	usages[9].buffer.offset = &zeroOffset;
 	usages[9].buffer.range = &_lightUniformBuffer->size;
-	
-	// 모델 uniform buffer는 나중에 동적으로 바인딩
-	// 기본적으로 nullptr로 둘 수 없으므로, 더미 버퍼 생성
-	static Render::OgBufferHandle* dummyModelBuffer = nullptr;
-	if (!dummyModelBuffer)
-	{
-		ModelUniformData dummyData{};
-		dummyData.model = glm::mat4(1.0f);
-		dummyData.normalMatrix = glm::mat4(1.0f);
-		dummyModelBuffer = _renderContext->CreateBuffer(
-			&dummyData,
-			sizeof(ModelUniformData),
-			Render::OgBufferUsage::UNIFORM,
-			OgMemoryOption::MAP_MANAGED
-		);
-		dummyModelBuffer->Retain();
-	}
 	
 	usages[10].binding = bindings[10];
 	usages[10].buffer.handle = &dummyModelBuffer;
@@ -550,6 +578,26 @@ void OgModelSample::destroyResources()
 		}
 	}
 	_nodeUniformBuffers.clear();
+	
+	// Material별 uniform buffer들 해제
+	for (auto& pair : _materialUniformBuffers)
+	{
+		if (pair.second)
+		{
+			pair.second->Release();
+		}
+	}
+	_materialUniformBuffers.clear();
+	
+	// Material별 uniform buffer들 해제
+	for (auto& pair : _materialUniformBuffers)
+	{
+		if (pair.second)
+		{
+			pair.second->Release();
+		}
+	}
+	_materialUniformBuffers.clear();
 
 	if (_lightUniformBuffer)
 	{
@@ -657,13 +705,15 @@ void OgModelSample::createUniformBuffer()
 		_camera->SetAspectRatio(aspect);
 		_uniformData.view = _camera->GetViewMatrix();
 		_uniformData.projection = _camera->GetProjectionMatrix();
+		_uniformData.viewPos = _camera->GetPosition();
 		// Vulkan의 클립 공간 조정
 		convertProjectionForVulkan(_uniformData.projection);
 	}
 	else
 	{
+		_uniformData.viewPos = glm::vec3(5.0f, 5.0f, 5.0f);
 		_uniformData.view = glm::lookAt(
-			glm::vec3(5.0f, 5.0f, 5.0f),
+			_uniformData.viewPos,
 			glm::vec3(0.0f, 0.0f, 0.0f),
 			glm::vec3(0.0f, 1.0f, 0.0f)
 		);
@@ -682,40 +732,7 @@ void OgModelSample::createUniformBuffer()
 	_uniformBuffer->Retain();
 	
 	// 모델 유니폼 버퍼는 각 노드별로 필요할 때 생성
-
-	// Material 유니폼 버퍼 생성
-	_materialUniformData = MaterialUniformData{};
-	_materialUniformData.baseColorFactor = glm::vec4(1.0f);
-	_materialUniformData.metallicFactor = 0.0f;
-	_materialUniformData.roughnessFactor = 0.5f;
-	_materialUniformData.emissiveFactor = glm::vec3(0.0f);
-	_materialUniformData.emissiveStrength = 1.0f;
-	_materialUniformData.normalScale = 1.0f;
-	_materialUniformData.occlusionStrength = 0.2f;
-	_materialUniformData.sheenColorFactor = glm::vec3(0.0f);
-	_materialUniformData.sheenRoughnessFactor = 0.0f;
-	_materialUniformData.transmissionFactor = 0.0f;
-	_materialUniformData.thicknessFactor = 0.0f;
-	_materialUniformData.attenuationDistance = FLT_MAX;
-	_materialUniformData.attenuationColor = glm::vec3(1.0f);
-	// 모든 transform을 identity matrix로 초기화
-	_materialUniformData.baseColorTransform = glm::mat4(1.0f);
-	_materialUniformData.normalTransform = glm::mat4(1.0f);
-	_materialUniformData.metallicRoughnessTransform = glm::mat4(1.0f);
-	_materialUniformData.emissiveTransform = glm::mat4(1.0f);
-	_materialUniformData.occlusionTransform = glm::mat4(1.0f);
-	_materialUniformData.sheenColorTransform = glm::mat4(1.0f);
-	_materialUniformData.sheenRoughnessTransform = glm::mat4(1.0f);
-	_materialUniformData.transmissionTransform = glm::mat4(1.0f);
-	_materialUniformData.thicknessTransform = glm::mat4(1.0f);
-
-	_materialUniformBuffer = _renderContext->CreateBuffer(
-		&_materialUniformData,
-		sizeof(MaterialUniformData),
-		Render::OgBufferUsage::UNIFORM,
-		OgMemoryOption::MAP_MANAGED
-	);
-	_materialUniformBuffer->Retain();
+	// Material 유니폼 버퍼도 각 Material별로 필요할 때 생성
 
 	// Light 유니폼 버퍼 생성 및 초기화
 	_lightUniformData = LightUniformData{};
@@ -754,8 +771,14 @@ void OgModelSample::updateUniformBuffer()
 	{
 		_uniformData.view = _camera->GetViewMatrix();
 		_uniformData.projection = _camera->GetProjectionMatrix();
+		_uniformData.viewPos = _camera->GetPosition();
 		// Vulkan의 클립 공간 조정
 		convertProjectionForVulkan(_uniformData.projection);
+	}
+	else
+	{
+		// 고정 카메라 위치
+		_uniformData.viewPos = glm::vec3(5.0f, 5.0f, 5.0f);
 	}
 
 	// 유니폼 버퍼 업데이트는 렌더링 시에 수행
@@ -772,12 +795,14 @@ void OgModelSample::createShaders()
 		layout(location = 2) in vec2 inTexCoord;
 		layout(location = 3) in vec4 inTangent;
 		
-		layout(binding = 0) uniform UniformBufferObject {
+		layout(binding = 0, std140) uniform UniformBufferObject {
 			mat4 view;
 			mat4 proj;
+			vec3 viewPos;
+			float padding;
 		} ubo;
 		
-		layout(binding = 10) uniform ModelUniformObject {
+		layout(binding = 10, std140) uniform ModelUniformObject {
 			mat4 model;
 			mat4 normalMatrix;
 		} modelUbo;
@@ -808,7 +833,14 @@ void OgModelSample::createShaders()
 
 		layout(location = 0) out vec4 outColor;
 		
-		layout(binding = 1) uniform MaterialUniforms {
+		layout(binding = 0, std140) uniform UniformBufferObject {
+			mat4 view;
+			mat4 proj;
+			vec3 viewPos;
+			float padding;
+		} ubo;
+		
+		layout(binding = 1, std140) uniform MaterialUniforms {
 			vec4 baseColorFactor;
 			float metallicFactor;
 			float roughnessFactor;
@@ -872,7 +904,7 @@ void OgModelSample::createShaders()
 			float padding;
 		};
 		
-		layout(binding = 9) uniform LightUniforms {
+		layout(binding = 9, std140) uniform LightUniforms {
 			Light lights[4];
 			int lightCount;
 			float padding[3];
@@ -1058,7 +1090,7 @@ void OgModelSample::createShaders()
 
 			// === Lighting Setup ===
 
-			vec3 V = normalize(vec3(0.0, 0.0, 10.0) - fragPosition); // View direction
+			vec3 V = normalize(ubo.viewPos - fragPosition); // View direction
 
 			// === PBR Calculation ===
 			vec3 F0 = vec3(0.04); // Dielectric base reflectance
@@ -1127,22 +1159,27 @@ void OgModelSample::createShaders()
 
 			// Final color
 			vec3 color = ambient + Lo + emissive;
-
+			float finalAlpha = baseColor.a;
+			
 			// Apply transmission (simplified approximation)
 			if (transmission > 0.0) {
-				// Mix between opaque and transmitted color
-				// For now, just blend with a background color
-				vec3 transmittedColor = vec3(0.1, 0.1, 0.1); // Simple background approximation
+				// For transmission, we need to make the object semi-transparent
+				// so the background can show through
 				
-				// Apply volume attenuation if thickness is present
+				// Apply volume attenuation to the color
 				if (thickness > 0.0 && attenuationDistance < 1000.0) {
 					// Beer's law for light attenuation through medium
 					vec3 attenuation = -log(attenuationColor) / attenuationDistance;
 					vec3 transmittance = exp(-attenuation * thickness);
-					transmittedColor *= transmittance;
+					// Apply attenuation to the object's own color
+					color *= transmittance;
 				}
 				
-				color = mix(color, transmittedColor, transmission);
+				// Make the object transparent based on transmission factor
+				// transmission = 1.0 means very transparent (alpha = 0.1)
+				// transmission = 0.0 means fully opaque (alpha = 1.0)
+				float transmissionAlpha = 1.0 - (transmission * 0.5);
+				finalAlpha = baseColor.a * transmissionAlpha;
 			}
 
 			// Tone mapping and gamma correction
@@ -1150,7 +1187,7 @@ void OgModelSample::createShaders()
 			color = pow(color, vec3(1.0/2.2)); // Gamma correction
 
 			// Apply transmission to alpha
-			float finalAlpha = baseColor.a * (1.0 - transmission * 0.5);
+			
 			outColor = vec4(color, finalAlpha);
 		}
 	)";
@@ -1398,6 +1435,16 @@ void OgModelSample::clearModelData()
 	}
 	_nodeUniformBuffers.clear();
 	
+	// Material별 uniform buffer들 해제
+	for (auto& pair : _materialUniformBuffers)
+	{
+		if (pair.second)
+		{
+			pair.second->Release();
+		}
+	}
+	_materialUniformBuffers.clear();
+	
 	// OgGLTFLoader를 사용해서 모델 데이터 클리어
 	if (_gltfLoader)
 	{
@@ -1479,72 +1526,74 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 		if (primitive.materialIndex >= 0 && primitive.materialIndex < static_cast<int>(_loadedModel.materials.size()))
 		{
 			const Material& material = _loadedModel.materials[primitive.materialIndex];
+			
+			// Material별 uniform buffer 확인/생성
+			Render::OgBufferHandle* materialUniformBuffer = nullptr;
+			
+			if (_materialUniformBuffers.find(primitive.materialIndex) == _materialUniformBuffers.end())
+			{
+				// 해당 Material의 uniform buffer가 없으면 생성
+				MaterialUniformData materialData{};
+				materialData.baseColorFactor = material.baseColorFactor;
+				materialData.metallicFactor = material.metallicFactor;
+				materialData.roughnessFactor = material.roughnessFactor;
+				materialData.normalScale = material.normalScale;
+				materialData.occlusionStrength = material.occlusionStrength;
+				materialData.emissiveFactor = material.emissiveFactor;
+				materialData.emissiveStrength = material.emissiveStrength;
+				materialData.sheenColorFactor = material.sheenColorFactor;
+				materialData.sheenRoughnessFactor = material.sheenRoughnessFactor;
+				materialData.transmissionFactor = material.transmissionFactor;
+				materialData.thicknessFactor = material.thicknessFactor;
+				materialData.attenuationDistance = material.attenuationDistance;
+				materialData.attenuationColor = material.attenuationColor;
+				materialData.hasBaseColorTexture = material.baseColorTexture ? 1.0f : 0.0f;
+				materialData.hasNormalTexture = material.normalTexture ? 1.0f : 0.0f;
+				materialData.hasMetallicRoughnessTexture = material.metallicRoughnessTexture ? 1.0f : 0.0f;
+				materialData.hasEmissiveTexture = material.emissiveTexture ? 1.0f : 0.0f;
+				materialData.hasOcclusionTexture = material.occlusionTexture ? 1.0f : 0.0f;
+				materialData.hasSheenColorTexture = material.sheenColorTexture ? 1.0f : 0.0f;
+				materialData.hasSheenRoughnessTexture = material.sheenRoughnessTexture ? 1.0f : 0.0f;
+				materialData.hasTransmissionTexture = material.transmissionTexture ? 1.0f : 0.0f;
+				materialData.hasThicknessTexture = material.thicknessTexture ? 1.0f : 0.0f;
+				materialData.unlit = material.unlit ? 1.0f : 0.0f;
 
-			// Material 유니폼 업데이트
-			_materialUniformData.baseColorFactor = material.baseColorFactor;
-			_materialUniformData.metallicFactor = material.metallicFactor;
-			_materialUniformData.roughnessFactor = material.roughnessFactor;
-			_materialUniformData.normalScale = material.normalScale;
-			_materialUniformData.occlusionStrength = material.occlusionStrength;
-			_materialUniformData.emissiveFactor = material.emissiveFactor;
-			_materialUniformData.emissiveStrength = material.emissiveStrength;
-			_materialUniformData.sheenColorFactor = material.sheenColorFactor;
-			_materialUniformData.sheenRoughnessFactor = material.sheenRoughnessFactor;
-			_materialUniformData.transmissionFactor = material.transmissionFactor;
-			_materialUniformData.thicknessFactor = material.thicknessFactor;
-			_materialUniformData.attenuationDistance = material.attenuationDistance;
-			_materialUniformData.attenuationColor = material.attenuationColor;
-			_materialUniformData.hasBaseColorTexture = material.baseColorTexture ? 1.0f : 0.0f;
-			_materialUniformData.hasNormalTexture = material.normalTexture ? 1.0f : 0.0f;
-			_materialUniformData.hasMetallicRoughnessTexture = material.metallicRoughnessTexture ? 1.0f : 0.0f;
-			_materialUniformData.hasEmissiveTexture = material.emissiveTexture ? 1.0f : 0.0f;
-			_materialUniformData.hasOcclusionTexture = material.occlusionTexture ? 1.0f : 0.0f;
-			_materialUniformData.hasSheenColorTexture = material.sheenColorTexture ? 1.0f : 0.0f;
-			_materialUniformData.hasSheenRoughnessTexture = material.sheenRoughnessTexture ? 1.0f : 0.0f;
-			_materialUniformData.hasTransmissionTexture = material.transmissionTexture ? 1.0f : 0.0f;
-			_materialUniformData.hasThicknessTexture = material.thicknessTexture ? 1.0f : 0.0f;
-			_materialUniformData.unlit = material.unlit ? 1.0f : 0.0f;
-
-			// Texture transforms - 3x3 행렬을 4x4로 올바르게 변환
-			auto convertMat3ToMat4 = [](const glm::mat3& mat3) -> glm::mat4 {
-				glm::mat4 mat4(1.0f);
-				// 3x3 행렬을 4x4의 왼쪽 상단 3x3 영역에 복사
-				mat4[0][0] = mat3[0][0]; mat4[0][1] = mat3[0][1]; mat4[0][2] = mat3[0][2];
-				mat4[1][0] = mat3[1][0]; mat4[1][1] = mat3[1][1]; mat4[1][2] = mat3[1][2];
-				mat4[2][0] = mat3[2][0]; mat4[2][1] = mat3[2][1]; mat4[2][2] = mat3[2][2];
-				// 나머지는 단위 행렬로 설정
-				mat4[3][3] = 1.0f;
-				return mat4;
+				// Texture transforms - 3x3 행렬을 4x4로 올바르게 변환
+				auto convertMat3ToMat4 = [](const glm::mat3& mat3) -> glm::mat4 {
+					glm::mat4 mat4(1.0f);
+					// 3x3 행렬을 4x4의 왼쪽 상단 3x3 영역에 복사
+					mat4[0][0] = mat3[0][0]; mat4[0][1] = mat3[0][1]; mat4[0][2] = mat3[0][2];
+					mat4[1][0] = mat3[1][0]; mat4[1][1] = mat3[1][1]; mat4[1][2] = mat3[1][2];
+					mat4[2][0] = mat3[2][0]; mat4[2][1] = mat3[2][1]; mat4[2][2] = mat3[2][2];
+					// 나머지는 단위 행렬로 설정
+					mat4[3][3] = 1.0f;
+					return mat4;
 				};
 
-			_materialUniformData.baseColorTransform = convertMat3ToMat4(material.baseColorTransform.GetTransformMatrix());
-			_materialUniformData.normalTransform = convertMat3ToMat4(material.normalTransform.GetTransformMatrix());
-			_materialUniformData.metallicRoughnessTransform = convertMat3ToMat4(material.metallicRoughnessTransform.GetTransformMatrix());
-			_materialUniformData.emissiveTransform = convertMat3ToMat4(material.emissiveTransform.GetTransformMatrix());
-			_materialUniformData.occlusionTransform = convertMat3ToMat4(material.occlusionTransform.GetTransformMatrix());
-			_materialUniformData.sheenColorTransform = convertMat3ToMat4(material.sheenColorTransform.GetTransformMatrix());
-			_materialUniformData.sheenRoughnessTransform = convertMat3ToMat4(material.sheenRoughnessTransform.GetTransformMatrix());
-			_materialUniformData.transmissionTransform = convertMat3ToMat4(material.transmissionTransform.GetTransformMatrix());
-			_materialUniformData.thicknessTransform = convertMat3ToMat4(material.thicknessTransform.GetTransformMatrix());
-
-			// 디버깅: Sheen 텍스처 변환 행렬 로그
-			if (material.sheenColorTexture) {
-				glm::mat3 sheenTransform = material.sheenColorTransform.GetTransformMatrix();
-				LOGD(OG_ID, "Sheen Color Transform Matrix:");
-				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[0][0], sheenTransform[0][1], sheenTransform[0][2]);
-				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[1][0], sheenTransform[1][1], sheenTransform[1][2]);
-				LOGD(OG_ID, "[%.2f, %.2f, %.2f]", sheenTransform[2][0], sheenTransform[2][1], sheenTransform[2][2]);
-				LOGD(OG_ID, "Scale: (%.2f, %.2f), Offset: (%.2f, %.2f), Rotation: %.2f",
-					material.sheenColorTransform.scale.x, material.sheenColorTransform.scale.y,
-					material.sheenColorTransform.offset.x, material.sheenColorTransform.offset.y,
-					material.sheenColorTransform.rotation);
+				materialData.baseColorTransform = convertMat3ToMat4(material.baseColorTransform.GetTransformMatrix());
+				materialData.normalTransform = convertMat3ToMat4(material.normalTransform.GetTransformMatrix());
+				materialData.metallicRoughnessTransform = convertMat3ToMat4(material.metallicRoughnessTransform.GetTransformMatrix());
+				materialData.emissiveTransform = convertMat3ToMat4(material.emissiveTransform.GetTransformMatrix());
+				materialData.occlusionTransform = convertMat3ToMat4(material.occlusionTransform.GetTransformMatrix());
+				materialData.sheenColorTransform = convertMat3ToMat4(material.sheenColorTransform.GetTransformMatrix());
+				materialData.sheenRoughnessTransform = convertMat3ToMat4(material.sheenRoughnessTransform.GetTransformMatrix());
+				materialData.transmissionTransform = convertMat3ToMat4(material.transmissionTransform.GetTransformMatrix());
+				materialData.thicknessTransform = convertMat3ToMat4(material.thicknessTransform.GetTransformMatrix());
+				
+				materialUniformBuffer = _renderContext->CreateBuffer(
+					&materialData,
+					sizeof(MaterialUniformData),
+					Render::OgBufferUsage::UNIFORM,
+					OgMemoryOption::MAP_MANAGED
+				);
+				materialUniformBuffer->Retain();
+				
+				_materialUniformBuffers[primitive.materialIndex] = materialUniformBuffer;
 			}
-
-			void* materialMapped = _renderContext->MapBuffer(_materialUniformBuffer, sizeof(MaterialUniformData));
-			if (materialMapped)
+			else
 			{
-				memcpy(materialMapped, &_materialUniformData, sizeof(MaterialUniformData));
-				_renderContext->UnmapBuffer(_materialUniformBuffer);
+				// 기존 버퍼 사용
+				materialUniformBuffer = _materialUniformBuffers[primitive.materialIndex];
 			}
 
 			// 텍스처 바인딩을 위한 리소스 셋 업데이트
@@ -1557,7 +1606,7 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 
 				// 유니폼 버퍼들
 				usages[0].binding.type = OgResourceType::UNIFORM_BUFFER;
-				usages[0].binding.stage = OgShaderType::VERTEX;
+				usages[0].binding.stage = OgShaderType::VERTEX| OgShaderType::FRAGMENT;
 				usages[0].binding.binding = 0;
 				usages[0].buffer.handle = &_uniformBuffer;
 				usages[0].buffer.offset = &zeroOffset;
@@ -1566,87 +1615,53 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				usages[1].binding.type = OgResourceType::UNIFORM_BUFFER;
 				usages[1].binding.stage = OgShaderType::FRAGMENT;
 				usages[1].binding.binding = 1;
-				usages[1].buffer.handle = &_materialUniformBuffer;
+				usages[1].buffer.handle = &materialUniformBuffer;
 				usages[1].buffer.offset = &zeroOffset;
-				usages[1].buffer.range = &_materialUniformBuffer->size;
-
-				OgVector<Render::OgTextureHandle*> baseTexs;
-				if (material.baseColorTexture)
-				{
-					baseTexs.Add(material.baseColorTexture);
-				}
-				else
-				{
-					baseTexs.Add(_defaultWhiteTexture);
-				}
-
-				OgVector<Render::OgTextureHandle*> normalTexs;
-				if (material.normalTexture)
-				{
-					normalTexs.Add(material.normalTexture);
-				}
-				else
-				{
-					normalTexs.Add(_defaultNormalTexture);
-				}
-
-				OgVector<Render::OgTextureHandle*> metallicRoughnessTexs;
-				if (material.metallicRoughnessTexture)
-				{
-					metallicRoughnessTexs.Add(material.metallicRoughnessTexture);
-				}
-				else
-				{
-					metallicRoughnessTexs.Add(_defaultWhiteTexture);
-				}
-
-				OgVector<Render::OgTextureHandle*> emissiveTexs;
-				emissiveTexs.Add(material.emissiveTexture ? material.emissiveTexture : _defaultWhiteTexture);
-
-				OgVector<Render::OgTextureHandle*> occlusionTexs;
-				occlusionTexs.Add(material.occlusionTexture ? material.occlusionTexture : _defaultWhiteTexture);
-
-				OgVector<Render::OgTextureHandle*> sheenColorTexs;
-				sheenColorTexs.Add(material.sheenColorTexture ? material.sheenColorTexture : _defaultWhiteTexture);
-
-				OgVector<Render::OgTextureHandle*> sheenRoughnessTexs;
-				sheenRoughnessTexs.Add(material.sheenRoughnessTexture ? material.sheenRoughnessTexture : _defaultWhiteTexture);
+				uint32 materialBufferSize = sizeof(MaterialUniformData);
+				usages[1].buffer.range = &materialBufferSize;
 
 				// 텍스처들
+				Render::OgTextureHandle* baseColorTex = material.baseColorTexture ? material.baseColorTexture : _defaultWhiteTexture;
 				usages[2].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[2].binding.stage = OgShaderType::FRAGMENT;
 				usages[2].binding.binding = 2;
-				usages[2].texture.handle = baseTexs.Data();
+				usages[2].texture.handle = &baseColorTex;
 
+				Render::OgTextureHandle* normalTex = material.normalTexture ? material.normalTexture : _defaultNormalTexture;
 				usages[3].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[3].binding.stage = OgShaderType::FRAGMENT;
 				usages[3].binding.binding = 3;
-				usages[3].texture.handle = normalTexs.Data();
+				usages[3].texture.handle = &normalTex;
 
+				Render::OgTextureHandle* metallicRoughnessTex = material.metallicRoughnessTexture ? material.metallicRoughnessTexture : _defaultWhiteTexture;
 				usages[4].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[4].binding.stage = OgShaderType::FRAGMENT;
 				usages[4].binding.binding = 4;
-				usages[4].texture.handle = metallicRoughnessTexs.Data();
+				usages[4].texture.handle = &metallicRoughnessTex;
 
+				Render::OgTextureHandle* emissiveTex = material.emissiveTexture ? material.emissiveTexture : _defaultWhiteTexture;
 				usages[5].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[5].binding.stage = OgShaderType::FRAGMENT;
 				usages[5].binding.binding = 5;
-				usages[5].texture.handle = emissiveTexs.Data();
+				usages[5].texture.handle = &emissiveTex;
 
+				Render::OgTextureHandle* occlusionTex = material.occlusionTexture ? material.occlusionTexture : _defaultWhiteTexture;
 				usages[6].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[6].binding.stage = OgShaderType::FRAGMENT;
 				usages[6].binding.binding = 6;
-				usages[6].texture.handle = occlusionTexs.Data();
+				usages[6].texture.handle = &occlusionTex;
 
+				Render::OgTextureHandle* sheenColorTex = material.sheenColorTexture ? material.sheenColorTexture : _defaultWhiteTexture;
 				usages[7].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[7].binding.stage = OgShaderType::FRAGMENT;
 				usages[7].binding.binding = 7;
-				usages[7].texture.handle = sheenColorTexs.Data();
+				usages[7].texture.handle = &sheenColorTex;
 
+				Render::OgTextureHandle* sheenRoughnessTex = material.sheenRoughnessTexture ? material.sheenRoughnessTexture : _defaultWhiteTexture;
 				usages[8].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[8].binding.stage = OgShaderType::FRAGMENT;
 				usages[8].binding.binding = 8;
-				usages[8].texture.handle = sheenRoughnessTexs.Data();
+				usages[8].texture.handle = &sheenRoughnessTex;
 
 				usages[9].binding.type = OgResourceType::UNIFORM_BUFFER;
 				usages[9].binding.stage = OgShaderType::FRAGMENT;
@@ -1663,21 +1678,17 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 				uint32 modelBufferSize = sizeof(ModelUniformData);
 				usages[10].buffer.range = &modelBufferSize;
 				
-				OgVector<Render::OgTextureHandle*> transmissionTexs;
-				transmissionTexs.Add(material.transmissionTexture ? material.transmissionTexture : _defaultWhiteTexture);
-				
-				OgVector<Render::OgTextureHandle*> thicknessTexs;
-				thicknessTexs.Add(material.thicknessTexture ? material.thicknessTexture : _defaultWhiteTexture);
-				
+				Render::OgTextureHandle* transmissionTex = material.transmissionTexture ? material.transmissionTexture : _defaultWhiteTexture;
 				usages[11].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[11].binding.stage = OgShaderType::FRAGMENT;
 				usages[11].binding.binding = 11;
-				usages[11].texture.handle = transmissionTexs.Data();
+				usages[11].texture.handle = &transmissionTex;
 				
+				Render::OgTextureHandle* thicknessTex = material.thicknessTexture ? material.thicknessTexture : _defaultWhiteTexture;
 				usages[12].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 				usages[12].binding.stage = OgShaderType::FRAGMENT;
 				usages[12].binding.binding = 12;
-				usages[12].texture.handle = thicknessTexs.Data();
+				usages[12].texture.handle = &thicknessTex;
 
 					// 새로운 리소스 셋 생성
 					OgResourceSetHandle* tempResourceSet = _renderContext->CreateResourceSet(_resourceLayout, usages, 13);
@@ -1774,35 +1785,41 @@ void OgModelSample::renderMesh(Render::OgCommandEncoderHandle* encoder, const Me
 		else
 		{
 			// 기본 material 사용
-			_materialUniformData = MaterialUniformData{};
-			_materialUniformData.baseColorFactor = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);
-			_materialUniformData.metallicFactor = 0.0f;
-			_materialUniformData.roughnessFactor = 0.5f;
-			_materialUniformData.emissiveFactor = glm::vec3(0.0f);
-			_materialUniformData.emissiveStrength = 1.0f;
-			_materialUniformData.normalScale = 1.0f;
-			_materialUniformData.occlusionStrength = 1.0f;
-			_materialUniformData.sheenColorFactor = glm::vec3(0.0f);
-			_materialUniformData.sheenRoughnessFactor = 0.0f;
-			_materialUniformData.transmissionFactor = 0.0f;
-			_materialUniformData.thicknessFactor = 0.0f;
-			_materialUniformData.attenuationDistance = FLT_MAX;
-			_materialUniformData.attenuationColor = glm::vec3(1.0f);
-			// Identity transforms
-			_materialUniformData.baseColorTransform = glm::mat4(1.0f);
-			_materialUniformData.normalTransform = glm::mat4(1.0f);
-			_materialUniformData.metallicRoughnessTransform = glm::mat4(1.0f);
-			_materialUniformData.emissiveTransform = glm::mat4(1.0f);
-			_materialUniformData.occlusionTransform = glm::mat4(1.0f);
-			_materialUniformData.sheenColorTransform = glm::mat4(1.0f);
-			_materialUniformData.sheenRoughnessTransform = glm::mat4(1.0f);
-			_materialUniformData.transmissionTransform = glm::mat4(1.0f);
-			_materialUniformData.thicknessTransform = glm::mat4(1.0f);
+			// 기본 material uniform buffer가 없으면 한 번만 생성
+			if (!_materialUniformBuffer)
+			{
+				_materialUniformData = MaterialUniformData{};
+				_materialUniformData.baseColorFactor = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f);
+				_materialUniformData.metallicFactor = 0.0f;
+				_materialUniformData.roughnessFactor = 0.5f;
+				_materialUniformData.emissiveFactor = glm::vec3(0.0f);
+				_materialUniformData.emissiveStrength = 1.0f;
+				_materialUniformData.normalScale = 1.0f;
+				_materialUniformData.occlusionStrength = 1.0f;
+				_materialUniformData.sheenColorFactor = glm::vec3(0.0f);
+				_materialUniformData.sheenRoughnessFactor = 0.0f;
+				_materialUniformData.transmissionFactor = 0.0f;
+				_materialUniformData.thicknessFactor = 0.0f;
+				_materialUniformData.attenuationDistance = FLT_MAX;
+				_materialUniformData.attenuationColor = glm::vec3(1.0f);
+				// Identity transforms
+				_materialUniformData.baseColorTransform = glm::mat4(1.0f);
+				_materialUniformData.normalTransform = glm::mat4(1.0f);
+				_materialUniformData.metallicRoughnessTransform = glm::mat4(1.0f);
+				_materialUniformData.emissiveTransform = glm::mat4(1.0f);
+				_materialUniformData.occlusionTransform = glm::mat4(1.0f);
+				_materialUniformData.sheenColorTransform = glm::mat4(1.0f);
+				_materialUniformData.sheenRoughnessTransform = glm::mat4(1.0f);
+				_materialUniformData.transmissionTransform = glm::mat4(1.0f);
+				_materialUniformData.thicknessTransform = glm::mat4(1.0f);
 
-			void* materialMapped = _renderContext->MapBuffer(_materialUniformBuffer, sizeof(MaterialUniformData));
-			if (materialMapped) {
-				memcpy(materialMapped, &_materialUniformData, sizeof(MaterialUniformData));
-				_renderContext->UnmapBuffer(_materialUniformBuffer);
+				_materialUniformBuffer = _renderContext->CreateBuffer(
+					&_materialUniformData,
+					sizeof(MaterialUniformData),
+					Render::OgBufferUsage::UNIFORM,
+					OgMemoryOption::MAP_MANAGED
+				);
+				_materialUniformBuffer->Retain();
 			}
 
 			// 기본 material에서도 모델 uniform buffer를 포함한 리소스 셋 생성
