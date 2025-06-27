@@ -1247,8 +1247,8 @@ void OgModelSample::createPipeline()
 
 	OgRasterizationDescriptor rsDesc{};
 	rsDesc.polygonMode = OgPolygonMode::FILL;
-	rsDesc.cullMode = OgCullMode::NONE;  // 모든 면을 렌더링 (double-sided 지원)
-	rsDesc.frontFace = OgFrontFace::COUNTER_CLOCKWISE;
+	rsDesc.cullMode = OgCullMode::BACK;  // 모든 면을 렌더링 (double-sided 지원)
+	rsDesc.frontFace = OgFrontFace::CLOCKWISE;
 	rsDesc.scissorTest = false;
 	rsDesc.primitiveType = OgPrimitiveType::TRIANGLE_LIST;
 
