@@ -29,6 +29,13 @@ void OgPlayWindow::SetSample(std::unique_ptr<OgSampleBase> sample)
 	if (_currentSample && _swapchain)
 	{
 		_currentSample->OnInit(_swapchain);
+		
+		// OgModelSample이고 모델이 아직 로드되지 않았으면 브라우저 표시
+		OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+		if (modelSample && modelSample->GetSelectedModelIndex() == -1)
+		{
+			_showModelBrowser = true;
+		}
 	}
 }
 
@@ -44,6 +51,13 @@ void OgPlayWindow::onInit()
 	if (_currentSample && _swapchain)
 	{
 		_currentSample->OnInit(_swapchain);
+		
+		// OgModelSample이고 모델이 아직 로드되지 않았으면 브라우저 표시
+		OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+		if (modelSample && modelSample->GetSelectedModelIndex() == -1)
+		{
+			_showModelBrowser = true;
+		}
 	}
 }
 
@@ -74,10 +88,15 @@ void OgPlayWindow::onUpdate(float deltaTime)
 
 void OgPlayWindow::onRender(Render::OgCommandEncoderHandle* encoder)
 {
-	// 1. 샘플 렌더링 (렌더 타겟에)
+	// 1. 샘플 렌더링 (렌더 타겟에) - 모델이 선택된 경우에만
 	if (_currentSample)
 	{
-		_currentSample->OnRender(encoder, _swapchain);
+		// OgModelSample인 경우 모델이 선택되었는지 확인
+		OgModelSample* modelSample = dynamic_cast<OgModelSample*>(_currentSample.get());
+		if (!modelSample || modelSample->GetSelectedModelIndex() != -1)
+		{
+			_currentSample->OnRender(encoder, _swapchain);
+		}
 	}
 	
 	// 2. ImGui 프레임 시작
@@ -297,17 +316,54 @@ void OgPlayWindow::renderImGui(Render::OgCommandEncoderHandle* encoder)
 // OgSampleViewerWindow 구현
 void OgSampleViewerWindow::onRenderUI()
 {
+	// 초기 샘플 설정
+	if (!GetSample())
+	{
+		switchSample(1); // 기본으로 모델 샘플 설정
+		return;
+	}
+	
 	ImGuiIO& io = ImGui::GetIO();
 	
 	// 레이아웃 설정
 	const float leftPanelWidth = 250.0f;
+	const float rightPanelWidth = 300.0f; // 모델 브라우저 패널 너비
 	const float topPanelHeight = 200.0f;
-	const float lightControlHeight = 300.0f;
+	const float sampleSelectorHeight = 250.0f; // Sample Selector 높이 고정
 	const float padding = 5.0f;
+	
+	// Light Controls 높이를 나머지 공간으로 계산
+	const float lightControlHeight = io.DisplaySize.y - sampleSelectorHeight - 3 * padding;
+	
+	// 모델 브라우저 표시 여부 확인
+	OgModelSample* modelSample = nullptr;
+	if (_currentSampleIndex == 1)
+	{
+		OgSampleBase* sample = GetSample();
+		modelSample = dynamic_cast<OgModelSample*>(sample);
+	}
+	
+	// 모델 샘플이고 모델이 선택되지 않았으면 항상 표시
+	bool shouldShowModelBrowser = false;
+	if (modelSample && modelSample->GetSelectedModelIndex() == -1)
+	{
+		_showModelBrowser = true;
+		shouldShowModelBrowser = true;
+	}
+	else if (_showModelBrowser && _currentSampleIndex == 1)
+	{
+		shouldShowModelBrowser = true;
+	}
+	
+	// 중앙 영역 너비 계산 (모델 브라우저가 표시될 때 조정)
+	float centerAreaWidth = io.DisplaySize.x - leftPanelWidth - 2 * padding - padding;
+	if (shouldShowModelBrowser)
+	{
+		centerAreaWidth -= rightPanelWidth + padding;
+	}
 	
 	// 왼쪽 상단 패널 - Sample Selector
 	ImGui::SetNextWindowPos(ImVec2(padding, padding), ImGuiCond_FirstUseEver);
-	float sampleSelectorHeight = io.DisplaySize.y - lightControlHeight - 3 * padding;
 	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, sampleSelectorHeight), ImGuiCond_FirstUseEver);
 	renderSampleSelector();
 	
@@ -316,20 +372,28 @@ void OgSampleViewerWindow::onRenderUI()
 	ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, lightControlHeight), ImGuiCond_FirstUseEver);
 	renderLightControls();
 	
-	// 오른쪽 상단 - Debug Info
-	float rightPanelPosX = leftPanelWidth + 2 * padding;
-	float rightPanelWidth = io.DisplaySize.x - rightPanelPosX - padding;
+	// 중앙 상단 - Debug Info
+	float centerPanelPosX = leftPanelWidth + 2 * padding;
 	
-	ImGui::SetNextWindowPos(ImVec2(rightPanelPosX, padding), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, topPanelHeight), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(centerPanelPosX, padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(centerAreaWidth, topPanelHeight), ImGuiCond_FirstUseEver);
 	renderDebugInfo();
 	
-	// 오른쪽 하단 - Sample Viewer
+	// 중앙 하단 - Sample Viewer
 	float viewerHeight = io.DisplaySize.y - topPanelHeight - 3 * padding;
 	
-	ImGui::SetNextWindowPos(ImVec2(rightPanelPosX, topPanelHeight + 2 * padding), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, viewerHeight), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(centerPanelPosX, topPanelHeight + 2 * padding), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(ImVec2(centerAreaWidth, viewerHeight), ImGuiCond_FirstUseEver);
 	renderSampleViewer();
+	
+	// 오른쪽 패널 - Model Browser (필요한 경우)
+	if (shouldShowModelBrowser)
+	{
+		float modelBrowserPosX = io.DisplaySize.x - rightPanelWidth - padding;
+		ImGui::SetNextWindowPos(ImVec2(modelBrowserPosX, padding), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(rightPanelWidth, io.DisplaySize.y - 2 * padding), ImGuiCond_FirstUseEver);
+		renderModelBrowser();
+	}
 }
 
 void OgSampleViewerWindow::renderSampleViewer()
@@ -337,7 +401,22 @@ void OgSampleViewerWindow::renderSampleViewer()
 	if (ImGui::Begin("Sample Viewer", nullptr))
 	{
 		OgSampleBase* sample = GetSample();
-		if (sample && sample->GetRenderTargetTexture())
+		OgModelSample* modelSample = dynamic_cast<OgModelSample*>(sample);
+		
+		// 모델 샘플이고 모델이 선택되지 않았을 때
+		if (modelSample && modelSample->GetSelectedModelIndex() == -1)
+		{
+			// 중앙에 메시지 표시
+			ImVec2 availSize = ImGui::GetContentRegionAvail();
+			const char* message = "Please select a model from the browser";
+			ImVec2 textSize = ImGui::CalcTextSize(message);
+			ImGui::SetCursorPosX((availSize.x - textSize.x) * 0.5f);
+			ImGui::SetCursorPosY((availSize.y - textSize.y) * 0.5f);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+			ImGui::Text("%s", message);
+			ImGui::PopStyleColor();
+		}
+		else if (sample && sample->GetRenderTargetTexture())
 		{
 			// 렌더 타겟 크기
 			float rtWidth = static_cast<float>(sample->GetRenderTargetWidth());
@@ -537,13 +616,13 @@ void OgSampleViewerWindow::renderDebugInfo()
 		{
 			ImGui::Text("Sample Information");
 			ImGui::Separator();
-			ImGui::Text("Type: %s", _currentSampleIndex == 0 ? "Triangle" : "FBX Model");
+			ImGui::Text("Type: %s", _currentSampleIndex == 0 ? "Triangle" : "glTF Model");
 			ImGui::Text("Render Target: %u x %u", 
 				sample->GetRenderTargetWidth(), 
 				sample->GetRenderTargetHeight());
 			ImGui::Text("Status: %s", sample->IsInitialized() ? "Running" : "Not Initialized");
 			
-			// FBX 샘플인 경우 추가 정보
+			// 모델 샘플인 경우 추가 정보
 			if (_currentSampleIndex == 1)
 			{
 				ImGui::Spacing();
@@ -552,6 +631,9 @@ void OgSampleViewerWindow::renderDebugInfo()
 				ImGui::BulletText("Mouse: Rotate camera");
 				ImGui::BulletText("Scroll: Zoom in/out");
 				ImGui::BulletText("W/A/S/D: Move camera");
+				ImGui::BulletText("F: Toggle fly camera");
+				ImGui::BulletText("L: Toggle light controls");
+				ImGui::BulletText("B: Toggle model browser (after model selected)");
 			}
 		}
 		
@@ -674,6 +756,16 @@ void OgSampleViewerWindow::switchSample(int index)
 	
 	// 새 샘플로 교체
 	SetSample(std::move(newSample));
+	
+	// 모델 샘플로 전환하고 모델이 선택되지 않았으면 브라우저 표시
+	if (index == 1)
+	{
+		OgModelSample* modelSample = dynamic_cast<OgModelSample*>(GetSample());
+		if (modelSample && modelSample->GetSelectedModelIndex() == -1)
+		{
+			_showModelBrowser = true;
+		}
+	}
 }
 
 void OgSampleViewerWindow::renderLightControls()
@@ -921,6 +1013,155 @@ void OgSampleViewerWindow::renderLightControls()
 			
 			// 캔버스 공간 예약
 			ImGui::Dummy(canvas_size);
+		}
+	}
+	ImGui::End();
+}
+
+void OgSampleViewerWindow::renderModelBrowser()
+{
+	OgSampleBase* sample = GetSample();
+	OgModelSample* modelSample = dynamic_cast<OgModelSample*>(sample);
+	
+	if (!modelSample)
+		return;
+	
+	const auto& availableModels = modelSample->GetAvailableModels();
+	if (availableModels.empty())
+		return;
+	
+	ImGuiIO& io = ImGui::GetIO();
+	
+	// 위치와 크기는 onRenderUI()에서 설정됨
+	
+	if (ImGui::Begin("glTF Model Browser", &_showModelBrowser, ImGuiWindowFlags_NoCollapse))
+	{
+		// 모델이 선택되지 않았을 때 메시지 표시
+		if (modelSample->GetSelectedModelIndex() == -1)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+			ImGui::Text("Please select a model to continue");
+			ImGui::PopStyleColor();
+			ImGui::Separator();
+		}
+		
+		ImGui::Text("Available Models: %zu", availableModels.size());
+		ImGui::Text("Directory: %s", modelSample->GetGLTFDirectory().c_str());
+		ImGui::Separator();
+		
+		// 현재 로드된 모델 표시
+		if (!modelSample->GetCurrentModelPath().empty())
+		{
+			ImGui::Text("Current Model:");
+			ImGui::SameLine();
+			ImGui::TextColored(ImVec4(0.6f, 0.8f, 1.0f, 1.0f), "%s", modelSample->GetCurrentModelPath().c_str());
+			ImGui::Separator();
+		}
+		
+		// 검색 필터
+		static char searchBuffer[256] = {0};
+		ImGui::Text("Search:");
+		ImGui::SameLine();
+		ImGui::InputText("##search", searchBuffer, sizeof(searchBuffer));
+		ImGui::Separator();
+		
+		// 모델 리스트
+		ImGui::BeginChild("ModelList", ImVec2(0, -40), true);
+		{
+			int selectedIndex = modelSample->GetSelectedModelIndex();
+			std::string searchStr(searchBuffer);
+			std::transform(searchStr.begin(), searchStr.end(), searchStr.begin(), ::tolower);
+			
+			for (int i = 0; i < static_cast<int>(availableModels.size()); ++i)
+			{
+				std::string modelName = availableModels[i];
+				
+				// 검색 필터 적용
+				if (!searchStr.empty())
+				{
+					std::string lowerModelName = modelName;
+					std::transform(lowerModelName.begin(), lowerModelName.end(), lowerModelName.begin(), ::tolower);
+					if (lowerModelName.find(searchStr) == std::string::npos)
+						continue;
+				}
+				
+				// 폴더 구조 표시를 위한 들여쓰기 계산
+				size_t depth = std::count(modelName.begin(), modelName.end(), '\\');
+				depth += std::count(modelName.begin(), modelName.end(), '/');
+				
+				for (size_t d = 0; d < depth; ++d)
+				{
+					ImGui::Indent();
+				}
+				
+				// 파일명만 추출
+				size_t lastSlash = modelName.find_last_of("\\/");
+				std::string displayName = (lastSlash != std::string::npos) ? 
+					modelName.substr(lastSlash + 1) : modelName;
+				
+				bool isSelected = (i == selectedIndex);
+				if (ImGui::Selectable(displayName.c_str(), isSelected))
+				{
+					if (i != selectedIndex)
+					{
+						modelSample->LoadSelectedModel(i);
+					}
+				}
+				
+				// 툴팁 표시
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::SetTooltip("%s", modelName.c_str());
+				}
+				
+				// 더블 클릭으로도 로드
+				if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0))
+				{
+					modelSample->LoadSelectedModel(i);
+				}
+				
+				for (size_t d = 0; d < depth; ++d)
+				{
+					ImGui::Unindent();
+				}
+			}
+		}
+		ImGui::EndChild();
+		
+		ImGui::Separator();
+		
+		// 하단 버튼들 - 좌은 패널에 맞게 스택 형태로 배치
+		float buttonWidth = ImGui::GetContentRegionAvail().x;
+		
+		if (ImGui::Button("Refresh List", ImVec2(buttonWidth, 25)))
+		{
+			modelSample->ScanGLTFDirectory(modelSample->GetGLTFDirectory());
+		}
+		
+		if (ImGui::Button("Reset View", ImVec2(buttonWidth, 25)))
+		{
+			// 카메라 리셋 기능 추가 가능
+		}
+		
+		// 모델이 선택되지 않았으면 닫기 버튼 비활성화
+		bool canClose = modelSample->GetSelectedModelIndex() != -1;
+		if (!canClose)
+		{
+			ImGui::BeginDisabled();
+		}
+		
+		if (ImGui::Button("Close Browser", ImVec2(buttonWidth, 25)))
+		{
+			_showModelBrowser = false;
+		}
+		
+		if (!canClose)
+		{
+			ImGui::EndDisabled();
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+			{
+				ImGui::SetTooltip("Please select a model first");
+			}
 		}
 	}
 	ImGui::End();

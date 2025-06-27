@@ -1,0 +1,52 @@
+// KHR_materials_transmission 및 KHR_materials_volume 지원을 위한 수정 사항
+
+// 1. OgGLTFLoader.h의 Material 구조체에 추가할 내용:
+/*
+		// Transmission 속성 (KHR_materials_transmission)
+		float transmissionFactor = 0.0f;
+		Render::OgTextureHandle* transmissionTexture = nullptr;
+		TextureTransform transmissionTransform;
+		
+		// Volume 속성 (KHR_materials_volume)
+		float thicknessFactor = 0.0f;
+		Render::OgTextureHandle* thicknessTexture = nullptr;
+		TextureTransform thicknessTransform;
+		float attenuationDistance = FLT_MAX;
+		glm::vec3 attenuationColor = glm::vec3(1.0f);
+*/
+
+// 2. OgModelSample.h의 MaterialUniformData 구조체에 추가할 내용:
+/*
+		// Transmission 속성
+		float transmissionFactor;            // 4 bytes
+		float hasTransmissionTexture;        // 4 bytes
+		float padding1;                      // 4 bytes
+		float padding2;                      // 4 bytes
+		
+		// Volume 속성
+		float thicknessFactor;               // 4 bytes
+		float attenuationDistance;           // 4 bytes
+		float hasThicknessTexture;           // 4 bytes
+		float padding3;                      // 4 bytes
+		glm::vec3 attenuationColor;          // 12 bytes
+		float padding4;                      // 4 bytes
+		
+		...
+		
+		glm::mat4 transmissionTransform;     // 64 bytes
+		glm::mat4 thicknessTransform;        // 64 bytes
+*/
+
+// 3. createPipeline의 알파 블렌딩 설정:
+/*
+	OgColorBlendDescriptor cbDesc{};
+	cbDesc.attachmentCount = 1;
+	cbDesc.attachments[0].blendEnable = true;
+	cbDesc.attachments[0].srcColorBlendFactor = OgBlendFactor::SRC_ALPHA;
+	cbDesc.attachments[0].dstColorBlendFactor = OgBlendFactor::ONE_MINUS_SRC_ALPHA;
+	cbDesc.attachments[0].colorBlendOp = OgBlendOp::ADD;
+	cbDesc.attachments[0].srcAlphaBlendFactor = OgBlendFactor::ONE;
+	cbDesc.attachments[0].dstAlphaBlendFactor = OgBlendFactor::ONE_MINUS_SRC_ALPHA;
+	cbDesc.attachments[0].alphaBlendOp = OgBlendOp::ADD;
+	cbDesc.attachments[0].colorWriteMask = OgColorWriteMask::ALL;
+*/

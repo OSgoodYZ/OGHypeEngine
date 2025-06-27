@@ -59,6 +59,7 @@ public:
 		uint32 vertexCount = 0;
 		bool hasIndices = false;
 		int materialIndex = -1;
+		int indexType = 5123; // GLTF index component type (5123=UINT16, 5125=UINT32)
 	};
 
 	/**
@@ -127,6 +128,18 @@ public:
 		Render::OgTextureHandle* sheenRoughnessTexture = nullptr;
 		TextureTransform sheenColorTransform;
 		TextureTransform sheenRoughnessTransform;
+		
+		// Transmission 속성 (KHR_materials_transmission)
+		float transmissionFactor = 0.0f;
+		Render::OgTextureHandle* transmissionTexture = nullptr;
+		TextureTransform transmissionTransform;
+		
+		// Volume 속성 (KHR_materials_volume)
+		float thicknessFactor = 0.0f;
+		Render::OgTextureHandle* thicknessTexture = nullptr;
+		TextureTransform thicknessTransform;
+		float attenuationDistance = FLT_MAX;
+		glm::vec3 attenuationColor = glm::vec3(1.0f);
 		
 		// 추가 속성
 		bool doubleSided = false;

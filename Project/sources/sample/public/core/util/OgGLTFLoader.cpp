@@ -134,6 +134,16 @@ void OgGLTFLoader::ClearModel(LoadedModel& model)
 			material.sheenRoughnessTexture->Release();
 			material.sheenRoughnessTexture = nullptr;
 		}
+		if (material.transmissionTexture)
+		{
+			material.transmissionTexture->Release();
+			material.transmissionTexture = nullptr;
+		}
+		if (material.thicknessTexture)
+		{
+			material.thicknessTexture->Release();
+			material.thicknessTexture = nullptr;
+		}
 	}
 
 	// 버퍼 해제
@@ -351,6 +361,94 @@ void OgGLTFLoader::loadMaterials(const tinygltf::Model& gltfModel, LoadedModel& 
 					{
 						material.sheenRoughnessTransform = loadTextureTransform(texExtensions.Get("KHR_texture_transform"));
 					}
+				}
+			}
+		}
+		
+		// Transmission extension (KHR_materials_transmission)
+		if (gltfMaterial.extensions.find("KHR_materials_transmission") != gltfMaterial.extensions.end())
+		{
+			const auto& ext = gltfMaterial.extensions.at("KHR_materials_transmission");
+			
+			// Transmission factor
+			if (ext.Has("transmissionFactor") && ext.Get("transmissionFactor").IsNumber())
+			{
+				material.transmissionFactor = static_cast<float>(ext.Get("transmissionFactor").GetNumberAsDouble());
+			}
+			
+			// Transmission texture
+			if (ext.Has("transmissionTexture") && ext.Get("transmissionTexture").IsObject())
+			{
+				const auto& texInfo = ext.Get("transmissionTexture");
+				
+				if (texInfo.Has("index") && texInfo.Get("index").IsNumber())
+				{
+					int index = static_cast<int>(texInfo.Get("index").GetNumberAsInt());
+					material.transmissionTexture = loadTexture(gltfModel, index);
+				}
+				
+				// KHR_texture_transform
+				if (texInfo.Has("extensions") && texInfo.Get("extensions").IsObject())
+				{
+					const auto& texExtensions = texInfo.Get("extensions");
+					if (texExtensions.Has("KHR_texture_transform"))
+					{
+						material.transmissionTransform = loadTextureTransform(texExtensions.Get("KHR_texture_transform"));
+					}
+				}
+			}
+		}
+		
+		// Volume extension (KHR_materials_volume)
+		if (gltfMaterial.extensions.find("KHR_materials_volume") != gltfMaterial.extensions.end())
+		{
+			const auto& ext = gltfMaterial.extensions.at("KHR_materials_volume");
+			
+			// Thickness factor
+			if (ext.Has("thicknessFactor") && ext.Get("thicknessFactor").IsNumber())
+			{
+				material.thicknessFactor = static_cast<float>(ext.Get("thicknessFactor").GetNumberAsDouble());
+			}
+			
+			// Thickness texture
+			if (ext.Has("thicknessTexture") && ext.Get("thicknessTexture").IsObject())
+			{
+				const auto& texInfo = ext.Get("thicknessTexture");
+				
+				if (texInfo.Has("index") && texInfo.Get("index").IsNumber())
+				{
+					int index = static_cast<int>(texInfo.Get("index").GetNumberAsInt());
+					material.thicknessTexture = loadTexture(gltfModel, index);
+				}
+				
+				// KHR_texture_transform
+				if (texInfo.Has("extensions") && texInfo.Get("extensions").IsObject())
+				{
+					const auto& texExtensions = texInfo.Get("extensions");
+					if (texExtensions.Has("KHR_texture_transform"))
+					{
+						material.thicknessTransform = loadTextureTransform(texExtensions.Get("KHR_texture_transform"));
+					}
+				}
+			}
+			
+			// Attenuation distance
+			if (ext.Has("attenuationDistance") && ext.Get("attenuationDistance").IsNumber())
+			{
+				material.attenuationDistance = static_cast<float>(ext.Get("attenuationDistance").GetNumberAsDouble());
+			}
+			
+			// Attenuation color
+			if (ext.Has("attenuationColor") && ext.Get("attenuationColor").IsArray())
+			{
+				const auto& colorArray = ext.Get("attenuationColor");
+				if (colorArray.ArrayLen() >= 3)
+				{
+					material.attenuationColor = glm::vec3(
+						static_cast<float>(colorArray.Get(0).GetNumberAsDouble()),
+						static_cast<float>(colorArray.Get(1).GetNumberAsDouble()),
+						static_cast<float>(colorArray.Get(2).GetNumberAsDouble())
+					);
 				}
 			}
 		}
@@ -598,6 +696,7 @@ void OgGLTFLoader::loadMesh(const tinygltf::Model& gltfModel, int meshIndex, Loa
 			
 			primitive.hasIndices = true;
 			primitive.indexCount = static_cast<uint32>(accessor.count);
+			primitive.indexType = accessor.componentType; // Store the original index type
 			
 			if (_renderContext)
 			{
@@ -612,38 +711,15 @@ void OgGLTFLoader::loadMesh(const tinygltf::Model& gltfModel, int meshIndex, Loa
 				}
 				else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
 				{
-					// uint32 인덱스를 uint16으로 변환
-					const uint32_t* indices32 = reinterpret_cast<const uint32_t*>(
-						&buffer.data[bufferView.byteOffset + accessor.byteOffset]
-					);
-					std::vector<uint16_t> indices16(accessor.count);
-					
-					bool hasLargeIndex = false;
-					for (size_t i = 0; i < accessor.count; i++)
-					{
-						if (indices32[i] > UINT16_MAX)
-						{
-							hasLargeIndex = true;
-							LOGD(OG_ID, "Index value %u exceeds uint16 max, clamping to %u", indices32[i], UINT16_MAX);
-							indices16[i] = UINT16_MAX;
-						}
-						else
-						{
-							indices16[i] = static_cast<uint16_t>(indices32[i]);
-						}
-					}
-					
-					if (hasLargeIndex)
-					{
-						LOGD(OG_ID, "Some indices were clamped to fit uint16 range");
-					}
-					
+					// uint32 인덱스를 그대로 사용
 					primitive.indexBuffer = _renderContext->CreateBuffer(
-						indices16.data(),
-						indices16.size() * sizeof(uint16_t),
+						(void*)&buffer.data[bufferView.byteOffset + accessor.byteOffset],
+						accessor.count * sizeof(uint32_t),
 						Render::OgBufferUsage::INDEX,
 						OgMemoryOption::MAP_MANAGED
 					);
+					
+					LOGD(OG_ID, "Using UINT32 indices for primitive with %u indices", accessor.count);
 				}
 				else if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
 				{

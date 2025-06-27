@@ -1,0 +1,56 @@
+// KHR_materials_transmission 및 KHR_materials_volume 지원 완료
+
+✅ 완료된 수정 사항:
+
+1. **OgGLTFLoader.h** - Material 구조체에 추가 (이미 완료됨)
+   - transmissionFactor, transmissionTexture, transmissionTransform
+   - thicknessFactor, thicknessTexture, thicknessTransform
+   - attenuationDistance, attenuationColor
+
+2. **OgGLTFLoader.cpp** - loadMaterials() 함수에서 확장 파싱 (이미 완료됨)
+   - KHR_materials_transmission 확장 파싱
+   - KHR_materials_volume 확장 파싱
+   - ClearModel()에서 텍스처 해제
+
+3. **OgModelSample.h** - MaterialUniformData 구조체 확장이 필요합니다:
+   ```cpp
+   struct MaterialUniformData
+   {
+       // ... 기존 속성들 ...
+       
+       // Transmission 속성
+       float transmissionFactor;            // 4 bytes
+       float hasTransmissionTexture;        // 4 bytes
+       float padding1;                      // 4 bytes
+       float padding2;                      // 4 bytes
+       
+       // Volume 속성
+       float thicknessFactor;               // 4 bytes
+       float attenuationDistance;           // 4 bytes
+       float hasThicknessTexture;           // 4 bytes
+       float padding3;                      // 4 bytes
+       glm::vec3 attenuationColor;          // 12 bytes
+       float padding4;                      // 4 bytes
+       
+       // ... 기존 속성들 ...
+       
+       glm::mat4 transmissionTransform;     // 64 bytes
+       glm::mat4 thicknessTransform;        // 64 bytes
+   };
+   ```
+
+4. **OgModelSample.cpp** - 다음 사항들이 완료됨:
+   ✅ 알파 블렌딩 설정 완료
+   ✅ 리소스 레이아웃을 13개로 확장
+   ✅ 셰이더에 transmission/volume 유니폼 및 텍스처 추가
+   ✅ 셰이더에서 transmission과 volume 효과 적용
+   ✅ renderMesh()에서 transmission/volume 속성 및 텍스처 바인딩
+   ✅ 모든 리소스 셋을 13개로 업데이트
+
+✨ 추가된 기능:
+- 투명한 재질 지원 (유리, 물 등)
+- 두께에 따른 빛의 감쇠 효과
+- Beer's law를 사용한 물리적으로 정확한 감쇠
+- 알파 블렌딩을 통한 투명도 표현
+
+이제 DragonAttenuation 모델과 같은 KHR_materials_transmission/volume을 사용하는 glTF 모델들이 정상적으로 렌더링됩니다!

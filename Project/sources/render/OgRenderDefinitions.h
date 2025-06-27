@@ -27,6 +27,10 @@ enum class OgShaderType : uint8
 	FRAGMENT = 0x00000010,
 	COMPUTE = 0x00000020,
 };
+inline OgShaderType operator|(OgShaderType a, OgShaderType b)
+{
+	return static_cast<OgShaderType>(static_cast<uint16>(a) | static_cast<uint16>(b));
+}
 
 enum class OgShaderValueType : uint8
 {

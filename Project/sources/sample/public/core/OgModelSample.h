@@ -5,6 +5,7 @@
 #include "OgSampleBase.h"
 #include <memory>
 #include <tinygltf/tiny_gltf.h>
+#include <unordered_map>
 
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
@@ -66,7 +67,15 @@ public:
 	// 라이트 기즈모를 위한 행렬 접근
 	glm::mat4 GetViewMatrix() const { return _uniformData.view; }
 	glm::mat4 GetProjectionMatrix() const { return _uniformData.projection; }
-	glm::mat4 GetModelMatrix() const { return _uniformData.model; }
+	glm::mat4 GetModelMatrix() const { return _modelUniformData.model; }
+	
+	// 파일 브라우저 인터페이스
+	const std::vector<std::string>& GetAvailableModels() const { return _availableModels; }
+	int GetSelectedModelIndex() const { return _selectedModelIndex; }
+	const std::string& GetCurrentModelPath() const { return _currentModelPath; }
+	const std::string& GetGLTFDirectory() const { return _glTFDirectory; }
+	void ScanGLTFDirectory(const std::string& directory);
+	void LoadSelectedModel(int index);
 
 	// 렌더 타겟 인터페이스
 	Render::OgTextureHandle* GetRenderTargetTexture() const override { return _renderTargetTexture; }
@@ -82,12 +91,19 @@ private:
 	using Material = OgGLTFLoader::Material;
 	using TextureTransform = OgGLTFLoader::TextureTransform;
 
-	// 유니폼 버퍼 데이터
+	// 유니폼 버퍼 데이터 (View/Projection과 카메라 위치)
 	struct UniformData
 	{
-		glm::mat4 model;
 		glm::mat4 view;
 		glm::mat4 projection;
+		glm::vec3 viewPos;
+		float padding;
+	};
+	
+	// 모델별 유니폼 데이터 (각 노드마다 개별적으로 사용)
+	struct ModelUniformData
+	{
+		glm::mat4 model;
 		glm::mat4 normalMatrix;  // 노말 변환용
 	};
 
@@ -108,6 +124,20 @@ private:
 		glm::vec3 sheenColorFactor;          // 12 bytes
 		float sheenRoughnessFactor;          // 4 bytes
 		
+		// Transmission 속성
+		float transmissionFactor;            // 4 bytes
+		float hasTransmissionTexture;        // 4 bytes
+		float padding1;                      // 4 bytes
+		float padding2;                      // 4 bytes
+		
+		// Volume 속성
+		float thicknessFactor;               // 4 bytes
+		float attenuationDistance;           // 4 bytes
+		float hasThicknessTexture;           // 4 bytes
+		float padding3;                      // 4 bytes
+		glm::vec3 attenuationColor;          // 12 bytes
+		float padding4;                      // 4 bytes
+		
 		// 텍스처 플래그
 		float hasBaseColorTexture;           // 4 bytes
 		float hasNormalTexture;              // 4 bytes
@@ -127,6 +157,8 @@ private:
 		glm::mat4 occlusionTransform;        // 64 bytes
 		glm::mat4 sheenColorTransform;       // 64 bytes
 		glm::mat4 sheenRoughnessTransform;   // 64 bytes
+		glm::mat4 transmissionTransform;     // 64 bytes
+		glm::mat4 thicknessTransform;        // 64 bytes
 	};
 
 
@@ -151,7 +183,7 @@ private:
 	
 	// 렌더링
 	void renderNode(Render::OgCommandEncoderHandle* encoder, int nodeIndex, const glm::mat4& parentMatrix);
-	void renderMesh(Render::OgCommandEncoderHandle* encoder, const Mesh& mesh, const glm::mat4& modelMatrix);
+	void renderMesh(Render::OgCommandEncoderHandle* encoder, const Mesh& mesh, const glm::mat4& modelMatrix, int nodeIndex);
 
 	// Vulkan용 프로젝션 행렬 변환
 	void convertProjectionForVulkan(glm::mat4& projection);
@@ -159,7 +191,9 @@ private:
 private:
 	// 렌더링 리소스
 	Render::OgBufferHandle* _uniformBuffer = nullptr;
-	Render::OgBufferHandle* _materialUniformBuffer = nullptr;
+	std::unordered_map<int, Render::OgBufferHandle*> _nodeUniformBuffers;  // 노드별 모델 변환 버퍼
+	std::unordered_map<int, Render::OgBufferHandle*> _materialUniformBuffers;  // Material별 유니폼 버퍼
+	Render::OgBufferHandle* _materialUniformBuffer = nullptr;  // 기본 material용
 	Render::OgShaderHandle* _vertexShader = nullptr;
 	Render::OgShaderHandle* _fragmentShader = nullptr;
 	Render::OgProgramHandle* _program = nullptr;
@@ -189,6 +223,7 @@ private:
 	// 변환 행렬
 	float _rotation = 0.0f;
 	UniformData _uniformData;
+	ModelUniformData _modelUniformData;  // 현재 렌더링 중인 모델의 변환
 	MaterialUniformData _materialUniformData;
 
 	// 카메라
@@ -201,6 +236,12 @@ private:
 
 	// ImGui 컨트롤을 위한 변수들
 	bool _showLightControls = true;
+	
+	// 파일 브라우저를 위한 변수들
+	std::string _currentModelPath;
+	std::string _glTFDirectory;
+	std::vector<std::string> _availableModels;
+	int _selectedModelIndex = -1;
 };
 
 OG_NAMESPACE_SAMPLE_END

@@ -57,8 +57,8 @@ void OgSampleApplication::createMainWindow()
     // 윈도우 설정
     OgEditorWindow::Config config;
     config.title = "Vulkan Sample Viewer";
-    config.width = 1280;
-    config.height = 720;
+    config.width = 2560;
+    config.height = 1440;
     config.resizable = true;
     
     // 샘플 뷰어 윈도우 생성
