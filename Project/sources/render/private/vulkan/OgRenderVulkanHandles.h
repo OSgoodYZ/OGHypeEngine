@@ -631,17 +631,20 @@ struct OgAccelStructureVK : public OgAccelStructureHandle
 
 	~OgAccelStructureVK()
 	{
-		if (accelStructure != VK_NULL_HANDLE && vulkanDevice.vkDestroyAccelerationStructureKHR)
+		if (vulkanDevice.logicalDevice != VK_NULL_HANDLE)
 		{
-			vulkanDevice.vkDestroyAccelerationStructureKHR(vulkanDevice.logicalDevice, accelStructure, nullptr);
-		}
-		if (buffer != VK_NULL_HANDLE)
-		{
-			vkDestroyBuffer(vulkanDevice.logicalDevice, buffer, nullptr);
-		}
-		if (memory != VK_NULL_HANDLE)
-		{
-			vkFreeMemory(vulkanDevice.logicalDevice, memory, nullptr);
+			if (accelStructure != VK_NULL_HANDLE && vulkanDevice.vkDestroyAccelerationStructureKHR)
+			{
+				vulkanDevice.vkDestroyAccelerationStructureKHR(vulkanDevice.logicalDevice, accelStructure, nullptr);
+			}
+			if (buffer != VK_NULL_HANDLE)
+			{
+				vkDestroyBuffer(vulkanDevice.logicalDevice, buffer, nullptr);
+			}
+			if (memory != VK_NULL_HANDLE)
+			{
+				vkFreeMemory(vulkanDevice.logicalDevice, memory, nullptr);
+			}
 		}
 	}
 };

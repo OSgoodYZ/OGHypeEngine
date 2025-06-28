@@ -355,6 +355,14 @@ VkResult OgDeviceVulkan::CreateLogicalDevice(VkPhysicalDeviceFeatures enabledFea
 		vkCreateRayTracingPipelinesKHR = (PFN_vkCreateRayTracingPipelinesKHR)vkGetDeviceProcAddr(logicalDevice, "vkCreateRayTracingPipelinesKHR");
 		vkGetRayTracingShaderGroupHandlesKHR = (PFN_vkGetRayTracingShaderGroupHandlesKHR)vkGetDeviceProcAddr(logicalDevice, "vkGetRayTracingShaderGroupHandlesKHR");
 		vkGetRayTracingCaptureReplayShaderGroupHandlesKHR = (PFN_vkGetRayTracingCaptureReplayShaderGroupHandlesKHR)vkGetDeviceProcAddr(logicalDevice, "vkGetRayTracingCaptureReplayShaderGroupHandlesKHR");
+
+		if (!vkCreateAccelerationStructureKHR ||
+			!vkDestroyAccelerationStructureKHR ||
+			!vkCmdTraceRaysKHR)
+		{
+			LOGE(OG_ID, "Could not load ray tracing function pointers");
+			rayTracingSupported = false;
+		}
 	}
 
 	this->enabledFeatures = enabledFeatures;

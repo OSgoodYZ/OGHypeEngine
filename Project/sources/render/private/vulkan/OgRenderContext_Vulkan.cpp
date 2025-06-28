@@ -843,6 +843,7 @@ void OgRenderContextVulkan::Init(void)
 	initCommandPool();
 	initStagingCommandBuffer();
 	initDescriptorPool();
+	initRayTracingSupport();
 	
 	// Swapchain Wrapper Class setting
 	OgSwapChainVulkan::Connect(_instance, _vulkanDevice);
