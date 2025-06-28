@@ -249,11 +249,66 @@ VkResult OgDeviceVulkan::CreateLogicalDevice(VkPhysicalDeviceFeatures enabledFea
 		deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 	}
 
+	// Add ray tracing extensions if available
+	bool rayTracingSupported = false;
+	if (HasExtension(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME) &&
+		HasExtension(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME) &&
+		HasExtension(VK_KHR_RAY_QUERY_EXTENSION_NAME) &&
+		HasExtension(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME) &&
+		HasExtension(VK_KHR_SPIRV_1_4_EXTENSION_NAME) &&
+		HasExtension(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME) &&
+		HasExtension(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME))
+	{
+		deviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+		deviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+		deviceExtensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
+		deviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+		deviceExtensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+		deviceExtensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+		deviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+		rayTracingSupported = true;
+	}
+
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());;
 	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
-	deviceCreateInfo.pEnabledFeatures = &enabledFeatures;
+	
+	// Ray tracing features setup
+	VkPhysicalDeviceFeatures2 deviceFeatures2{};
+	deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+	deviceFeatures2.features = enabledFeatures;
+	
+	VkPhysicalDeviceBufferDeviceAddressFeatures bufferDeviceAddressFeatures{};
+	bufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+	bufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+	
+	VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracingPipelineFeatures{};
+	rayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+	rayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+	
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures{};
+	accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+	accelerationStructureFeatures.accelerationStructure = VK_TRUE;
+	
+	VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures{};
+	rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+	rayQueryFeatures.rayQuery = VK_TRUE;
+	
+	if (rayTracingSupported)
+	{
+		deviceFeatures2.pNext = &bufferDeviceAddressFeatures;
+		bufferDeviceAddressFeatures.pNext = &rayTracingPipelineFeatures;
+		rayTracingPipelineFeatures.pNext = &accelerationStructureFeatures;
+		accelerationStructureFeatures.pNext = &rayQueryFeatures;
+		
+		deviceCreateInfo.pNext = &deviceFeatures2;
+		deviceCreateInfo.pEnabledFeatures = nullptr;
+	}
+	else
+	{
+		deviceCreateInfo.pEnabledFeatures = &enabledFeatures;
+	}
 
 	// Enable the debug marker extension if it is present (likely meaning a debugging tool is present)
 	if (HasExtension(VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
@@ -284,6 +339,22 @@ VkResult OgDeviceVulkan::CreateLogicalDevice(VkPhysicalDeviceFeatures enabledFea
 		vkCmdDebugMarkerBegin = (PFN_vkCmdDebugMarkerBeginEXT)vkGetDeviceProcAddr(logicalDevice, "vkCmdDebugMarkerBeginEXT");
 		vkCmdDebugMarkerEnd = (PFN_vkCmdDebugMarkerEndEXT)vkGetDeviceProcAddr(logicalDevice, "vkCmdDebugMarkerEndEXT");
 		vkCmdDebugMarkerInsert = (PFN_vkCmdDebugMarkerInsertEXT)vkGetDeviceProcAddr(logicalDevice, "vkCmdDebugMarkerInsertEXT");
+	}
+
+	// Load ray tracing function pointers if ray tracing is supported
+	if (rayTracingSupported)
+	{
+		vkDestroyAccelerationStructureKHR = (PFN_vkDestroyAccelerationStructureKHR)vkGetDeviceProcAddr(logicalDevice, "vkDestroyAccelerationStructureKHR");
+		vkCmdTraceRaysKHR = (PFN_vkCmdTraceRaysKHR)vkGetDeviceProcAddr(logicalDevice, "vkCmdTraceRaysKHR");
+		vkGetBufferDeviceAddressKHR = (PFN_vkGetBufferDeviceAddressKHR)vkGetDeviceProcAddr(logicalDevice, "vkGetBufferDeviceAddressKHR");
+		vkCreateAccelerationStructureKHR = (PFN_vkCreateAccelerationStructureKHR)vkGetDeviceProcAddr(logicalDevice, "vkCreateAccelerationStructureKHR");
+		vkBuildAccelerationStructuresKHR = (PFN_vkBuildAccelerationStructuresKHR)vkGetDeviceProcAddr(logicalDevice, "vkBuildAccelerationStructuresKHR");
+		vkCmdBuildAccelerationStructuresKHR = (PFN_vkCmdBuildAccelerationStructuresKHR)vkGetDeviceProcAddr(logicalDevice, "vkCmdBuildAccelerationStructuresKHR");
+		vkGetAccelerationStructureBuildSizesKHR = (PFN_vkGetAccelerationStructureBuildSizesKHR)vkGetDeviceProcAddr(logicalDevice, "vkGetAccelerationStructureBuildSizesKHR");
+		vkGetAccelerationStructureDeviceAddressKHR = (PFN_vkGetAccelerationStructureDeviceAddressKHR)vkGetDeviceProcAddr(logicalDevice, "vkGetAccelerationStructureDeviceAddressKHR");
+		vkCreateRayTracingPipelinesKHR = (PFN_vkCreateRayTracingPipelinesKHR)vkGetDeviceProcAddr(logicalDevice, "vkCreateRayTracingPipelinesKHR");
+		vkGetRayTracingShaderGroupHandlesKHR = (PFN_vkGetRayTracingShaderGroupHandlesKHR)vkGetDeviceProcAddr(logicalDevice, "vkGetRayTracingShaderGroupHandlesKHR");
+		vkGetRayTracingCaptureReplayShaderGroupHandlesKHR = (PFN_vkGetRayTracingCaptureReplayShaderGroupHandlesKHR)vkGetDeviceProcAddr(logicalDevice, "vkGetRayTracingCaptureReplayShaderGroupHandlesKHR");
 	}
 
 	this->enabledFeatures = enabledFeatures;

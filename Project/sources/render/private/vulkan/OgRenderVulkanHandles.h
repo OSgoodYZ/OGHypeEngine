@@ -2,7 +2,15 @@
 #ifndef __OG_RENDER_VULKAN_HANDLES_H__
 #define __OG_RENDER_VULKAN_HANDLES_H__
 
+#if defined(__ANDROID__)
+#if (__ANDROID_API__  < 23)
+#include "render/private/android/vulkan_wrapper.h"
+#else
 #include <vulkan/vulkan.h>
+#endif
+#else
+#include <vulkan/vulkan.h>
+#endif
 
 #include "system/OgVector.h"
 
@@ -604,6 +612,62 @@ struct OgResourceSetVK : public OgResourceSetHandle
 //};
 
 // TODO : byte buffer에 쓰지 않고, 바로 vkCmd명령어를 쓸 수 있도록 만들기.
+// Ray Tracing Structures
+struct OgAccelStructureVK : public OgAccelStructureHandle
+{
+	OgDeviceVulkan& vulkanDevice;
+	VkAccelerationStructureKHR accelStructure;
+	VkBuffer buffer;
+	VkDeviceMemory memory;
+	VkDeviceAddress deviceAddress;
+
+	OgAccelStructureVK(OgDeviceVulkan& device)
+		: vulkanDevice(device)
+		, accelStructure(VK_NULL_HANDLE)
+		, buffer(VK_NULL_HANDLE)
+		, memory(VK_NULL_HANDLE)
+		, deviceAddress(0)
+	{}
+
+	~OgAccelStructureVK()
+	{
+		if (accelStructure != VK_NULL_HANDLE && vulkanDevice.vkDestroyAccelerationStructureKHR)
+		{
+			vulkanDevice.vkDestroyAccelerationStructureKHR(vulkanDevice.logicalDevice, accelStructure, nullptr);
+		}
+		if (buffer != VK_NULL_HANDLE)
+		{
+			vkDestroyBuffer(vulkanDevice.logicalDevice, buffer, nullptr);
+		}
+		if (memory != VK_NULL_HANDLE)
+		{
+			vkFreeMemory(vulkanDevice.logicalDevice, memory, nullptr);
+		}
+	}
+};
+
+struct OgRayTracingPipelineVK : public OgPipelineHandle
+{
+	OgRayTracingPipelineVK() = delete;
+
+	OgRayTracingPipelineVK(const OgRayTracingPipelineDescriptor& descriptor)
+		: OgPipelineHandle()
+		, pipelineLayout(VK_NULL_HANDLE)
+		, pipeline(VK_NULL_HANDLE)
+		, shaderGroupCount(descriptor.shaderGroupCount)
+	{
+		this->type = OgPipelineType::RAYTRACING_PIPELINE;
+		this->name = descriptor.name;
+		this->resourceLayout = descriptor.resourceLayout;
+	}
+
+	~OgRayTracingPipelineVK() {}
+
+	VkPipelineLayout pipelineLayout;
+	VkPipeline pipeline;
+	uint32 shaderGroupCount;
+};
+
 struct OgCommandEncoderVK : public OgCommandEncoderHandle
 {
 	OgDeviceVulkan* vulkanDevice;
@@ -613,6 +677,7 @@ struct OgCommandEncoderVK : public OgCommandEncoderHandle
 	OgRenderPassVK* curBindRenderPass;
 	OgFrameBufferHandle* curBindFramebuffer;
 	OgGraphicsPipelineVK* curBindPipeline;
+	OgRayTracingPipelineVK* curBindRayTracingPipeline;
 	VkIndexType curBindIndexBufferType;
 
 	OgCommandEncoderVK(OgDeviceVulkan* device, VkCommandPool cmdPool);
@@ -659,6 +724,11 @@ struct OgCommandEncoderVK : public OgCommandEncoderHandle
 	void BeginDebugMarker(const char* label, float color[4]) override;
 
 	void EndDebugMarker() override;
+
+	// Ray Tracing Commands
+	void BindRayTracingPipeline(const OgPipelineHandle* pipeline) override;
+
+	void TraceRays(const OgShaderBindingTable& sbt, uint32 width, uint32 height, uint32 depth) override;
 
 	void End() override;
 };

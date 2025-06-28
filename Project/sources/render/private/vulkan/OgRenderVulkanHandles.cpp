@@ -16,6 +16,7 @@ OgCommandEncoderVK::OgCommandEncoderVK(OgDeviceVulkan* device, VkCommandPool cmd
 	, curBindRenderPass(nullptr)
 	, curBindFramebuffer(nullptr)
 	, curBindPipeline(nullptr)
+	, curBindRayTracingPipeline(nullptr)
 {
 	VkCommandBufferAllocateInfo cmdBufAllocateInfo{};
 
@@ -281,11 +282,88 @@ void OgCommandEncoderVK::EndDebugMarker()
 	vulkanDevice->EndRegion(cmdBufferVK);
 }
 
+void OgCommandEncoderVK::BindRayTracingPipeline(const OgPipelineHandle* pipeline)
+{
+	OG_CHECK(pipeline != nullptr, "Ray tracing pipeline is nullptr");
+	OG_CHECK(pipeline->type == OgPipelineType::RAYTRACING_PIPELINE, "Pipeline is not a ray tracing pipeline");
+	
+	curBindRayTracingPipeline = (OgRayTracingPipelineVK*)(pipeline);
+	vkCmdBindPipeline(cmdBufferVK, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, curBindRayTracingPipeline->pipeline);
+}
+
+void OgCommandEncoderVK::TraceRays(const OgShaderBindingTable& sbt, uint32 width, uint32 height, uint32 depth)
+{
+	OG_CHECK(curBindRayTracingPipeline != nullptr, "No ray tracing pipeline bound");
+	
+	VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry{};
+	VkStridedDeviceAddressRegionKHR missShaderSbtEntry{};
+	VkStridedDeviceAddressRegionKHR hitShaderSbtEntry{};
+	VkStridedDeviceAddressRegionKHR callableShaderSbtEntry{};
+	
+	// Set up raygen shader binding table entry
+	if (sbt.raygenShaderBindingTable && vulkanDevice->vkGetBufferDeviceAddressKHR)
+	{
+		OgBufferVK* raygenBuffer = (OgBufferVK*)sbt.raygenShaderBindingTable;
+		VkBufferDeviceAddressInfo bufferInfo = {};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		bufferInfo.buffer = raygenBuffer->bufferVK;
+		raygenShaderSbtEntry.deviceAddress = vulkanDevice->vkGetBufferDeviceAddressKHR(vulkanDevice->logicalDevice, &bufferInfo);
+		raygenShaderSbtEntry.stride = sbt.raygenShaderBindingStride;
+		raygenShaderSbtEntry.size = sbt.raygenShaderBindingSize;
+	}
+	
+	// Set up miss shader binding table entry
+	if (sbt.missShaderBindingTable && vulkanDevice->vkGetBufferDeviceAddressKHR)
+	{
+		OgBufferVK* missBuffer = (OgBufferVK*)sbt.missShaderBindingTable;
+		VkBufferDeviceAddressInfo bufferInfo = {};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		bufferInfo.buffer = missBuffer->bufferVK;
+		missShaderSbtEntry.deviceAddress = vulkanDevice->vkGetBufferDeviceAddressKHR(vulkanDevice->logicalDevice, &bufferInfo);
+		missShaderSbtEntry.stride = sbt.missShaderBindingStride;
+		missShaderSbtEntry.size = sbt.missShaderBindingSize;
+	}
+	
+	// Set up hit shader binding table entry
+	if (sbt.hitShaderBindingTable && vulkanDevice->vkGetBufferDeviceAddressKHR)
+	{
+		OgBufferVK* hitBuffer = (OgBufferVK*)sbt.hitShaderBindingTable;
+		VkBufferDeviceAddressInfo bufferInfo = {};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		bufferInfo.buffer = hitBuffer->bufferVK;
+		hitShaderSbtEntry.deviceAddress = vulkanDevice->vkGetBufferDeviceAddressKHR(vulkanDevice->logicalDevice, &bufferInfo);
+		hitShaderSbtEntry.stride = sbt.hitShaderBindingStride;
+		hitShaderSbtEntry.size = sbt.hitShaderBindingSize;
+	}
+	
+	// Set up callable shader binding table entry
+	if (sbt.callableShaderBindingTable && vulkanDevice->vkGetBufferDeviceAddressKHR)
+	{
+		OgBufferVK* callableBuffer = (OgBufferVK*)sbt.callableShaderBindingTable;
+		VkBufferDeviceAddressInfo bufferInfo = {};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		bufferInfo.buffer = callableBuffer->bufferVK;
+		callableShaderSbtEntry.deviceAddress = vulkanDevice->vkGetBufferDeviceAddressKHR(vulkanDevice->logicalDevice, &bufferInfo);
+		callableShaderSbtEntry.stride = sbt.callableShaderBindingStride;
+		callableShaderSbtEntry.size = sbt.callableShaderBindingSize;
+	}
+	
+	if (vulkanDevice->vkCmdTraceRaysKHR)
+	{
+		vulkanDevice->vkCmdTraceRaysKHR(cmdBufferVK, &raygenShaderSbtEntry, &missShaderSbtEntry, &hitShaderSbtEntry, &callableShaderSbtEntry, width, height, depth);
+	}
+	else
+	{
+		OG_CHECK(false, "vkCmdTraceRaysKHR function pointer is not loaded");
+	}
+}
+
 void OgCommandEncoderVK::End()
 {
 	curBindRenderPass = nullptr;
 	curBindFramebuffer = nullptr;
 	curBindPipeline = nullptr;
+	curBindRayTracingPipeline = nullptr;
 
 	vulkanDevice->EndRegion(cmdBufferVK);
 	VK_CHECK_RESULT(vkEndCommandBuffer(cmdBufferVK));

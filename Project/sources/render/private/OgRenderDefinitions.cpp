@@ -50,6 +50,9 @@ static OG_FORCEINLINE void delete_handle(OgRenderContext* rc, OgHandle* handle)
 	case OgHandleType::COMMAND_ENCODER:
 		rc->DestroyCommandEncoder((OgCommandEncoderHandle*)handle);
 		break;
+	case OgHandleType::ACCEL_STRUCTURE:
+		rc->DestroyAccelerationStructure((OgAccelStructureHandle*)handle);
+		break;
 	default:
 		LOGE(OG_ID, "Wrong Type");
 		break;
@@ -3103,5 +3106,23 @@ OgCommandEncoderHandle::OgCommandEncoderHandle()
 
 }
 
+/// OgAccelStructureHandle
+OgAccelStructureHandle::OgAccelStructureHandle()
+	: OgHandle(OgHandleType::ACCEL_STRUCTURE)
+	, type(OgAccelStructureType::BOTTOM_LEVEL)
+	, deviceAddress(0)
+{
+}
+
+OgAccelStructureHandle::~OgAccelStructureHandle()
+{
+}
+
+OgShaderVariable::OgShaderVariable(OgShaderValueType type, uint16 arrayCount, int16 structDefineIndex)
+	: type(type)
+	, arrayCount(arrayCount)
+	, structTypeDefineIndex(structDefineIndex)
+{
+}
 
 OG_NAMESPACE_RENDER_END

@@ -23,6 +23,7 @@ set(PRIVATE_VULKAN
 	private/vulkan/OgRenderVulkanHandles.h
 	private/vulkan/OgRenderContext_Vulkan.h
 	private/vulkan/OgVulkanHelper.h
+	private/vulkan/OgRayTracingHelper.h
 	)
 
 IF(NOT IOS)
@@ -32,16 +33,25 @@ IF(NOT IOS)
 	list(APPEND PRIVATE_VULKAN private/vulkan/OgRenderVulkanHandles.cpp)
 	list(APPEND PRIVATE_VULKAN private/vulkan/OgRenderContext_Vulkan.cpp)
 	list(APPEND PRIVATE_VULKAN private/vulkan/OgVulkanHelper.cpp)
+	list(APPEND PRIVATE_VULKAN private/vulkan/OgRayTracingVulkan.cpp)
 ENDIF()
 
 source_group("private\\vulkan" FILES ${PRIVATE_VULKAN})
 list(APPEND TOTAL_FILE ${PRIVATE_VULKAN})
 
 
+# Ray Tracing option
+option(OG_ENABLE_RAYTRACING "Enable Vulkan Ray Tracing" ON)
+
 add_library(render STATIC ${TOTAL_FILE})
 link_directories(${LIB_DIR})
 target_link_libraries(render PUBLIC ${VULKAN} system)
 SET_TARGET_PROPERTIES(render PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${OG_PROJECT_BINARY_DIR})
+
+# Ray Tracing definitions
+if(OG_ENABLE_RAYTRACING)
+	target_compile_definitions(render PUBLIC OG_ENABLE_RAYTRACING)
+endif()
 
 # target_compile_options(render PUBLIC -Wall)
 IF(OG_ENGINE_SHARED_LIB)

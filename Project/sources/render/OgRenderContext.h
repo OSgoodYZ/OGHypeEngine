@@ -483,6 +483,56 @@ public:
 	*/
 	virtual void Collect() = 0;
 
+	// Ray Tracing APIs
+	/**
+	* @fn OgAccelStructureHandle* CreateAccelerationStructure(const OgAccelStructureBuildInfo& buildInfo)
+	* @brief Creates a ray tracing acceleration structure (BLAS or TLAS)
+	* @param buildInfo Build information for the acceleration structure
+	* @return Handle to the created acceleration structure
+	*/
+	virtual OgAccelStructureHandle* CreateAccelerationStructure(const OgAccelStructureBuildInfo& buildInfo) = 0;
+
+	/**
+	* @fn void DestroyAccelerationStructure(OgAccelStructureHandle* accelStructure)
+	* @brief Destroys a ray tracing acceleration structure
+	* @param accelStructure Handle to the acceleration structure to destroy
+	*/
+	virtual void DestroyAccelerationStructure(OgAccelStructureHandle* accelStructure) = 0;
+
+	/**
+	* @fn void BuildAccelerationStructure(OgCommandEncoderHandle* encoder, OgAccelStructureHandle* accelStructure, const OgAccelStructureBuildInfo& buildInfo)
+	* @brief Builds or updates a ray tracing acceleration structure
+	* @param encoder Command encoder to record the build commands
+	* @param accelStructure Acceleration structure to build
+	* @param buildInfo Build information
+	*/
+	virtual void BuildAccelerationStructure(OgCommandEncoderHandle* encoder, OgAccelStructureHandle* accelStructure, const OgAccelStructureBuildInfo& buildInfo) = 0;
+
+	/**
+	* @fn OgPipelineHandle* CreateRayTracingPipeline(const OgRayTracingPipelineDescriptor& descriptor)
+	* @brief Creates a ray tracing pipeline
+	* @param descriptor Ray tracing pipeline descriptor
+	* @return Handle to the created pipeline
+	*/
+	virtual OgPipelineHandle* CreateRayTracingPipeline(const OgRayTracingPipelineDescriptor& descriptor) = 0;
+
+	/**
+	* @fn OgBufferHandle* CreateShaderBindingTable(OgPipelineHandle* pipeline, const OgRayTracingShaderGroup* groups, uint32 groupCount)
+	* @brief Creates a shader binding table for ray tracing
+	* @param pipeline Ray tracing pipeline
+	* @param groups Shader groups
+	* @param groupCount Number of shader groups
+	* @return Handle to the created shader binding table buffer
+	*/
+	virtual OgBufferHandle* CreateShaderBindingTable(OgPipelineHandle* pipeline, const OgRayTracingShaderGroup* groups, uint32 groupCount) = 0;
+
+	/**
+	* @fn bool IsRayTracingSupported()
+	* @brief Checks if ray tracing is supported on the current device
+	* @return True if ray tracing is supported, false otherwise
+	*/
+	virtual bool IsRayTracingSupported() = 0;
+
 private:
 	
 };

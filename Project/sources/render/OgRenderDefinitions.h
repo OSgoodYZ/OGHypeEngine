@@ -14,7 +14,9 @@
 
 using namespace Og::System;
 
-/*#include "OgRenderContext.h" */namespace Og { namespace Render { class OgRenderContext; } }
+/*#include "OgRenderContext.h" */namespace Og { namespace Render {
+	struct OgShaderBindingTable;
+	class OgRenderContext; } }
 
 OG_NAMESPACE_RENDER_BEGIN
 
@@ -26,6 +28,12 @@ enum class OgShaderType : uint8
 	GEOMETRY = 0x00000008,
 	FRAGMENT = 0x00000010,
 	COMPUTE = 0x00000020,
+	RAYGEN = 0x00000040,
+	ANY_HIT = 0x00000080,
+	CLOSEST_HIT = 0x00000100,
+	MISS = 0x00000200,
+	INTERSECTION = 0x00000400,
+	CALLABLE = 0x00000800,
 };
 inline OgShaderType operator|(OgShaderType a, OgShaderType b)
 {
@@ -484,7 +492,8 @@ enum class OgRenderPlatform : uint8
 enum class OgPipelineType : uint8
 {
 	GRAPHICS_PIPELINE,
-	COMPUTE_PIPELINE
+	COMPUTE_PIPELINE,
+	RAYTRACING_PIPELINE
 };
 
 // https://www.khronos.org/opengl/wiki/Sampler_(GLSL)
@@ -508,7 +517,7 @@ enum class OgSampleCountFlag : uint8
 	COUNT_64 = 0x00000040
 };
 
-// Image Buffer ±¸¼º 
+// Image Buffer ï¿½ï¿½ï¿½ï¿½ 
 enum class OgTextureType : uint8
 {
 	TEX_1D = 0,
@@ -520,7 +529,7 @@ enum class OgTextureType : uint8
 	//TEX_CUBE_ARRAY = 6,
 };
 
-// Image Buffer ¾î¶»°Ô ÀÐ´ÂÁö
+// Image Buffer ï¿½î¶»ï¿½ï¿½ ï¿½Ð´ï¿½ï¿½ï¿½
 enum class OgTextureViewType : uint8
 {
 	TEX_1D = 0,
@@ -533,19 +542,19 @@ enum class OgTextureViewType : uint8
 };
 
 // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkImageUsageFlagBits.html
-// TODO : Vulkan ±âÁØÀÌ¿´À¸³ª, GL°ú ¼¯ÀÌ¸é¼­ ´Ù¸¥ °ÍµéÀÌ »ý°åÀ½
-//        µû¶ó¼­ °¢ ÇÃ·§Æû º°·Î convert ÇÏ´Â ¸Þ¼Òµå ¸¸µé¾î¾ßÇÔ
+// TODO : Vulkan ï¿½ï¿½ï¿½ï¿½ï¿½Ì¿ï¿½ï¿½ï¿½ï¿½ï¿½, GLï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸é¼­ ï¿½Ù¸ï¿½ ï¿½Íµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+//        ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ convert ï¿½Ï´ï¿½ ï¿½Þ¼Òµï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 enum class OgTextureUsage : uint16
 {
-	GPU_LOCAL = 0x00000001,						// No data but only in GPU : »óÅÂ 
-	STAGING = 0x00000002,						// data but only in GPU : Àü¼Û ¹æ¹ý
-	SAMPLED = 0x00000004,						// data in GPU and CPU : »óÅÂ (½¦ÀÌ´õ¿¡¼­ ÀÐÀ» ¼ö ÀÖ´Ù)
-	STORAGE = 0x00000008,						// »óÅÂ
-	COLOR_ATTACHMENT = 0x00000010,				//		0001 0000	: Layout (»óÅÂ)
-	DEPTH_ATTACHMENT = 0x00000020,				//		0010 0000	: Layout (»óÅÂ)
-	STENCIL_ATTACHMENT = 0x00000040,			//		0100 0000	: Layout (»óÅÂ)
-	DEPTH_STENCIL_ATTACHMENT = 0x00000080,		//		1000 0000	: Layout (»óÅÂ)
-	TRANSIENT_ATTACHMENT = 0x00000100			// 0001 0000 0000	: Layout (»óÅÂ)
+	GPU_LOCAL = 0x00000001,						// No data but only in GPU : ï¿½ï¿½ï¿½ï¿½ 
+	STAGING = 0x00000002,						// data but only in GPU : ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+	SAMPLED = 0x00000004,						// data in GPU and CPU : ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½Ì´ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö´ï¿½)
+	STORAGE = 0x00000008,						// ï¿½ï¿½ï¿½ï¿½
+	COLOR_ATTACHMENT = 0x00000010,				//		0001 0000	: Layout (ï¿½ï¿½ï¿½ï¿½)
+	DEPTH_ATTACHMENT = 0x00000020,				//		0010 0000	: Layout (ï¿½ï¿½ï¿½ï¿½)
+	STENCIL_ATTACHMENT = 0x00000040,			//		0100 0000	: Layout (ï¿½ï¿½ï¿½ï¿½)
+	DEPTH_STENCIL_ATTACHMENT = 0x00000080,		//		1000 0000	: Layout (ï¿½ï¿½ï¿½ï¿½)
+	TRANSIENT_ATTACHMENT = 0x00000100			// 0001 0000 0000	: Layout (ï¿½ï¿½ï¿½ï¿½)
 };
 
 inline bool operator!=(OgTextureUsage a, uint16 b)
@@ -1034,7 +1043,7 @@ public:
 		case OgPixelFormat::R32G32B32A32_SFLOAT:
 			return 4;
 
-			// The Pixel Count of Depth Stencil Buffer will be 1 (ÃßÃø)
+			// The Pixel Count of Depth Stencil Buffer will be 1 (ï¿½ï¿½ï¿½ï¿½)
 		case OgPixelFormat::D24_UNORM_S8_UINT:
 		case OgPixelFormat::D32_SFLOAT_S8_UINT:
 			return 1;
@@ -1055,7 +1064,7 @@ public:
 		case OgPixelFormat::D16_UNORM_S8_UINT:
 			return 2;
 
-		case OgPixelFormat::X8_D24_UNORM_PACK32: // VulkanÀº Only-Depth24°¡ ¾øÀ½. GLÀº D24¸¸ Áö¿øÇÏ´Â°Ô ÀÖÀ½.
+		case OgPixelFormat::X8_D24_UNORM_PACK32: // Vulkanï¿½ï¿½ Only-Depth24ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½. GLï¿½ï¿½ D24ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´Â°ï¿½ ï¿½ï¿½ï¿½ï¿½.
 		case OgPixelFormat::D24_UNORM_S8_UINT:
 			return 3;
 
@@ -1490,6 +1499,10 @@ enum class OgBufferUsage : uint8
 	UNIFORM = 0x00000010,
 	INDEX = 0x00000040,
 	VERTEX = 0x00000080,
+	STORAGE = 0x00000100,
+	SHADER_DEVICE_ADDRESS = 0x00000200,
+	ACCEL_STRUCTURE_BUILD_INPUT = 0x00000400,
+	ACCEL_STRUCTURE_STORAGE = 0x00000800,
 };
 
 enum class OgMemoryLayout : uint8
@@ -1516,7 +1529,8 @@ enum class OgHandleType : uint8
 	RESOURCE_LAYOUT,
 	RESOURCE_SET,
 	PIPELINE,
-	COMMAND_ENCODER
+	COMMAND_ENCODER,
+	ACCEL_STRUCTURE
 };
 
 class OG_API OgHandle
@@ -1815,7 +1829,7 @@ struct OG_API OgSamplerInfo
 
 	OgSamplerAddressMode addressU : 4;
 
-	// TODO : Vulkan ¿¡¼­´Â V ¸¦ Repeat À¸·Î ÇØ¾ß Àß ³ª¿Â´Ù. ÇØ°áÇØ¾ßÇÔ.
+	// TODO : Vulkan ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ V ï¿½ï¿½ Repeat ï¿½ï¿½ï¿½ï¿½ ï¿½Ø¾ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Â´ï¿½. ï¿½Ø°ï¿½ï¿½Ø¾ï¿½ï¿½ï¿½.
 	OgSamplerAddressMode addressV : 4;				// 1 byte
 
 	OgSamplerAddressMode addressW : 4;
@@ -1942,7 +1956,7 @@ struct OG_API OgRenderPassInfo
 	uint32 GetHashCode() const;
 
 	/* TODO :	Subpass Desccription/Dependency Implementation
-		Subpass ±¸Á¶¸¦ ¸í½ÃÇÒ(VkSubpassDescription) ¶Ç ´Ù¸¥ Å¬·¡½º ÇÊ¿ä
+		Subpass ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(VkSubpassDescription) ï¿½ï¿½ ï¿½Ù¸ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½
 		list<uint> inputColorAttachmentIndices;
 		uint inputDepthStencilAttachmentIndex;
 		bool useInputDepthStencil;
@@ -1950,7 +1964,7 @@ struct OG_API OgRenderPassInfo
 		uint resoOgeDepthStencilAttachmentIndex;
 		bool useResoOgeDepthStencil;
 	*/
-	// ¾Æ¸¶ Subpass·Î »ç¿ëµÉ??
+	// ï¿½Æ¸ï¿½ Subpassï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½??
 	/*
 	struct Iterator
 	{
@@ -2025,12 +2039,12 @@ struct OG_API OgFrameBufferHandle : OgHandle
 
 	bool isSwapchainFrameBuffer;
 
-	OgFrameBufferInfo framebufferInfo;			// Offscreen Framebuffer¿ë Á¤º¸
+	OgFrameBufferInfo framebufferInfo;			// Offscreen Framebufferï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-	// TODO: ÀÛ¾÷ÇÏ±â ÀüÀÓ 21.11.07
+	// TODO: ï¿½Û¾ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½ 21.11.07
 	OgFrameBufferHandle();
 	OgFrameBufferHandle(uint32 useDepthStencil, uint32  width, uint32 height);
-	OgFrameBufferHandle(const OgFrameBufferInfo& info); // Offscreen FraameBuffer ¿ë »ý¼ºÀÚ
+	OgFrameBufferHandle(const OgFrameBufferInfo& info); // Offscreen FraameBuffer ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 	~OgFrameBufferHandle();
 
@@ -2151,9 +2165,9 @@ struct OG_API OgResourceBinding
 
 	uint16					binding;	// Similar to (binding = 0) on GLSL
 
-	uint16					arrayCount;	// array°¡ ¾Æ´Ï¶ó¸é 0À¸·Î ¼³Á¤µÇ¾î¾ß ÇÏ°í, array([n])ÀÌ¶ó¸é 1 ÀÌ»óÀ¸·Î ¼³Á¤µÇ¾î¾ß ÇÑ´Ù.
+	uint16					arrayCount;	// arrayï¿½ï¿½ ï¿½Æ´Ï¶ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ ï¿½Ï°ï¿½, array([n])ï¿½Ì¶ï¿½ï¿½ 1 ï¿½Ì»ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ ï¿½Ñ´ï¿½.
 
-	const char*				name;		// Uniform Texture Name / Assume name is a literal (name = "something"). GLES3 Platform¿¡ ÀÇÇØ Ç×»ó À¯ÁöµÇ¾î¾ß ÇÑ´Ù.
+	const char*				name;		// Uniform Texture Name / Assume name is a literal (name = "something"). GLES3 Platformï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½×»ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ ï¿½Ñ´ï¿½.
 
 	OgResourceBinding();
 	OgResourceBinding(const OgResourceBinding& o)
@@ -2260,7 +2274,7 @@ struct OG_API OgColorBlendDescriptor
 struct OG_API OgShaderDescriptor
 {
 	OgProgramHandle*	program;
-	OgShaderHandle*		shaders[2];	// @Chan : ¸¸¾à Vertex/Fragment¸»°í Geometry/TesellationµîÀ» ¾²°Ô µÈ´Ù¸é ÀÌ°ÍÀ» ´õ ´Ã¸®¸é µÈ´Ù.
+	OgShaderHandle*		shaders[2];	// @Chan : ï¿½ï¿½ï¿½ï¿½ Vertex/Fragmentï¿½ï¿½ï¿½ï¿½ Geometry/Tesellationï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½È´Ù¸ï¿½ ï¿½Ì°ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ã¸ï¿½ï¿½ï¿½ ï¿½È´ï¿½.
 	uint32				shaderCount;
 
 	OgShaderDescriptor();
@@ -2351,8 +2365,8 @@ struct OG_API OgCommandEncoderHandle : OgHandle
 
 	virtual void SetScissor(const int32 x, const int32 y, const uint32 width, const uint32 height) = 0;
 
-	// Clear Color¿¡ »ç¿ëµÇ´Â °ªÀ» ¸ðµÎ 0 ~ 1»çÀÌÀÇ °ªÀ¸·Î ÀÛÀº precisionÀ» »ç¿ëÇØµµ µÈ´Ù.
-	// µû¶ó¼­ ³Ö¾îÁÙ ¶§, type casting¸¸ ÇÏ¸éµÈ´Ù.
+	// Clear Colorï¿½ï¿½ ï¿½ï¿½ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ 0 ~ 1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ precisionï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Øµï¿½ ï¿½È´ï¿½.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¾ï¿½ï¿½ï¿½ ï¿½ï¿½, type castingï¿½ï¿½ ï¿½Ï¸ï¿½È´ï¿½.
 	union ClearValue
 	{
 		struct
@@ -2411,6 +2425,11 @@ struct OG_API OgCommandEncoderHandle : OgHandle
 
 	virtual void EndDebugMarker() = 0;
 
+	// Ray Tracing Commands
+	virtual void BindRayTracingPipeline(const OgPipelineHandle* pipeline) = 0;
+
+	virtual void TraceRays(const OgShaderBindingTable& sbt, uint32 width, uint32 height, uint32 depth) = 0;
+
 	virtual void End() = 0;
 };
 
@@ -2454,6 +2473,143 @@ inline const char* og_get_command_type_string(OgCommandType e)
 
 	return "Invaild Enum";
 }
+
+// Ray Tracing Structures
+enum class OgAccelStructureType : uint8
+{
+	TOP_LEVEL,
+	BOTTOM_LEVEL
+};
+
+enum class OgGeometryType : uint8  
+{
+	TRIANGLES,
+	AABBS,
+	INSTANCES
+};
+
+enum class OgRayTracingBuildFlag : uint8
+{
+	PREFER_FAST_TRACE = 0x00000001,
+	PREFER_FAST_BUILD = 0x00000002,
+	ALLOW_UPDATE = 0x00000004,
+	ALLOW_COMPACTION = 0x00000008
+};
+
+inline OgRayTracingBuildFlag operator|(OgRayTracingBuildFlag a, OgRayTracingBuildFlag b)
+{
+	return static_cast<OgRayTracingBuildFlag>(static_cast<uint8>(a) | static_cast<uint8>(b));
+}
+
+inline OgRayTracingBuildFlag operator&(OgRayTracingBuildFlag a, OgRayTracingBuildFlag b)
+{
+	return static_cast<OgRayTracingBuildFlag>(static_cast<uint8>(a) & static_cast<uint8>(b));
+}
+
+struct OG_API OgAccelStructureGeometry
+{
+	OgGeometryType type;
+	OgBufferHandle* vertexBuffer;
+	OgBufferHandle* indexBuffer;
+	OgIndexType indexType;
+	uint32 vertexStride;
+	uint32 vertexCount;
+	uint32 indexCount;
+	uint32 vertexOffset;
+	uint32 indexOffset;
+	uint32 transformOffset; // Offset in transform buffer
+};
+
+struct OG_API OgAccelStructureInstance  
+{
+	float transform[12]; // 3x4 transform matrix
+	uint32 instanceId;
+	uint32 mask;
+	uint32 instanceShaderBindingTableRecordOffset;
+	uint32 flags;
+	uint64 accelerationStructureReference;
+};
+
+struct OG_API OgAccelStructureBuildInfo
+{
+	OgAccelStructureType type;
+	OgRayTracingBuildFlag flags;
+	union
+	{
+		struct
+		{
+			OgAccelStructureGeometry* geometries;
+			uint32 geometryCount;
+		} bottomLevel;
+		
+		struct  
+		{
+			OgBufferHandle* instanceBuffer;
+			uint32 instanceCount;
+		} topLevel;
+	};
+};
+
+struct OG_API OgAccelStructureHandle : public OgHandle
+{
+	OgAccelStructureHandle();
+	~OgAccelStructureHandle();
+	
+	OgAccelStructureType type;
+	uint64 deviceAddress; // For use in shaders
+};
+
+struct OG_API OgRayTracingShaderGroup
+{
+	enum Type : uint8
+	{
+		GENERAL,
+		TRIANGLES_HIT_GROUP,
+		PROCEDURAL_HIT_GROUP
+	};
+	
+	Type type;
+	uint32 generalShader;
+	uint32 closestHitShader;
+	uint32 anyHitShader;
+	uint32 intersectionShader;
+};
+
+struct OG_API OgRayTracingPipelineDescriptor
+{
+	OgPipelineType type; // Should be RAYTRACING_PIPELINE
+	const char* name;
+	OgResourceLayoutHandle* resourceLayout;
+	OgShaderHandle** shaders;
+	uint32 shaderCount;
+	OgRayTracingShaderGroup* shaderGroups;
+	uint32 shaderGroupCount;
+	uint32 maxRecursionDepth;
+};
+
+struct OG_API OgShaderBindingTable
+{
+	OgBufferHandle* raygenShaderBindingTable;
+	OgBufferHandle* missShaderBindingTable;
+	OgBufferHandle* hitShaderBindingTable;
+	OgBufferHandle* callableShaderBindingTable;
+	
+	uint32 raygenShaderBindingOffset;
+	uint32 raygenShaderBindingStride;
+	uint32 raygenShaderBindingSize;
+	
+	uint32 missShaderBindingOffset;
+	uint32 missShaderBindingStride;
+	uint32 missShaderBindingSize;
+	
+	uint32 hitShaderBindingOffset;
+	uint32 hitShaderBindingStride;
+	uint32 hitShaderBindingSize;
+	
+	uint32 callableShaderBindingOffset;
+	uint32 callableShaderBindingStride;
+	uint32 callableShaderBindingSize;
+};
 
 	
 OG_NAMESPACE_RENDER_END
