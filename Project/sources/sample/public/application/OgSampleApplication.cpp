@@ -2,6 +2,7 @@
 #include "render/private/vulkan/OgRenderContext_Vulkan.h"
 #include "sample/public/core/OgTriangleSample.h"
 #include "sample/public/core/OgModelSample.h"
+#include "sample/public/core/OgComputeSample.h"
 
 OG_NAMESPACE_SAMPLE_BEGIN
 
@@ -71,6 +72,10 @@ void OgSampleApplication::createMainWindow()
     // 다른 샘플들도 사용 가능:
     // auto triangleSample = std::make_unique<OgTriangleSample>(_renderContext.get());
     // window->SetSample(std::move(triangleSample));
+    
+    // Compute Shader 샘플:
+     //auto computeSample = std::make_unique<OgComputeSample>(_renderContext.get());
+     //window->SetSample(std::move(computeSample));
     
     // 윈도우 열기
     window->Open();
