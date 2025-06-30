@@ -386,6 +386,22 @@ struct OgGraphicsPipelineVK : OgPipelineHandle
 	VkPipeline pipeline;
 };
 
+struct OgComputePipelineVK : OgPipelineHandle
+{
+	OgComputePipelineVK() = delete;
+
+	OgComputePipelineVK(const OgPipelineDescriptor& descriptor)
+		: OgPipelineHandle(descriptor),
+		pipelineCache(VK_NULL_HANDLE), pipelineLayout(VK_NULL_HANDLE), pipeline(VK_NULL_HANDLE)
+	{ }
+
+	~OgComputePipelineVK() { }
+
+	VkPipelineCache pipelineCache;
+	VkPipelineLayout pipelineLayout;
+	VkPipeline pipeline;
+};
+
 struct OgResourceLayoutVK : OgResourceLayoutHandle
 {
 	OgResourceLayoutVK() = delete;
@@ -680,6 +696,7 @@ struct OgCommandEncoderVK : public OgCommandEncoderHandle
 	OgRenderPassVK* curBindRenderPass;
 	OgFrameBufferHandle* curBindFramebuffer;
 	OgGraphicsPipelineVK* curBindPipeline;
+	OgComputePipelineVK* curBindComputePipeline;
 	OgRayTracingPipelineVK* curBindRayTracingPipeline;
 	VkIndexType curBindIndexBufferType;
 
@@ -734,6 +751,20 @@ struct OgCommandEncoderVK : public OgCommandEncoderHandle
 	void TraceRays(const OgShaderBindingTable& sbt, uint32 width, uint32 height, uint32 depth) override;
 
 	void End() override;
+
+	// Compute shader related implementations
+	void BindComputePipeline(const OgPipelineHandle* pipeline) override;
+
+	void Dispatch(const uint32 groupCountX, const uint32 groupCountY, const uint32 groupCountZ) override;
+
+	void DispatchIndirect(const OgBufferHandle* buffer, const uint32 offset) override;
+
+	void MemoryBarrier(
+		const uint32 srcAccessMask,
+		const uint32 dstAccessMask,
+		const uint32 srcStageMask,
+		const uint32 dstStageMask
+	) override;
 };
 
 OG_NAMESPACE_RENDER_END

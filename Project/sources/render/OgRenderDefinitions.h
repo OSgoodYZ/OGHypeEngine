@@ -454,6 +454,9 @@ enum class OgCommandType : uint8
 	DRAW_ARRAYS,
 	BEGIN_DEBUG_MARKER,
 	END_DEBUG_MARKER,
+	DISPATCH,
+	BIND_COMPUTE_PIPELINE,
+	MEMORY_BARRIER,
 };
 
 inline const char* Og_get_command_type_string(OgCommandType e)
@@ -542,19 +545,19 @@ enum class OgTextureViewType : uint8
 };
 
 // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkImageUsageFlagBits.html
-// TODO : Vulkan �����̿�����, GL�� ���̸鼭 �ٸ� �͵��� ������
-//        ���� �� �÷��� ���� convert �ϴ� �޼ҵ� ��������
 enum class OgTextureUsage : uint16
 {
-	GPU_LOCAL = 0x00000001,						// No data but only in GPU : ���� 
-	STAGING = 0x00000002,						// data but only in GPU : ���� ���
-	SAMPLED = 0x00000004,						// data in GPU and CPU : ���� (���̴����� ���� �� �ִ�)
-	STORAGE = 0x00000008,						// ����
-	COLOR_ATTACHMENT = 0x00000010,				//		0001 0000	: Layout (����)
-	DEPTH_ATTACHMENT = 0x00000020,				//		0010 0000	: Layout (����)
-	STENCIL_ATTACHMENT = 0x00000040,			//		0100 0000	: Layout (����)
-	DEPTH_STENCIL_ATTACHMENT = 0x00000080,		//		1000 0000	: Layout (����)
-	TRANSIENT_ATTACHMENT = 0x00000100			// 0001 0000 0000	: Layout (����)
+	GPU_LOCAL = 0x00000001,						// No data but only in GPU : 상태 
+	STAGING = 0x00000002,						// data but only in GPU : 전송 방법
+	SAMPLED = 0x00000004,						// data in GPU and CPU : 상태 (쉐이더에서 읽을 수 있다)
+	STORAGE = 0x00000008,						// 상태
+	COLOR_ATTACHMENT = 0x00000010,				//		0001 0000	: Layout (상태)
+	DEPTH_ATTACHMENT = 0x00000020,				//		0010 0000	: Layout (상태)
+	STENCIL_ATTACHMENT = 0x00000040,			//		0100 0000	: Layout (상태)
+	DEPTH_STENCIL_ATTACHMENT = 0x00000080,		//		1000 0000	: Layout (상태)
+	TRANSIENT_ATTACHMENT = 0x00000100,			// 0001 0000 0000	: Layout (상태)
+	COMPUTE_READ = 0x00000200,					// 0010 0000 0000	: Compute shader read access
+	COMPUTE_WRITE = 0x00000400					// 0100 0000 0000	: Compute shader write access
 };
 
 inline bool operator!=(OgTextureUsage a, uint16 b)
@@ -1494,16 +1497,70 @@ enum class OgMemoryOption : uint8
 	STAGING
 };
 
-enum class OgBufferUsage : uint8
+enum class OgBufferUsage : uint16
 {
 	UNIFORM = 0x00000010,
 	INDEX = 0x00000040,
 	VERTEX = 0x00000080,
-	STORAGE = 0x00000100,
-	SHADER_DEVICE_ADDRESS = 0x00000200,
-	ACCEL_STRUCTURE_BUILD_INPUT = 0x00000400,
-	ACCEL_STRUCTURE_STORAGE = 0x00000800,
+	STORAGE = 0x00000100,	// For compute shader storage buffer
+	INDIRECT = 0x00000200,	// For indirect draw/dispatch
+	SHADER_DEVICE_ADDRESS = 0x00000400,
+	ACCEL_STRUCTURE_BUILD_INPUT = 0x00000800,
+	ACCEL_STRUCTURE_STORAGE = 0x00001000,
 };
+
+// Memory barrier flags for compute shader synchronization
+enum class OgAccessFlag : uint32
+{
+	NONE = 0,
+	INDIRECT_COMMAND_READ = 0x00000001,
+	INDEX_READ = 0x00000002,
+	VERTEX_ATTRIBUTE_READ = 0x00000004,
+	UNIFORM_READ = 0x00000008,
+	INPUT_ATTACHMENT_READ = 0x00000010,
+	SHADER_READ = 0x00000020,
+	SHADER_WRITE = 0x00000040,
+	COLOR_ATTACHMENT_READ = 0x00000080,
+	COLOR_ATTACHMENT_WRITE = 0x00000100,
+	DEPTH_STENCIL_ATTACHMENT_READ = 0x00000200,
+	DEPTH_STENCIL_ATTACHMENT_WRITE = 0x00000400,
+	TRANSFER_READ = 0x00000800,
+	TRANSFER_WRITE = 0x00001000,
+	HOST_READ = 0x00002000,
+	HOST_WRITE = 0x00004000,
+};
+
+inline OgAccessFlag operator|(OgAccessFlag a, OgAccessFlag b)
+{
+	return static_cast<OgAccessFlag>(static_cast<uint32>(a) | static_cast<uint32>(b));
+}
+
+enum class OgPipelineStageFlag : uint32
+{
+	NONE = 0,
+	TOP_OF_PIPE = 0x00000001,
+	DRAW_INDIRECT = 0x00000002,
+	VERTEX_INPUT = 0x00000004,
+	VERTEX_SHADER = 0x00000008,
+	TESSELLATION_CONTROL_SHADER = 0x00000010,
+	TESSELLATION_EVALUATION_SHADER = 0x00000020,
+	GEOMETRY_SHADER = 0x00000040,
+	FRAGMENT_SHADER = 0x00000080,
+	EARLY_FRAGMENT_TESTS = 0x00000100,
+	LATE_FRAGMENT_TESTS = 0x00000200,
+	COLOR_ATTACHMENT_OUTPUT = 0x00000400,
+	COMPUTE_SHADER = 0x00000800,
+	TRANSFER = 0x00001000,
+	BOTTOM_OF_PIPE = 0x00002000,
+	HOST = 0x00004000,
+	ALL_GRAPHICS = 0x00008000,
+	ALL_COMMANDS = 0x00010000,
+};
+
+inline OgPipelineStageFlag operator|(OgPipelineStageFlag a, OgPipelineStageFlag b)
+{
+	return static_cast<OgPipelineStageFlag>(static_cast<uint32>(a) | static_cast<uint32>(b));
+}
 
 enum class OgMemoryLayout : uint8
 {
@@ -2431,6 +2488,21 @@ struct OG_API OgCommandEncoderHandle : OgHandle
 	virtual void TraceRays(const OgShaderBindingTable& sbt, uint32 width, uint32 height, uint32 depth) = 0;
 
 	virtual void End() = 0;
+
+	// Compute shader related methods
+	virtual void BindComputePipeline(const OgPipelineHandle* pipeline) = 0;
+
+	virtual void Dispatch(const uint32 groupCountX, const uint32 groupCountY, const uint32 groupCountZ) = 0;
+
+	virtual void DispatchIndirect(const OgBufferHandle* buffer, const uint32 offset) = 0;
+
+	// Memory barrier for synchronization
+	virtual void MemoryBarrier(
+		const uint32 srcAccessMask,
+		const uint32 dstAccessMask,
+		const uint32 srcStageMask,
+		const uint32 dstStageMask
+	) = 0;
 };
 
 struct OG_API OgResourceSetPool

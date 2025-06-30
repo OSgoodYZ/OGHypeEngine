@@ -30,6 +30,8 @@ set(PUBLIC_CORE
 	public/core/OgTriangleSample.cpp
 	public/core/OgModelSample.h
 	public/core/OgModelSample.cpp
+	public/core/OgComputeSample.h
+	public/core/OgComputeSample.cpp
 	)
 source_group("public\\core" FILES ${PUBLIC_CORE})
 list(APPEND TOTAL_FILE ${PUBLIC_CORE})

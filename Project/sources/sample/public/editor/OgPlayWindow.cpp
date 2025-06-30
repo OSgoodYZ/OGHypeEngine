@@ -1,6 +1,7 @@
 #include "OgPlayWindow.h"
 #include "sample/public/core/OgTriangleSample.h"
 #include "sample/public/core/OgModelSample.h"
+#include "sample/public/core/OgComputeSample.h"
 #include "system/OgSystemContext.h"
 #include "system/OgInput.h"
 #include <algorithm>
@@ -616,7 +617,13 @@ void OgSampleViewerWindow::renderDebugInfo()
 		{
 			ImGui::Text("Sample Information");
 			ImGui::Separator();
-			ImGui::Text("Type: %s", _currentSampleIndex == 0 ? "Triangle" : "glTF Model");
+			const char* sampleType = "Unknown";
+			switch (_currentSampleIndex) {
+			case 0: sampleType = "Triangle"; break;
+			case 1: sampleType = "glTF Model"; break;
+			case 2: sampleType = "Compute"; break;
+			}
+			ImGui::Text("Type: %s", sampleType);
 			ImGui::Text("Render Target: %u x %u", 
 				sample->GetRenderTargetWidth(), 
 				sample->GetRenderTargetHeight());
@@ -653,7 +660,8 @@ void OgSampleViewerWindow::renderSampleSelector()
 	{
 		const char* sampleNames[] = {
 			"Triangle Sample",
-			"GLTF Model Sample"
+			"GLTF Model Sample",
+			"Compute Sample"
 		};
 		
 		ImGui::Text("Available Samples");
@@ -705,6 +713,12 @@ void OgSampleViewerWindow::renderSampleSelector()
 			ImGui::BulletText("Y-axis rotation animation");
 			ImGui::BulletText("Mouse & keyboard input");
 			break;
+		case 2:
+			ImGui::TextWrapped("Compute Sample");
+			ImGui::BulletText("Compute shader demo");
+			ImGui::BulletText("GPU computation");
+			ImGui::BulletText("Texture processing");
+			break;
 		}
 		
 		ImGui::PopTextWrapPos();
@@ -749,6 +763,9 @@ void OgSampleViewerWindow::switchSample(int index)
 		break;
 	case 1:
 		newSample = std::make_unique<OgModelSample>(_renderContext);
+		break;
+	case 2:
+		newSample = std::make_unique<OgComputeSample>(_renderContext);
 		break;
 	default:
 		return;
