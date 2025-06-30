@@ -2881,6 +2881,7 @@ OgResourceLayoutHandle::OgResourceLayoutHandle(OgResourceBinding* inputBindings,
 			switch (bindings[i].type)
 			{
 			case OgResourceType::UNIFORM_BUFFER:
+			case OgResourceType::STORAGE_BUFFER:
 			{
 				++bufferUsageCount;
 
@@ -2976,6 +2977,7 @@ OgResourceSetHandle::OgResourceSetHandle(OgResourceUsage* usages, uint32 usageCo
 			switch (srcUsage.binding.type)
 			{
 			case OgResourceType::UNIFORM_BUFFER:
+			case OgResourceType::STORAGE_BUFFER:
 			{
 				destUsage.buffer.handle = (OgBufferHandle**)og_malloc((sizeof(OgBufferHandle*) + sizeof(uint32) + sizeof(uint32)) * count);
 				destUsage.buffer.offset = (uint32*)(((uint8*)destUsage.buffer.handle) + sizeof(OgBufferHandle*) * count);

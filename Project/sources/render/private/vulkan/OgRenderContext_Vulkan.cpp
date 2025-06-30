@@ -477,11 +477,13 @@ void OgRenderContextVulkan::initDescriptorPool()
 
 	// Manual Initialize for VkDescriptorPool
 	// 나중에 이것을 관리하는 DescriptorPool Manager를 만들어야 함.
-	vector<VkDescriptorPoolSize> poolSizes(2);
+	vector<VkDescriptorPoolSize> poolSizes(3);
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = _maxUniformBufferFromPool;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = _maxTextureFromPool;
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	poolSizes[2].descriptorCount = _maxUniformBufferFromPool; // Storage buffer와 uniform buffer 개수를 동일하게 설정
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo;
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -2416,6 +2418,34 @@ void OgRenderContextVulkan::buildResourceSet(OgResourceSetVK* rSet)
 			writeDescriptorSet.pTexelBufferView = nullptr;
 
 			++textureIndex;
+			break;
+		}
+		case OgResourceType::STORAGE_BUFFER:
+		{
+			OgVector<VkDescriptorBufferInfo>& bufferInfoArray = bufferInfos[bufferIndex];
+
+			bufferInfoArray.Resize(count);
+			for (uint16 infoArrayIndex = 0; infoArrayIndex < count; ++infoArrayIndex)
+			{
+				OgBufferVK* ref = reinterpret_cast<OgBufferVK*>(rUsage.buffer.handle[infoArrayIndex]);
+				bufferInfoArray[infoArrayIndex].buffer = ref->bufferVK;
+				bufferInfoArray[infoArrayIndex].offset = rUsage.buffer.offset[infoArrayIndex] + ref->innerOffset;
+				bufferInfoArray[infoArrayIndex].range = rUsage.buffer.range[infoArrayIndex];
+			}
+
+			writeDescriptorSets[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			VkWriteDescriptorSet& writeDescriptorSet = writeDescriptorSets[i];
+			writeDescriptorSet.pNext = nullptr;
+			writeDescriptorSet.dstSet = rSet->descriptorSetVK;
+			writeDescriptorSet.dstBinding = rUsage.binding.binding;
+			writeDescriptorSet.dstArrayElement = 0;
+			writeDescriptorSet.descriptorCount = count;
+			writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			writeDescriptorSet.pImageInfo = nullptr;
+			writeDescriptorSet.pBufferInfo = bufferInfoArray.Data();
+			writeDescriptorSet.pTexelBufferView = nullptr;
+
+			++bufferIndex;
 			break;
 		}
 		default:

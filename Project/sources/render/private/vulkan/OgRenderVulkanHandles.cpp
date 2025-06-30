@@ -191,15 +191,36 @@ void OgCommandEncoderVK::BindPipeline(const OgPipelineHandle* pipeline)
 
 void OgCommandEncoderVK::BindResourceSet(const OgResourceSetHandle* rSet)
 {
-	OG_CHECK(curBindRenderPass != nullptr && curBindFramebuffer != nullptr, "%s encording has to use after BeginRenderpass encoding.", og_get_command_type_string(OgCommandType::BIND_RESOURCESET));
-	OG_CHECK(curBindPipeline != nullptr, "There is no pipeline to be bound for resource set");
 	OG_CHECK(rSet != nullptr, "ResourceSet is nullptr");
 
 	OgResourceSetVK* rSetVK = (OgResourceSetVK*)rSet;
 
-	OG_CHECK(IsCompatible(rSetVK->resourceLayoutVK, curBindPipeline->resourceLayout), "Invalid Compatible ResourceSet With Pipeline Layout");
+	// Check if we're in a render pass (graphics pipeline)
+	if (curBindRenderPass != nullptr && curBindFramebuffer != nullptr)
+	{
+		OG_CHECK(curBindPipeline != nullptr, "There is no graphics pipeline to be bound for resource set");
+		OG_CHECK(IsCompatible(rSetVK->resourceLayoutVK, curBindPipeline->resourceLayout), "Invalid Compatible ResourceSet With Pipeline Layout");
 
-	vkCmdBindDescriptorSets(cmdBufferVK, VK_PIPELINE_BIND_POINT_GRAPHICS, curBindPipeline->pipelineLayout, 0, 1, &rSetVK->descriptorSetVK, 0, NULL);
+		vkCmdBindDescriptorSets(cmdBufferVK, VK_PIPELINE_BIND_POINT_GRAPHICS, curBindPipeline->pipelineLayout, 0, 1, &rSetVK->descriptorSetVK, 0, NULL);
+	}
+	// Check if we're using compute pipeline
+	else if (curBindComputePipeline != nullptr)
+	{
+		OG_CHECK(IsCompatible(rSetVK->resourceLayoutVK, curBindComputePipeline->resourceLayout), "Invalid Compatible ResourceSet With Compute Pipeline Layout");
+
+		vkCmdBindDescriptorSets(cmdBufferVK, VK_PIPELINE_BIND_POINT_COMPUTE, curBindComputePipeline->pipelineLayout, 0, 1, &rSetVK->descriptorSetVK, 0, NULL);
+	}
+	// Check if we're using ray tracing pipeline
+	else if (curBindRayTracingPipeline != nullptr)
+	{
+		OG_CHECK(IsCompatible(rSetVK->resourceLayoutVK, curBindRayTracingPipeline->resourceLayout), "Invalid Compatible ResourceSet With Ray Tracing Pipeline Layout");
+
+		vkCmdBindDescriptorSets(cmdBufferVK, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, curBindRayTracingPipeline->pipelineLayout, 0, 1, &rSetVK->descriptorSetVK, 0, NULL);
+	}
+	else
+	{
+		OG_CHECK(false, "No pipeline bound for resource set binding");
+	}
 }
 
 void OgCommandEncoderVK::BindVertexBuffers(const OgBufferHandle* const * vertexBuffers, const  uint32* offsets, const  uint8 bufferCount)
