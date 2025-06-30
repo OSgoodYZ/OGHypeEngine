@@ -17,6 +17,8 @@ OG_NAMESPACE_SAMPLE_BEGIN
 
 // Forward declarations
 class OgModelSample;
+class OgComputeSample;
+class OgTriangleSample;
 
 /**
  * @brief ImGui를 사용하는 플레이 윈도우
@@ -50,17 +52,26 @@ protected:
 	// UI 렌더링 (서브클래스에서 오버라이드)
 	virtual void onRenderUI() {}
 
+	// 샘플별 처리 메서드
+	void handleSampleSpecificInit();
+	bool shouldRenderSample() const;
+	void handleSampleSpecificEvent(const OgNativeEvent& evt, const ImGuiIO& io);
+
+	// 샘플별 이벤트 핸들러
+	void handleModelSampleEvent(OgModelSample* modelSample, const OgNativeEvent& evt, const ImGuiIO& io);
+	void handleComputeSampleEvent(OgComputeSample* computeSample, const OgNativeEvent& evt, const ImGuiIO& io);
+
 protected:
-	// 모델 브라우저 표시 여부 (서브클래스에서 접근 가능)
+	// 브라우저 표시 여부 (서브클래스에서 접근 가능)
 	bool _showModelBrowser = false;
+	std::unique_ptr<OgSampleBase> _currentSample;
 
 private:
 	// ImGui 렌더러
 	std::unique_ptr<OgImguiRenderer> _imguiRenderer;
 	bool _imguiWin32Initialized = false;
 
-	// 현재 샘플
-	std::unique_ptr<OgSampleBase> _currentSample;
+	
 	
 };
 
@@ -79,19 +90,38 @@ protected:
 	void onRenderUI() override;
 
 private:
+	// UI 렌더링 메서드들
 	void renderSampleViewer();
 	void renderDebugInfo();
 	void renderSampleSelector();
-	void renderLightControls();
-	void renderModelBrowser();
+	void renderSampleControls();
+	void renderSampleBrowser();
+
+	// 샘플별 뷰어 렌더링
+	void renderModelSampleViewer(OgModelSample* modelSample);
+	void renderComputeSampleViewer(OgComputeSample* computeSample);
+	void renderTriangleSampleViewer(OgTriangleSample* triangleSample);
+	void renderDefaultViewer(OgSampleBase* sample);
+	void renderSampleImage(OgSampleBase* sample);
+
+	// 샘플별 컨트롤 렌더링
+	void renderLightControls(OgModelSample* modelSample);
+	void renderComputeControls(OgComputeSample* computeSample);
+	void renderTriangleControls(OgTriangleSample* triangleSample);
+
+	// 샘플별 브라우저 렌더링
+	void renderModelBrowser(OgModelSample* modelSample);
+
+	// 헬퍼 메서드들
 	void switchSample(int index);
-	
-	int _currentSampleIndex = 1; // 기본은 FBX 샘플
-	
-	// renderLightGizmos, drawArrow 함수는 renderLightControls로 통합되어 제거됨
-	
-	// XYZ 축 기즘모 렌더링
+	bool shouldShowBrowserPanel() const;
+	void renderSampleControlsInfo();
+	void resetCurrentSample();
+
+	// XYZ 축 기즈모 렌더링
 	void renderXYZGizmo(ImVec2 imagePos, ImVec2 imageSize);
+
+	int _currentSampleIndex = 1; // 기본은 Model 샘플
 };
 
 OG_NAMESPACE_SAMPLE_END
