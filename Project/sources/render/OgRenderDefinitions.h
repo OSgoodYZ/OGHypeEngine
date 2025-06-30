@@ -1058,7 +1058,7 @@ public:
 		case OgPixelFormat::D16_UNORM_S8_UINT:
 			return 2;
 
-		case OgPixelFormat::X8_D24_UNORM_PACK32: // Vulkan�� Only-Depth24�� ����. GL�� D24�� �����ϴ°� ����.
+		case OgPixelFormat::X8_D24_UNORM_PACK32: // Vulkan은 Only-Depth24가 없음. GL은 D24만 지원하는게 있음.
 		case OgPixelFormat::D24_UNORM_S8_UINT:
 			return 3;
 
