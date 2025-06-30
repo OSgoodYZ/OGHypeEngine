@@ -536,19 +536,17 @@ enum class OgTextureViewType : uint8
 };
 
 // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkImageUsageFlagBits.html
-// TODO : Vulkan �����̿�����, GL�� ���̸鼭 �ٸ� �͵��� ������
-//        ���� �� �÷��� ���� convert �ϴ� �޼ҵ� ��������
 enum class OgTextureUsage : uint16
 {
-	GPU_LOCAL = 0x00000001,						// No data but only in GPU : ���� 
-	STAGING = 0x00000002,						// data but only in GPU : ���� ���
-	SAMPLED = 0x00000004,						// data in GPU and CPU : ���� (���̴����� ���� �� �ִ�)
-	STORAGE = 0x00000008,						// ����
-	COLOR_ATTACHMENT = 0x00000010,				//		0001 0000	: Layout (����)
-	DEPTH_ATTACHMENT = 0x00000020,				//		0010 0000	: Layout (����)
-	STENCIL_ATTACHMENT = 0x00000040,			//		0100 0000	: Layout (����)
-	DEPTH_STENCIL_ATTACHMENT = 0x00000080,		//		1000 0000	: Layout (����)
-	TRANSIENT_ATTACHMENT = 0x00000100,			// 0001 0000 0000	: Layout (����)
+	GPU_LOCAL = 0x00000001,						// No data but only in GPU : 상태 
+	STAGING = 0x00000002,						// data but only in GPU : 전송 방법
+	SAMPLED = 0x00000004,						// data in GPU and CPU : 상태 (쉐이더에서 읽을 수 있다)
+	STORAGE = 0x00000008,						// 상태
+	COLOR_ATTACHMENT = 0x00000010,				//		0001 0000	: Layout (상태)
+	DEPTH_ATTACHMENT = 0x00000020,				//		0010 0000	: Layout (상태)
+	STENCIL_ATTACHMENT = 0x00000040,			//		0100 0000	: Layout (상태)
+	DEPTH_STENCIL_ATTACHMENT = 0x00000080,		//		1000 0000	: Layout (상태)
+	TRANSIENT_ATTACHMENT = 0x00000100,			// 0001 0000 0000	: Layout (상태)
 	COMPUTE_READ = 0x00000200,					// 0010 0000 0000	: Compute shader read access
 	COMPUTE_WRITE = 0x00000400					// 0100 0000 0000	: Compute shader write access
 };
