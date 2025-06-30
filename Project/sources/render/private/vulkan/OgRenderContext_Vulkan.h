@@ -108,6 +108,8 @@ public:
 
 	void Restore(OgSwapChain* swapchain) override;
 
+	OgPipelineHandle* CreateComputePipeline(OgPipelineDescriptor& descriptor) override;
+
 	void WaitDeviceIdle() override;
 
 	void Collect() override;
@@ -138,6 +140,9 @@ private:
 	//
 	void buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
 	void releaseGraphicsPipeline(OgGraphicsPipelineVK* pipeline);
+	
+	void buildComputePipeline(OgComputePipelineVK* pipeline);
+	void releaseComputePipeline(OgComputePipelineVK* pipeline);
 	
 	void buildResourceSet(OgResourceSetVK* rSet);
 	void releaseResourceSet(OgResourceSetVK* resourceSet);

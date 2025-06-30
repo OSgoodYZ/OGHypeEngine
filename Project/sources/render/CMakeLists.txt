@@ -32,6 +32,7 @@ IF(NOT IOS)
 	list(APPEND PRIVATE_VULKAN private/vulkan/OgRenderVulkanHandles.cpp)
 	list(APPEND PRIVATE_VULKAN private/vulkan/OgRenderContext_Vulkan.cpp)
 	list(APPEND PRIVATE_VULKAN private/vulkan/OgVulkanHelper.cpp)
+	list(APPEND PRIVATE_VULKAN private/vulkan/OgComputeVulkan.cpp)
 ENDIF()
 
 source_group("private\\vulkan" FILES ${PRIVATE_VULKAN})

@@ -1,4 +1,4 @@
-#pragma warning(disable:4251)
+ï»¿#pragma warning(disable:4251)
 #pragma once
 #ifndef _OG_RENDER_DEFINITIONS_H__
 #define _OG_RENDER_DEFINITIONS_H__
@@ -446,6 +446,9 @@ enum class OgCommandType : uint8
 	DRAW_ARRAYS,
 	BEGIN_DEBUG_MARKER,
 	END_DEBUG_MARKER,
+	DISPATCH,
+	BIND_COMPUTE_PIPELINE,
+	MEMORY_BARRIER,
 };
 
 inline const char* Og_get_command_type_string(OgCommandType e)
@@ -508,7 +511,7 @@ enum class OgSampleCountFlag : uint8
 	COUNT_64 = 0x00000040
 };
 
-// Image Buffer ±¸¼º 
+// Image Buffer ï¿½ï¿½ï¿½ï¿½ 
 enum class OgTextureType : uint8
 {
 	TEX_1D = 0,
@@ -520,7 +523,7 @@ enum class OgTextureType : uint8
 	//TEX_CUBE_ARRAY = 6,
 };
 
-// Image Buffer ¾î¶»°Ô ÀĞ´ÂÁö
+// Image Buffer ï¿½î¶»ï¿½ï¿½ ï¿½Ğ´ï¿½ï¿½ï¿½
 enum class OgTextureViewType : uint8
 {
 	TEX_1D = 0,
@@ -533,19 +536,19 @@ enum class OgTextureViewType : uint8
 };
 
 // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/man/html/VkImageUsageFlagBits.html
-// TODO : Vulkan ±âÁØÀÌ¿´À¸³ª, GL°ú ¼¯ÀÌ¸é¼­ ´Ù¸¥ °ÍµéÀÌ »ı°åÀ½
-//        µû¶ó¼­ °¢ ÇÃ·§Æû º°·Î convert ÇÏ´Â ¸Ş¼Òµå ¸¸µé¾î¾ßÇÔ
 enum class OgTextureUsage : uint16
 {
-	GPU_LOCAL = 0x00000001,						// No data but only in GPU : »óÅÂ 
-	STAGING = 0x00000002,						// data but only in GPU : Àü¼Û ¹æ¹ı
-	SAMPLED = 0x00000004,						// data in GPU and CPU : »óÅÂ (½¦ÀÌ´õ¿¡¼­ ÀĞÀ» ¼ö ÀÖ´Ù)
-	STORAGE = 0x00000008,						// »óÅÂ
-	COLOR_ATTACHMENT = 0x00000010,				//		0001 0000	: Layout (»óÅÂ)
-	DEPTH_ATTACHMENT = 0x00000020,				//		0010 0000	: Layout (»óÅÂ)
-	STENCIL_ATTACHMENT = 0x00000040,			//		0100 0000	: Layout (»óÅÂ)
-	DEPTH_STENCIL_ATTACHMENT = 0x00000080,		//		1000 0000	: Layout (»óÅÂ)
-	TRANSIENT_ATTACHMENT = 0x00000100			// 0001 0000 0000	: Layout (»óÅÂ)
+	GPU_LOCAL = 0x00000001,						// No data but only in GPU : ìƒíƒœ 
+	STAGING = 0x00000002,						// data but only in GPU : ì „ì†¡ ë°©ë²•
+	SAMPLED = 0x00000004,						// data in GPU and CPU : ìƒíƒœ (ì‰ì´ë”ì—ì„œ ì½ì„ ìˆ˜ ìˆë‹¤)
+	STORAGE = 0x00000008,						// ìƒíƒœ
+	COLOR_ATTACHMENT = 0x00000010,				//		0001 0000	: Layout (ìƒíƒœ)
+	DEPTH_ATTACHMENT = 0x00000020,				//		0010 0000	: Layout (ìƒíƒœ)
+	STENCIL_ATTACHMENT = 0x00000040,			//		0100 0000	: Layout (ìƒíƒœ)
+	DEPTH_STENCIL_ATTACHMENT = 0x00000080,		//		1000 0000	: Layout (ìƒíƒœ)
+	TRANSIENT_ATTACHMENT = 0x00000100,			// 0001 0000 0000	: Layout (ìƒíƒœ)
+	COMPUTE_READ = 0x00000200,					// 0010 0000 0000	: Compute shader read access
+	COMPUTE_WRITE = 0x00000400					// 0100 0000 0000	: Compute shader write access
 };
 
 inline bool operator!=(OgTextureUsage a, uint16 b)
@@ -1034,7 +1037,7 @@ public:
 		case OgPixelFormat::R32G32B32A32_SFLOAT:
 			return 4;
 
-			// The Pixel Count of Depth Stencil Buffer will be 1 (ÃßÃø)
+			// The Pixel Count of Depth Stencil Buffer will be 1 (ï¿½ï¿½ï¿½ï¿½)
 		case OgPixelFormat::D24_UNORM_S8_UINT:
 		case OgPixelFormat::D32_SFLOAT_S8_UINT:
 			return 1;
@@ -1055,7 +1058,7 @@ public:
 		case OgPixelFormat::D16_UNORM_S8_UINT:
 			return 2;
 
-		case OgPixelFormat::X8_D24_UNORM_PACK32: // VulkanÀº Only-Depth24°¡ ¾øÀ½. GLÀº D24¸¸ Áö¿øÇÏ´Â°Ô ÀÖÀ½.
+		case OgPixelFormat::X8_D24_UNORM_PACK32: // Vulkanì€ Only-Depth24ê°€ ì—†ìŒ. GLì€ D24ë§Œ ì§€ì›í•˜ëŠ”ê²Œ ìˆìŒ.
 		case OgPixelFormat::D24_UNORM_S8_UINT:
 			return 3;
 
@@ -1485,12 +1488,67 @@ enum class OgMemoryOption : uint8
 	STAGING
 };
 
-enum class OgBufferUsage : uint8
+enum class OgBufferUsage : uint16
 {
 	UNIFORM = 0x00000010,
 	INDEX = 0x00000040,
 	VERTEX = 0x00000080,
+	STORAGE = 0x00000100,	// For compute shader storage buffer
+	INDIRECT = 0x00000200,	// For indirect draw/dispatch
 };
+
+// Memory barrier flags for compute shader synchronization
+enum class OgAccessFlag : uint32
+{
+	NONE = 0,
+	INDIRECT_COMMAND_READ = 0x00000001,
+	INDEX_READ = 0x00000002,
+	VERTEX_ATTRIBUTE_READ = 0x00000004,
+	UNIFORM_READ = 0x00000008,
+	INPUT_ATTACHMENT_READ = 0x00000010,
+	SHADER_READ = 0x00000020,
+	SHADER_WRITE = 0x00000040,
+	COLOR_ATTACHMENT_READ = 0x00000080,
+	COLOR_ATTACHMENT_WRITE = 0x00000100,
+	DEPTH_STENCIL_ATTACHMENT_READ = 0x00000200,
+	DEPTH_STENCIL_ATTACHMENT_WRITE = 0x00000400,
+	TRANSFER_READ = 0x00000800,
+	TRANSFER_WRITE = 0x00001000,
+	HOST_READ = 0x00002000,
+	HOST_WRITE = 0x00004000,
+};
+
+inline OgAccessFlag operator|(OgAccessFlag a, OgAccessFlag b)
+{
+	return static_cast<OgAccessFlag>(static_cast<uint32>(a) | static_cast<uint32>(b));
+}
+
+enum class OgPipelineStageFlag : uint32
+{
+	NONE = 0,
+	TOP_OF_PIPE = 0x00000001,
+	DRAW_INDIRECT = 0x00000002,
+	VERTEX_INPUT = 0x00000004,
+	VERTEX_SHADER = 0x00000008,
+	TESSELLATION_CONTROL_SHADER = 0x00000010,
+	TESSELLATION_EVALUATION_SHADER = 0x00000020,
+	GEOMETRY_SHADER = 0x00000040,
+	FRAGMENT_SHADER = 0x00000080,
+	EARLY_FRAGMENT_TESTS = 0x00000100,
+	LATE_FRAGMENT_TESTS = 0x00000200,
+	COLOR_ATTACHMENT_OUTPUT = 0x00000400,
+	COMPUTE_SHADER = 0x00000800,
+	TRANSFER = 0x00001000,
+	BOTTOM_OF_PIPE = 0x00002000,
+	HOST = 0x00004000,
+	ALL_GRAPHICS = 0x00008000,
+	ALL_COMMANDS = 0x00010000,
+};
+
+inline OgPipelineStageFlag operator|(OgPipelineStageFlag a, OgPipelineStageFlag b)
+{
+	return static_cast<OgPipelineStageFlag>(static_cast<uint32>(a) | static_cast<uint32>(b));
+}
 
 enum class OgMemoryLayout : uint8
 {
@@ -1815,7 +1873,7 @@ struct OG_API OgSamplerInfo
 
 	OgSamplerAddressMode addressU : 4;
 
-	// TODO : Vulkan ¿¡¼­´Â V ¸¦ Repeat À¸·Î ÇØ¾ß Àß ³ª¿Â´Ù. ÇØ°áÇØ¾ßÇÔ.
+	// TODO : Vulkan ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ V ï¿½ï¿½ Repeat ï¿½ï¿½ï¿½ï¿½ ï¿½Ø¾ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Â´ï¿½. ï¿½Ø°ï¿½ï¿½Ø¾ï¿½ï¿½ï¿½.
 	OgSamplerAddressMode addressV : 4;				// 1 byte
 
 	OgSamplerAddressMode addressW : 4;
@@ -1942,7 +2000,7 @@ struct OG_API OgRenderPassInfo
 	uint32 GetHashCode() const;
 
 	/* TODO :	Subpass Desccription/Dependency Implementation
-		Subpass ±¸Á¶¸¦ ¸í½ÃÇÒ(VkSubpassDescription) ¶Ç ´Ù¸¥ Å¬·¡½º ÇÊ¿ä
+		Subpass ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(VkSubpassDescription) ï¿½ï¿½ ï¿½Ù¸ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½
 		list<uint> inputColorAttachmentIndices;
 		uint inputDepthStencilAttachmentIndex;
 		bool useInputDepthStencil;
@@ -1950,7 +2008,7 @@ struct OG_API OgRenderPassInfo
 		uint resoOgeDepthStencilAttachmentIndex;
 		bool useResoOgeDepthStencil;
 	*/
-	// ¾Æ¸¶ Subpass·Î »ç¿ëµÉ??
+	// ï¿½Æ¸ï¿½ Subpassï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½??
 	/*
 	struct Iterator
 	{
@@ -2025,12 +2083,12 @@ struct OG_API OgFrameBufferHandle : OgHandle
 
 	bool isSwapchainFrameBuffer;
 
-	OgFrameBufferInfo framebufferInfo;			// Offscreen Framebuffer¿ë Á¤º¸
+	OgFrameBufferInfo framebufferInfo;			// Offscreen Framebufferï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-	// TODO: ÀÛ¾÷ÇÏ±â ÀüÀÓ 21.11.07
+	// TODO: ï¿½Û¾ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½ 21.11.07
 	OgFrameBufferHandle();
 	OgFrameBufferHandle(uint32 useDepthStencil, uint32  width, uint32 height);
-	OgFrameBufferHandle(const OgFrameBufferInfo& info); // Offscreen FraameBuffer ¿ë »ı¼ºÀÚ
+	OgFrameBufferHandle(const OgFrameBufferInfo& info); // Offscreen FraameBuffer ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 	~OgFrameBufferHandle();
 
@@ -2151,9 +2209,9 @@ struct OG_API OgResourceBinding
 
 	uint16					binding;	// Similar to (binding = 0) on GLSL
 
-	uint16					arrayCount;	// array°¡ ¾Æ´Ï¶ó¸é 0À¸·Î ¼³Á¤µÇ¾î¾ß ÇÏ°í, array([n])ÀÌ¶ó¸é 1 ÀÌ»óÀ¸·Î ¼³Á¤µÇ¾î¾ß ÇÑ´Ù.
+	uint16					arrayCount;	// arrayï¿½ï¿½ ï¿½Æ´Ï¶ï¿½ï¿½ 0ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ ï¿½Ï°ï¿½, array([n])ï¿½Ì¶ï¿½ï¿½ 1 ï¿½Ì»ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ ï¿½Ñ´ï¿½.
 
-	const char*				name;		// Uniform Texture Name / Assume name is a literal (name = "something"). GLES3 Platform¿¡ ÀÇÇØ Ç×»ó À¯ÁöµÇ¾î¾ß ÇÑ´Ù.
+	const char*				name;		// Uniform Texture Name / Assume name is a literal (name = "something"). GLES3 Platformï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½×»ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ ï¿½Ñ´ï¿½.
 
 	OgResourceBinding();
 	OgResourceBinding(const OgResourceBinding& o)
@@ -2260,7 +2318,7 @@ struct OG_API OgColorBlendDescriptor
 struct OG_API OgShaderDescriptor
 {
 	OgProgramHandle*	program;
-	OgShaderHandle*		shaders[2];	// @Chan : ¸¸¾à Vertex/Fragment¸»°í Geometry/TesellationµîÀ» ¾²°Ô µÈ´Ù¸é ÀÌ°ÍÀ» ´õ ´Ã¸®¸é µÈ´Ù.
+	OgShaderHandle*		shaders[2];	// @Chan : ï¿½ï¿½ï¿½ï¿½ Vertex/Fragmentï¿½ï¿½ï¿½ï¿½ Geometry/Tesellationï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½È´Ù¸ï¿½ ï¿½Ì°ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ã¸ï¿½ï¿½ï¿½ ï¿½È´ï¿½.
 	uint32				shaderCount;
 
 	OgShaderDescriptor();
@@ -2351,8 +2409,8 @@ struct OG_API OgCommandEncoderHandle : OgHandle
 
 	virtual void SetScissor(const int32 x, const int32 y, const uint32 width, const uint32 height) = 0;
 
-	// Clear Color¿¡ »ç¿ëµÇ´Â °ªÀ» ¸ğµÎ 0 ~ 1»çÀÌÀÇ °ªÀ¸·Î ÀÛÀº precisionÀ» »ç¿ëÇØµµ µÈ´Ù.
-	// µû¶ó¼­ ³Ö¾îÁÙ ¶§, type casting¸¸ ÇÏ¸éµÈ´Ù.
+	// Clear Colorï¿½ï¿½ ï¿½ï¿½ï¿½Ç´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ 0 ~ 1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ precisionï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Øµï¿½ ï¿½È´ï¿½.
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½Ö¾ï¿½ï¿½ï¿½ ï¿½ï¿½, type castingï¿½ï¿½ ï¿½Ï¸ï¿½È´ï¿½.
 	union ClearValue
 	{
 		struct
@@ -2412,6 +2470,21 @@ struct OG_API OgCommandEncoderHandle : OgHandle
 	virtual void EndDebugMarker() = 0;
 
 	virtual void End() = 0;
+
+	// Compute shader related methods
+	virtual void BindComputePipeline(const OgPipelineHandle* pipeline) = 0;
+
+	virtual void Dispatch(const uint32 groupCountX, const uint32 groupCountY, const uint32 groupCountZ) = 0;
+
+	virtual void DispatchIndirect(const OgBufferHandle* buffer, const uint32 offset) = 0;
+
+	// Memory barrier for synchronization
+	virtual void MemoryBarrier(
+		const uint32 srcAccessMask,
+		const uint32 dstAccessMask,
+		const uint32 srcStageMask,
+		const uint32 dstStageMask
+	) = 0;
 };
 
 struct OG_API OgResourceSetPool

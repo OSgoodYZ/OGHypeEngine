@@ -1076,7 +1076,19 @@ uint32 OgRenderContextVulkan::GetCurrentImageIndex(OgSwapChain* swapchain)
 OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option)
 {
 	OgBufferVK* r = nullptr;
-	VkBufferUsageFlagBits vkUsage = static_cast<VkBufferUsageFlagBits>(usage);
+	VkBufferUsageFlags vkUsage = 0;
+	
+	// Convert OgBufferUsage to VkBufferUsageFlags
+	if ((uint16)usage & (uint16)OgBufferUsage::UNIFORM)
+		vkUsage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+	if ((uint16)usage & (uint16)OgBufferUsage::INDEX)
+		vkUsage |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	if ((uint16)usage & (uint16)OgBufferUsage::VERTEX)
+		vkUsage |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	if ((uint16)usage & (uint16)OgBufferUsage::STORAGE)
+		vkUsage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	if ((uint16)usage & (uint16)OgBufferUsage::INDIRECT)
+		vkUsage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 
 	if (usage == OgBufferUsage::UNIFORM)
 		r = new OgUniformBufferVK(*_vulkanDevice, (uint32)size, usage, option);
@@ -1152,7 +1164,7 @@ OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgB
 			{
 			case OgBufferUsage::UNIFORM:
 			{
-				dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT; // | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+				dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 				dstAccess = VK_ACCESS_UNIFORM_READ_BIT;
 				break;
 			}
@@ -1166,6 +1178,18 @@ OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgB
 			{
 				dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 				dstAccess = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+				break;
+			}
+			case OgBufferUsage::STORAGE:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+				dstAccess = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+				break;
+			}
+			case OgBufferUsage::INDIRECT:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+				dstAccess = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 				break;
 			}
 			}
@@ -2261,6 +2285,11 @@ void OgRenderContextVulkan::buildGraphicsPipeline(OgGraphicsPipelineVK* pipeline
 
 OgPipelineHandle* OgRenderContextVulkan::CreatePipeline(OgPipelineDescriptor& descriptor)
 {
+	if (descriptor.type == OgPipelineType::COMPUTE_PIPELINE)
+	{
+		return CreateComputePipeline(descriptor);
+	}
+
 	OgGraphicsPipelineVK* p = new OgGraphicsPipelineVK(descriptor);
 
 	buildGraphicsPipeline(p);
@@ -2284,15 +2313,24 @@ void OgRenderContextVulkan::DestroyPipeline(OgPipelineHandle* pipeline)
 {
 	OG_CHECK(pipeline != nullptr, "OgPipelineHandle is nullptr");
 
-	OgGraphicsPipelineVK* p = static_cast<OgGraphicsPipelineVK*>(pipeline);
-
-	releaseGraphicsPipeline(p);
-
+	if (pipeline->type == OgPipelineType::COMPUTE_PIPELINE)
+	{
+		OgComputePipelineVK* p = static_cast<OgComputePipelineVK*>(pipeline);
+		releaseComputePipeline(p);
 #if defined(_DEBUG)
-	_livingObjects.Remove(p);
+		_livingObjects.Remove(p);
 #endif
-
-	delete p;
+		delete p;
+	}
+	else
+	{
+		OgGraphicsPipelineVK* p = static_cast<OgGraphicsPipelineVK*>(pipeline);
+		releaseGraphicsPipeline(p);
+#if defined(_DEBUG)
+		_livingObjects.Remove(p);
+#endif
+		delete p;
+	}
 }
 
 OgResourceLayoutHandle* OgRenderContextVulkan::CreateResourceLayout(OgResourceBinding* bindings, uint32 count)
@@ -2612,7 +2650,7 @@ void OgRenderContextVulkan::UpdateBuffer(OgBufferHandle* buffer, size_t offset, 
 			{
 			case OgBufferUsage::UNIFORM:
 			{
-				dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT; // | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+				dstStageMask = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 				dstAccess = VK_ACCESS_UNIFORM_READ_BIT;
 				break;
 			}
@@ -2626,6 +2664,18 @@ void OgRenderContextVulkan::UpdateBuffer(OgBufferHandle* buffer, size_t offset, 
 			{
 				dstStageMask = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
 				dstAccess = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+				break;
+			}
+			case OgBufferUsage::STORAGE:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+				dstAccess = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+				break;
+			}
+			case OgBufferUsage::INDIRECT:
+			{
+				dstStageMask = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+				dstAccess = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 				break;
 			}
 			}

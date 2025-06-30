@@ -461,6 +461,15 @@ public:
 	virtual void Restore(OgSwapChain* swapchain) = 0;
 
 	/**
+	* @fn OgComputePipelineHandle* CreateComputePipeline(OgComputePipelineDescriptor& descriptor)
+	* @brief Compute Pipeline을 생성하기 위해 이용합니다.
+	* @details OgComputePipelineDescriptor를 구성하여 compute shader를 실행할 수 있는 pipeline을 생성합니다.
+	* @param OgComputePipelineDescriptor& | compute pipeline 설정
+	* @return OgComputePipelineHandle*
+	*/
+	virtual OgPipelineHandle* CreateComputePipeline(OgPipelineDescriptor& descriptor) = 0;
+
+	/**
 	* @fn void WaitDeviceIdle()
 	* @brief GPU에서 돌아가는 명령(command)들이 다 끝날 때까지 대기하도록 합니다.
 	* @detail 주로 렌더링 과정이 끝나서 할당했던 memory들을 해제하기 전에 이용합니다.

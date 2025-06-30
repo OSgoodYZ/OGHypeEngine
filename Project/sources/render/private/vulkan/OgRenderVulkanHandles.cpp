@@ -16,6 +16,7 @@ OgCommandEncoderVK::OgCommandEncoderVK(OgDeviceVulkan* device, VkCommandPool cmd
 	, curBindRenderPass(nullptr)
 	, curBindFramebuffer(nullptr)
 	, curBindPipeline(nullptr)
+	, curBindComputePipeline(nullptr)
 {
 	VkCommandBufferAllocateInfo cmdBufAllocateInfo{};
 
@@ -289,6 +290,56 @@ void OgCommandEncoderVK::End()
 
 	vulkanDevice->EndRegion(cmdBufferVK);
 	VK_CHECK_RESULT(vkEndCommandBuffer(cmdBufferVK));
+}
+
+void OgCommandEncoderVK::BindComputePipeline(const OgPipelineHandle* pipeline)
+{
+	OG_CHECK(pipeline != nullptr, "Compute Pipeline is nullptr");
+	OG_CHECK(pipeline->type == OgPipelineType::COMPUTE_PIPELINE, "Pipeline is not a compute pipeline");
+
+	curBindComputePipeline = (OgComputePipelineVK*)(pipeline);
+
+	vkCmdBindPipeline(cmdBufferVK, VK_PIPELINE_BIND_POINT_COMPUTE, curBindComputePipeline->pipeline);
+}
+
+void OgCommandEncoderVK::Dispatch(const uint32 groupCountX, const uint32 groupCountY, const uint32 groupCountZ)
+{
+	OG_CHECK(curBindComputePipeline != nullptr, "No compute pipeline bound for dispatch");
+
+	vkCmdDispatch(cmdBufferVK, groupCountX, groupCountY, groupCountZ);
+}
+
+void OgCommandEncoderVK::DispatchIndirect(const OgBufferHandle* buffer, const uint32 offset)
+{
+	OG_CHECK(curBindComputePipeline != nullptr, "No compute pipeline bound for dispatch indirect");
+	OG_CHECK(buffer != nullptr, "Indirect buffer is nullptr");
+
+	OgBufferVK* indirectBuffer = (OgBufferVK*)(buffer);
+	VkDeviceSize bufferOffset = indirectBuffer->innerOffset + offset;
+
+	vkCmdDispatchIndirect(cmdBufferVK, indirectBuffer->bufferVK, bufferOffset);
+}
+
+void OgCommandEncoderVK::MemoryBarrier(
+	const uint32 srcAccessMask,
+	const uint32 dstAccessMask,
+	const uint32 srcStageMask,
+	const uint32 dstStageMask
+)
+{
+	VkMemoryBarrier memoryBarrier{ VK_STRUCTURE_TYPE_MEMORY_BARRIER };
+	memoryBarrier.srcAccessMask = static_cast<VkAccessFlags>(srcAccessMask);
+	memoryBarrier.dstAccessMask = static_cast<VkAccessFlags>(dstAccessMask);
+
+	vkCmdPipelineBarrier(
+		cmdBufferVK,
+		static_cast<VkPipelineStageFlags>(srcStageMask),
+		static_cast<VkPipelineStageFlags>(dstStageMask),
+		0,
+		1, &memoryBarrier,
+		0, nullptr,
+		0, nullptr
+	);
 }
 
 OG_NAMESPACE_RENDER_END
