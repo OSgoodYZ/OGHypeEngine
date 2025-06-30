@@ -494,51 +494,6 @@ void OgRenderContextVulkan::initDescriptorPool()
 	VK_CHECK_RESULT(vkCreateDescriptorPool(_logicalDeviceVK, &descriptorPoolInfo, nullptr, &_descriptorPool));
 }
 
-void OgRenderContextVulkan::initStagingCommandBuffer()
-{
-	VkCommandBufferAllocateInfo cmdBufAllocateInfo{};
-	cmdBufAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	cmdBufAllocateInfo.commandPool = _cmdPoolVK;
-	cmdBufAllocateInfo.level = VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	cmdBufAllocateInfo.commandBufferCount = 3;
-
-	VK_CHECK_RESULT(vkAllocateCommandBuffers(_logicalDeviceVK, &cmdBufAllocateInfo, _stagingCommandBuffer));
-
-	VkCommandBufferBeginInfo cmdBufferBeginInfo{};
-	cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	vkBeginCommandBuffer(_stagingCommandBuffer[0], &cmdBufferBeginInfo);
-	_stagingSubmitIndex = 0;
-}
-
-void OgRenderContextVulkan::submitStagingCommandBuffer()
-{
-	if (_cmdPoolState != CommandPoolState::RESET)
-	{
-		VkCommandBuffer curStagingCmdBuffer = _stagingCommandBuffer[_stagingSubmitIndex];
-		vkEndCommandBuffer(curStagingCmdBuffer);
-
-		VkSubmitInfo stagingSubmitInfo{};
-		stagingSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		stagingSubmitInfo.commandBufferCount = 1;
-		stagingSubmitInfo.pCommandBuffers = &curStagingCmdBuffer;
-		VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueueVK, 1, &stagingSubmitInfo, VK_NULL_HANDLE));
-	}
-
-	// advance staging submit index and begin command
-	_stagingSubmitIndex = (_stagingSubmitIndex + 1) % 3;
-
-	// BeginCommandBuffer will reset the next command buffer to be encoded
-	VkCommandBufferBeginInfo cmdBufferBeginInfo{};
-	cmdBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	VK_CHECK_RESULT(vkResetCommandBuffer(_stagingCommandBuffer[_stagingSubmitIndex], 0));
-	VK_CHECK_RESULT(vkBeginCommandBuffer(_stagingCommandBuffer[_stagingSubmitIndex], &cmdBufferBeginInfo));
-}
-
-void OgRenderContextVulkan::freeStagingCommandBuffers()
-{
-	vkFreeCommandBuffers(_logicalDeviceVK, _cmdPoolVK, 3, _stagingCommandBuffer);
-}
-
 
 void OgRenderContextVulkan::prepareSwapChain(SwapchainWrapper& sw)
 {
@@ -841,7 +796,6 @@ void OgRenderContextVulkan::initSwapChainSyncObject(SwapchainWrapper& sw)
 void OgRenderContextVulkan::Init(void)
 {
 	initCommandPool();
-	initStagingCommandBuffer();
 	initDescriptorPool();
 	initRayTracingSupport();
 	
@@ -965,6 +919,7 @@ void OgRenderContextVulkan::destroySwapChain(SwapchainWrapper& sw)
 	_swapChainTables.erase(swapchainHash);
 	delete &sw;
 }
+
 
 
 void OgRenderContextVulkan::DestroySwapchain(OgSwapChain* swapchain)
@@ -1144,7 +1099,7 @@ OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgB
 				data
 			);
 
-			VkCommandBuffer copyCmd = _stagingCommandBuffer[_stagingSubmitIndex];
+			VkCommandBuffer copyCmd = beginSingleTimeCommand();
 			VkBufferCopy copyRegion = {};
 			copyRegion.size = size;
 			copyRegion.srcOffset = 0;
@@ -1500,7 +1455,7 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 		OG_CHECK(info.isGenerateMipmaps == false, "%s", "Not Implemented yet on generating mipmap on a rendertarget");
 
 		
-		VkCommandBuffer transitionCmd = beginSingleTimeCommands();
+		VkCommandBuffer transitionCmd = beginSingleTimeCommand();
 		vkSetImageLayout
 		(
 			transitionCmd,
@@ -1512,7 +1467,7 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT
 		);
 
-		endSingleTimeCommands(transitionCmd);
+		endSingleTimeCommand(transitionCmd);
 	}
 
 	if (useStaging) // Sampling Image
@@ -1553,7 +1508,7 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 
 		}
 
-		VkCommandBuffer copyCmd = beginSingleTimeCommands();
+		VkCommandBuffer copyCmd = beginSingleTimeCommand();
 
 		vkSetImageLayout(
 			copyCmd,
@@ -1727,7 +1682,7 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 		}
 
-		endSingleTimeCommands(copyCmd);
+		endSingleTimeCommand(copyCmd);
 		ref->Destroy();
 	}
 
@@ -2035,7 +1990,7 @@ void OgRenderContextVulkan::releaseRenderPass(OgRenderPassVK* renderPass)
 		vkDestroyRenderPass(this->_logicalDeviceVK, renderPass->renderPassVK, nullptr);
 	}
 }
-VkCommandBuffer OgRenderContextVulkan::beginSingleTimeCommands()
+VkCommandBuffer OgRenderContextVulkan::beginSingleTimeCommand()
 {
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -2055,7 +2010,7 @@ VkCommandBuffer OgRenderContextVulkan::beginSingleTimeCommands()
 	return commandBuffer;
 }
 
-void OgRenderContextVulkan::endSingleTimeCommands(VkCommandBuffer commandBuffer)
+void OgRenderContextVulkan::endSingleTimeCommand(VkCommandBuffer commandBuffer)
 {
 	vkEndCommandBuffer(commandBuffer);
 
@@ -2630,7 +2585,7 @@ void OgRenderContextVulkan::UpdateBuffer(OgBufferHandle* buffer, size_t offset, 
 				data
 			);
 
-			VkCommandBuffer copyCmd = _stagingCommandBuffer[_stagingSubmitIndex];
+			VkCommandBuffer copyCmd = beginSingleTimeCommand();
 			VkBufferCopy copyRegion = {};
 			copyRegion.size = size;
 			copyRegion.srcOffset = 0;
@@ -2691,7 +2646,7 @@ void OgRenderContextVulkan::UpdateBuffer(OgBufferHandle* buffer, size_t offset, 
 				srcAccess,
 				dstAccess
 			);
-
+			endSingleTimeCommand(copyCmd);
 			ref->Destroy();
 		}
 	}
@@ -2791,7 +2746,6 @@ void OgRenderContextVulkan::Present(OgSwapChain* swapchain)
 	{
 		if (_acquireOnceForPresent)
 		{
-			submitStagingCommandBuffer();
 			_acquireOnceForPresent = false;
 		}
 	}
@@ -2926,8 +2880,6 @@ void OgRenderContextVulkan::Shutdown(void)
 	vkDeviceWaitIdle(_logicalDeviceVK);
 
 	OgHandle::FlushPendingDeletes(this, true);
-	
-	freeStagingCommandBuffers();
 
 	for (std::unordered_map<uint32, SwapchainWrapper*>::iterator iter = _swapChainTables.begin(); iter != _swapChainTables.end();)
 	{

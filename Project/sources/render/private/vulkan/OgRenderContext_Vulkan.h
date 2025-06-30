@@ -132,11 +132,6 @@ private:
 	
 	void initCommandPool();
 	void initDescriptorPool();
-	
-	void initStagingCommandBuffer();
-	void submitStagingCommandBuffer();
-	void freeStagingCommandBuffers();
-	// TODO list
 
 	//OgBufferHandle* buildBuffer(void* data, size_t size, OgBufferUsage usage, OgMemoryOption option = OgMemoryOption::PRIVATE_GPU);
 	//void releaseBuffer(OgBufferHandle* buffer);
@@ -158,8 +153,8 @@ private:
 	void buildRenderPass(OgRenderPassVK* renderPass);
 	void releaseRenderPass(OgRenderPassVK* renderPass);
 
-	VkCommandBuffer beginSingleTimeCommands();
-	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+	VkCommandBuffer beginSingleTimeCommand();
+	void endSingleTimeCommand(VkCommandBuffer commandBuffer);
 
 private:
 	VkInstance _instance;
@@ -258,9 +253,6 @@ private:
 	std::unordered_map<uint32, SwapchainWrapper*> _swapChainTables;
 	SwapchainWrapper* _rootSwapchainWrapper;
 
-	// Staging Command Buffer
-	VkCommandBuffer _stagingCommandBuffer[3];
-	uint32 _stagingSubmitIndex;
 
 #if defined(_DEBUG)
 	System::OgVector<OgHandle*> _livingObjects;
