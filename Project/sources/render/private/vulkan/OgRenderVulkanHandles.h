@@ -759,7 +759,7 @@ struct OgCommandEncoderVK : public OgCommandEncoderHandle
 
 	void DispatchIndirect(const OgBufferHandle* buffer, const uint32 offset) override;
 
-	void MemoryBarrier(
+	void PipelineBarrier(
 		const uint32 srcAccessMask,
 		const uint32 dstAccessMask,
 		const uint32 srcStageMask,

@@ -1162,7 +1162,7 @@ OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgB
 				srcAccess,
 				dstAccess
 			);
-
+			endSingleTimeCommand(copyCmd);
 			ref->Destroy();
 		}
 		break;

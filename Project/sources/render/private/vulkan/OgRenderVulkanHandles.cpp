@@ -419,7 +419,7 @@ void OgCommandEncoderVK::DispatchIndirect(const OgBufferHandle* buffer, const ui
 	vkCmdDispatchIndirect(cmdBufferVK, indirectBuffer->bufferVK, bufferOffset);
 }
 
-void OgCommandEncoderVK::MemoryBarrier(
+void OgCommandEncoderVK::PipelineBarrier(
 	const uint32 srcAccessMask,
 	const uint32 dstAccessMask,
 	const uint32 srcStageMask,

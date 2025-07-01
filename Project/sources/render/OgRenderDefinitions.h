@@ -2497,7 +2497,7 @@ struct OG_API OgCommandEncoderHandle : OgHandle
 	virtual void DispatchIndirect(const OgBufferHandle* buffer, const uint32 offset) = 0;
 
 	// Memory barrier for synchronization
-	virtual void MemoryBarrier(
+	virtual void PipelineBarrier(
 		const uint32 srcAccessMask,
 		const uint32 dstAccessMask,
 		const uint32 srcStageMask,
