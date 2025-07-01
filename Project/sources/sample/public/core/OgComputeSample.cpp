@@ -671,7 +671,7 @@ void OgComputeSample::executeCompute(Render::OgSwapChain* swapchain)
     encoder->Dispatch(groupCount, 1, 1);
     
     // Memory barrier - compute 결과가 fragment shader에서 읽기 가능하도록
-    encoder->MemoryBarrier(
+    encoder->PipelineBarrier(
         (uint32)OgAccessFlag::SHADER_WRITE,
         (uint32)OgAccessFlag::SHADER_READ,
         (uint32)OgPipelineStageFlag::COMPUTE_SHADER,
