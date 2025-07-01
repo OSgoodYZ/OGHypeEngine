@@ -15,12 +15,13 @@
 using namespace Og::System;
 
 /*#include "OgRenderContext.h" */namespace Og { namespace Render {
+	struct OgBufferHandle;
 	struct OgShaderBindingTable;
 	class OgRenderContext; } }
 
 OG_NAMESPACE_RENDER_BEGIN
 
-enum class OgShaderType : uint8
+enum class OgShaderType : uint16
 {
 	VERTEX = 0x00000001,
 	TESSELLATION_CONTROL = 0x00000002,
@@ -754,12 +755,95 @@ enum class OgResourceType : uint8
 	UNIFORM_BUFFER_DYNAMIC = 8,
 	STORAGE_BUFFER_DYNAMIC = 9,
 	INPUT_ATTACHMENT = 10,
+	ACCELERATION_STRUCTURE = 11,
 };
 
 class OG_API OgDeviceCapability
 {
 	// todo
 	// https://github.com/bkaradzic/bgfx/blob/master/src/renderer_vk.cpp line 941
+};
+
+// Ray Tracing Definitions
+enum class OgAccelStructureType : uint8
+{
+	BOTTOM_LEVEL = 0,
+	TOP_LEVEL = 1,
+};
+
+enum class OgRayTracingBuildFlag : uint8
+{
+	ALLOW_UPDATE = 0x00000001,
+	ALLOW_COMPACTION = 0x00000002,
+	PREFER_FAST_TRACE = 0x00000004,
+	PREFER_FAST_BUILD = 0x00000008,
+	LOW_MEMORY = 0x00000010,
+};
+
+inline OgRayTracingBuildFlag operator|(OgRayTracingBuildFlag a, OgRayTracingBuildFlag b)
+{
+	return static_cast<OgRayTracingBuildFlag>(static_cast<uint8>(a) | static_cast<uint8>(b));
+}
+
+inline bool operator&(OgRayTracingBuildFlag a, OgRayTracingBuildFlag b)
+{
+	return (static_cast<uint8>(a) & static_cast<uint8>(b)) != 0;
+}
+
+struct OgAccelStructureGeometry
+{
+	OgBufferHandle* vertexBuffer;
+	uint32 vertexStride;
+	uint32 vertexCount;
+	OgBufferHandle* indexBuffer;
+	OgIndexType indexType;
+	uint32 indexCount;
+	uint32 transformOffset;
+};
+
+struct OgAccelStructureBuildInfo
+{
+	OgAccelStructureType type;
+	OgRayTracingBuildFlag flags;
+	
+	union
+	{
+		struct
+		{
+			const OgAccelStructureGeometry* geometries;
+			uint32 geometryCount;
+		} bottomLevel;
+		
+		struct
+		{
+			OgBufferHandle* instanceBuffer;
+			uint32 instanceCount;
+		} topLevel;
+	};
+};
+
+
+struct OG_API OgShaderBindingTable
+{
+	OgBufferHandle* raygenSBT;
+	uint32 raygenOffset;
+	uint32 raygenStride;
+	uint32 raygenSize;
+	
+	OgBufferHandle* missSBT;
+	uint32 missOffset;
+	uint32 missStride;
+	uint32 missSize;
+	
+	OgBufferHandle* hitSBT;
+	uint32 hitOffset;
+	uint32 hitStride;
+	uint32 hitSize;
+	
+	OgBufferHandle* callableSBT;
+	uint32 callableOffset;
+	uint32 callableStride;
+	uint32 callableSize;
 };
 
 
@@ -2546,13 +2630,6 @@ inline const char* og_get_command_type_string(OgCommandType e)
 	return "Invaild Enum";
 }
 
-// Ray Tracing Structures
-enum class OgAccelStructureType : uint8
-{
-	TOP_LEVEL,
-	BOTTOM_LEVEL
-};
-
 enum class OgGeometryType : uint8  
 {
 	TRIANGLES,
@@ -2560,37 +2637,6 @@ enum class OgGeometryType : uint8
 	INSTANCES
 };
 
-enum class OgRayTracingBuildFlag : uint8
-{
-	PREFER_FAST_TRACE = 0x00000001,
-	PREFER_FAST_BUILD = 0x00000002,
-	ALLOW_UPDATE = 0x00000004,
-	ALLOW_COMPACTION = 0x00000008
-};
-
-inline OgRayTracingBuildFlag operator|(OgRayTracingBuildFlag a, OgRayTracingBuildFlag b)
-{
-	return static_cast<OgRayTracingBuildFlag>(static_cast<uint8>(a) | static_cast<uint8>(b));
-}
-
-inline OgRayTracingBuildFlag operator&(OgRayTracingBuildFlag a, OgRayTracingBuildFlag b)
-{
-	return static_cast<OgRayTracingBuildFlag>(static_cast<uint8>(a) & static_cast<uint8>(b));
-}
-
-struct OG_API OgAccelStructureGeometry
-{
-	OgGeometryType type;
-	OgBufferHandle* vertexBuffer;
-	OgBufferHandle* indexBuffer;
-	OgIndexType indexType;
-	uint32 vertexStride;
-	uint32 vertexCount;
-	uint32 indexCount;
-	uint32 vertexOffset;
-	uint32 indexOffset;
-	uint32 transformOffset; // Offset in transform buffer
-};
 
 struct OG_API OgAccelStructureInstance  
 {
@@ -2600,26 +2646,6 @@ struct OG_API OgAccelStructureInstance
 	uint32 instanceShaderBindingTableRecordOffset;
 	uint32 flags;
 	uint64 accelerationStructureReference;
-};
-
-struct OG_API OgAccelStructureBuildInfo
-{
-	OgAccelStructureType type;
-	OgRayTracingBuildFlag flags;
-	union
-	{
-		struct
-		{
-			OgAccelStructureGeometry* geometries;
-			uint32 geometryCount;
-		} bottomLevel;
-		
-		struct  
-		{
-			OgBufferHandle* instanceBuffer;
-			uint32 instanceCount;
-		} topLevel;
-	};
 };
 
 struct OG_API OgAccelStructureHandle : public OgHandle
@@ -2659,29 +2685,6 @@ struct OG_API OgRayTracingPipelineDescriptor
 	uint32 maxRecursionDepth;
 };
 
-struct OG_API OgShaderBindingTable
-{
-	OgBufferHandle* raygenShaderBindingTable;
-	OgBufferHandle* missShaderBindingTable;
-	OgBufferHandle* hitShaderBindingTable;
-	OgBufferHandle* callableShaderBindingTable;
-	
-	uint32 raygenShaderBindingOffset;
-	uint32 raygenShaderBindingStride;
-	uint32 raygenShaderBindingSize;
-	
-	uint32 missShaderBindingOffset;
-	uint32 missShaderBindingStride;
-	uint32 missShaderBindingSize;
-	
-	uint32 hitShaderBindingOffset;
-	uint32 hitShaderBindingStride;
-	uint32 hitShaderBindingSize;
-	
-	uint32 callableShaderBindingOffset;
-	uint32 callableShaderBindingStride;
-	uint32 callableShaderBindingSize;
-};
 
 	
 OG_NAMESPACE_RENDER_END

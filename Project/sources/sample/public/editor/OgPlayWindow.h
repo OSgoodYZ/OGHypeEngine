@@ -19,6 +19,7 @@ OG_NAMESPACE_SAMPLE_BEGIN
 class OgModelSample;
 class OgComputeSample;
 class OgTriangleSample;
+class OgRayTracingSample;
 
 /**
  * @brief ImGui를 사용하는 플레이 윈도우
@@ -101,6 +102,7 @@ private:
 	void renderModelSampleViewer(OgModelSample* modelSample);
 	void renderComputeSampleViewer(OgComputeSample* computeSample);
 	void renderTriangleSampleViewer(OgTriangleSample* triangleSample);
+	void renderRayTracingSampleViewer(OgRayTracingSample* rayTracingSample);
 	void renderDefaultViewer(OgSampleBase* sample);
 	void renderSampleImage(OgSampleBase* sample);
 
@@ -108,6 +110,7 @@ private:
 	void renderLightControls(OgModelSample* modelSample);
 	void renderComputeControls(OgComputeSample* computeSample);
 	void renderTriangleControls(OgTriangleSample* triangleSample);
+	void renderRayTracingControls(OgRayTracingSample* rayTracingSample);
 
 	// 샘플별 브라우저 렌더링
 	void renderModelBrowser(OgModelSample* modelSample);
@@ -121,7 +124,7 @@ private:
 	// XYZ 축 기즈모 렌더링
 	void renderXYZGizmo(ImVec2 imagePos, ImVec2 imageSize);
 
-	int _currentSampleIndex = 1; // 기본은 Model 샘플
+	int _currentSampleIndex = 3; // 기본은 Ray Tracing 샘플
 };
 
 OG_NAMESPACE_SAMPLE_END

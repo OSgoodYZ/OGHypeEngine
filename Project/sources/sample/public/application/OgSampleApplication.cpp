@@ -3,6 +3,7 @@
 #include "sample/public/core/OgTriangleSample.h"
 #include "sample/public/core/OgModelSample.h"
 #include "sample/public/core/OgComputeSample.h"
+#include "sample/public/core/OgRayTracingSample.h"
 
 OG_NAMESPACE_SAMPLE_BEGIN
 
@@ -65,11 +66,14 @@ void OgSampleApplication::createMainWindow()
     // 샘플 뷰어 윈도우 생성
     auto window = std::make_unique<OgSampleViewerWindow>(_renderContext.get(), config);
     
-    // FBX 샘플 설정 (기본으로 FBX 샘플 표시)
-    auto modelSample = std::make_unique<OgModelSample>(_renderContext.get());
-    window->SetSample(std::move(modelSample));
+    // 레이트레이싱 샘플 설정 (기본으로 레이트레이싱 샘플 표시)
+    auto rayTracingSample = std::make_unique<OgRayTracingSample>(_renderContext.get());
+    window->SetSample(std::move(rayTracingSample));
     
     // 다른 샘플들도 사용 가능:
+    // auto modelSample = std::make_unique<OgModelSample>(_renderContext.get());
+    // window->SetSample(std::move(modelSample));
+    
     // auto triangleSample = std::make_unique<OgTriangleSample>(_renderContext.get());
     // window->SetSample(std::move(triangleSample));
     

@@ -323,51 +323,51 @@ void OgCommandEncoderVK::TraceRays(const OgShaderBindingTable& sbt, uint32 width
 	VkStridedDeviceAddressRegionKHR callableShaderSbtEntry{};
 	
 	// Set up raygen shader binding table entry
-	if (sbt.raygenShaderBindingTable && vulkanDevice->vkGetBufferDeviceAddressKHR)
+	if (sbt.raygenSBT && vulkanDevice->vkGetBufferDeviceAddressKHR)
 	{
-		OgBufferVK* raygenBuffer = (OgBufferVK*)sbt.raygenShaderBindingTable;
+		OgBufferVK* raygenBuffer = (OgBufferVK*)sbt.raygenSBT;
 		VkBufferDeviceAddressInfo bufferInfo = {};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		bufferInfo.buffer = raygenBuffer->bufferVK;
 		raygenShaderSbtEntry.deviceAddress = vulkanDevice->vkGetBufferDeviceAddressKHR(vulkanDevice->logicalDevice, &bufferInfo);
-		raygenShaderSbtEntry.stride = sbt.raygenShaderBindingStride;
-		raygenShaderSbtEntry.size = sbt.raygenShaderBindingSize;
+		raygenShaderSbtEntry.stride = sbt.raygenStride;
+		raygenShaderSbtEntry.size = sbt.raygenSize;
 	}
 	
 	// Set up miss shader binding table entry
-	if (sbt.missShaderBindingTable && vulkanDevice->vkGetBufferDeviceAddressKHR)
+	if (sbt.missSBT && vulkanDevice->vkGetBufferDeviceAddressKHR)
 	{
-		OgBufferVK* missBuffer = (OgBufferVK*)sbt.missShaderBindingTable;
+		OgBufferVK* missBuffer = (OgBufferVK*)sbt.missSBT;
 		VkBufferDeviceAddressInfo bufferInfo = {};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		bufferInfo.buffer = missBuffer->bufferVK;
 		missShaderSbtEntry.deviceAddress = vulkanDevice->vkGetBufferDeviceAddressKHR(vulkanDevice->logicalDevice, &bufferInfo);
-		missShaderSbtEntry.stride = sbt.missShaderBindingStride;
-		missShaderSbtEntry.size = sbt.missShaderBindingSize;
+		missShaderSbtEntry.stride = sbt.missStride;
+		missShaderSbtEntry.size = sbt.missSize;
 	}
 	
 	// Set up hit shader binding table entry
-	if (sbt.hitShaderBindingTable && vulkanDevice->vkGetBufferDeviceAddressKHR)
+	if (sbt.hitSBT && vulkanDevice->vkGetBufferDeviceAddressKHR)
 	{
-		OgBufferVK* hitBuffer = (OgBufferVK*)sbt.hitShaderBindingTable;
+		OgBufferVK* hitBuffer = (OgBufferVK*)sbt.hitSBT;
 		VkBufferDeviceAddressInfo bufferInfo = {};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		bufferInfo.buffer = hitBuffer->bufferVK;
 		hitShaderSbtEntry.deviceAddress = vulkanDevice->vkGetBufferDeviceAddressKHR(vulkanDevice->logicalDevice, &bufferInfo);
-		hitShaderSbtEntry.stride = sbt.hitShaderBindingStride;
-		hitShaderSbtEntry.size = sbt.hitShaderBindingSize;
+		hitShaderSbtEntry.stride = sbt.hitStride;
+		hitShaderSbtEntry.size = sbt.hitSize;
 	}
 	
 	// Set up callable shader binding table entry
-	if (sbt.callableShaderBindingTable && vulkanDevice->vkGetBufferDeviceAddressKHR)
+	if (sbt.callableSBT && vulkanDevice->vkGetBufferDeviceAddressKHR)
 	{
-		OgBufferVK* callableBuffer = (OgBufferVK*)sbt.callableShaderBindingTable;
+		OgBufferVK* callableBuffer = (OgBufferVK*)sbt.callableSBT;
 		VkBufferDeviceAddressInfo bufferInfo = {};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		bufferInfo.buffer = callableBuffer->bufferVK;
 		callableShaderSbtEntry.deviceAddress = vulkanDevice->vkGetBufferDeviceAddressKHR(vulkanDevice->logicalDevice, &bufferInfo);
-		callableShaderSbtEntry.stride = sbt.callableShaderBindingStride;
-		callableShaderSbtEntry.size = sbt.callableShaderBindingSize;
+		callableShaderSbtEntry.stride = sbt.callableStride;
+		callableShaderSbtEntry.size = sbt.callableSize;
 	}
 	
 	if (vulkanDevice->vkCmdTraceRaysKHR)

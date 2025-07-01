@@ -40,6 +40,7 @@ vkGetPhysicalDeviceProperties2(_gpuDeviceVK, &deviceProperties2);
 
 // Check if function pointers are loaded in device
 if (!_vulkanDevice->vkCreateAccelerationStructureKHR ||
+
         !_vulkanDevice->vkDestroyAccelerationStructureKHR ||
         !_vulkanDevice->vkCmdTraceRaysKHR ||
         !_vulkanDevice->vkGetBufferDeviceAddressKHR ||

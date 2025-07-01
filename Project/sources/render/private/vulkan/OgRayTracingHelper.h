@@ -13,6 +13,10 @@ inline T AlignUp(T value, T alignment)
     return (value + alignment - 1) & ~(alignment - 1);
 }
 
+// OgCommandEncoderHandle 확장 - 레이트레이싱 명령
+class OgCommandEncoderHandle;
+
+
 // Ray tracing extension names
 #define VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME "VK_KHR_acceleration_structure"
 #define VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME "VK_KHR_ray_tracing_pipeline"

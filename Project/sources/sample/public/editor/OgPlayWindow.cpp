@@ -2,6 +2,7 @@
 #include "sample/public/core/OgTriangleSample.h"
 #include "sample/public/core/OgModelSample.h"
 #include "sample/public/core/OgComputeSample.h"
+#include "sample/public/core/OgRayTracingSample.h"
 #include "system/OgSystemContext.h"
 #include "system/OgInput.h"
 #include <algorithm>
@@ -475,6 +476,10 @@ void OgSampleViewerWindow::renderSampleViewer()
 		{
 			renderTriangleSampleViewer(triangleSample);
 		}
+		else if (OgRayTracingSample* rayTracingSample = dynamic_cast<OgRayTracingSample*>(sample))
+		{
+			renderRayTracingSampleViewer(rayTracingSample);
+		}
 		else
 		{
 			// 기본 렌더 타겟 표시
@@ -730,6 +735,7 @@ void OgSampleViewerWindow::renderDebugInfo()
 			case 0: sampleType = "Triangle"; break;
 			case 1: sampleType = "glTF Model"; break;
 			case 2: sampleType = "Compute"; break;
+			case 3: sampleType = "Ray Tracing"; break;
 			}
 			ImGui::Text("Type: %s", sampleType);
 			ImGui::Text("Render Target: %u x %u",
@@ -784,6 +790,16 @@ void OgSampleViewerWindow::renderSampleControlsInfo()
 		ImGui::BulletText("No interaction available");
 		ImGui::BulletText("Static triangle rendering");
 	}
+	// 레이트레이싱 샘플 컨트롤
+	else if (dynamic_cast<OgRayTracingSample*>(sample))
+	{
+		ImGui::BulletText("Mouse: Rotate camera");
+		ImGui::BulletText("Scroll: Zoom in/out");
+		ImGui::BulletText("W/A/S/D: Move camera");
+		ImGui::BulletText("F: Toggle fly camera");
+		ImGui::BulletText("D: Toggle debug visualization");
+		ImGui::BulletText("Progressive rendering - quality improves over time");
+	}
 }
 
 void OgSampleViewerWindow::renderSampleSelector()
@@ -791,10 +807,11 @@ void OgSampleViewerWindow::renderSampleSelector()
 	if (ImGui::Begin("Sample Selector", nullptr))
 	{
 		const char* sampleNames[] = {
-			"Triangle Sample",
-			"GLTF Model Sample",
-			"Compute Sample"
-		};
+		"Triangle Sample",
+		"GLTF Model Sample",
+		"Compute Sample",
+		 "Ray Tracing Sample"
+	};
 
 		ImGui::Text("Available Samples");
 		ImGui::Separator();
@@ -850,6 +867,13 @@ void OgSampleViewerWindow::renderSampleSelector()
 			ImGui::BulletText("Compute shader demo");
 			ImGui::BulletText("GPU computation");
 			ImGui::BulletText("Texture processing");
+			break;
+		case 3:
+			ImGui::TextWrapped("Ray Tracing Sample");
+			ImGui::BulletText("Vulkan Ray Tracing");
+			ImGui::BulletText("Path tracing rendering");
+			ImGui::BulletText("Progressive refinement");
+			ImGui::BulletText("DragonAttenuation model");
 			break;
 		}
 
@@ -916,6 +940,9 @@ void OgSampleViewerWindow::switchSample(int index)
 	case 2:
 		newSample = std::make_unique<OgComputeSample>(_renderContext);
 		break;
+	case 3:
+		newSample = std::make_unique<OgRayTracingSample>(_renderContext);
+		break;
 	default:
 		return;
 	}
@@ -947,6 +974,11 @@ void OgSampleViewerWindow::renderSampleControls()
 	else if (OgTriangleSample* triangleSample = dynamic_cast<OgTriangleSample*>(sample))
 	{
 		renderTriangleControls(triangleSample);
+	}
+	// 레이트레이싱 샘플인 경우 레이트레이싱 컨트롤 표시
+	else if (OgRayTracingSample* rayTracingSample = dynamic_cast<OgRayTracingSample*>(sample))
+	{
+		renderRayTracingControls(rayTracingSample);
 	}
 }
 
@@ -1390,6 +1422,95 @@ void OgSampleViewerWindow::renderModelBrowser(OgModelSample* modelSample)
 			{
 				ImGui::SetTooltip("Please select a model first");
 			}
+		}
+	}
+	ImGui::End();
+}
+
+// 레이트레이싱 샘플 뷰어 렌더링
+void OgSampleViewerWindow::renderRayTracingSampleViewer(OgRayTracingSample* rayTracingSample)
+{
+	renderSampleImage(rayTracingSample);
+}
+
+// 레이트레이싱 컨트롤 렌더링
+void OgSampleViewerWindow::renderRayTracingControls(OgRayTracingSample* rayTracingSample)
+{
+	if (ImGui::Begin("Ray Tracing Controls", nullptr))
+	{
+		ImGui::Text("Ray Tracing Settings");
+		ImGui::Separator();
+
+		bool settingsChanged = false;
+
+		// Max bounces
+		uint32_t maxBounces = rayTracingSample->GetMaxBounces();
+		if (ImGui::SliderInt("Max Bounces", reinterpret_cast<int*>(&maxBounces), 1, 10))
+		{
+			rayTracingSample->SetMaxBounces(maxBounces);
+			settingsChanged = true;
+		}
+
+		// Samples per pixel
+		uint32_t samplesPerPixel = rayTracingSample->GetSamplesPerPixel();
+		if (ImGui::SliderInt("Samples Per Pixel", reinterpret_cast<int*>(&samplesPerPixel), 1, 16))
+		{
+			rayTracingSample->SetSamplesPerPixel(samplesPerPixel);
+			settingsChanged = true;
+		}
+
+		ImGui::Separator();
+
+		// Camera mode
+		bool useFlyCamera = rayTracingSample->IsUsingFlyCamera();
+		if (ImGui::Checkbox("Fly Camera Mode", &useFlyCamera))
+		{
+			rayTracingSample->SetUsingFlyCamera(useFlyCamera);
+		}
+
+		ImGui::Separator();
+		ImGui::Text("Performance");
+		ImGui::Separator();
+
+		// 프레임 카운터 표시 (프로그레시브 렌더링 진행도)
+		ImGui::Text("Progressive Frame: %u", 0); // TODO: 실제 프레임 카운터 가져오기
+		ImGui::Text("Ray Tracing FPS: %.1f", ImGui::GetIO().Framerate);
+
+		ImGui::Separator();
+		ImGui::Text("Information");
+		ImGui::Separator();
+
+		ImGui::BulletText("VK_KHR_ray_tracing_pipeline");
+		ImGui::BulletText("Path tracing with PBR materials");
+		ImGui::BulletText("Progressive refinement");
+		ImGui::BulletText("DragonAttenuation model");
+
+		// 프리셋 버튼들
+		ImGui::Separator();
+		ImGui::Text("Presets");
+		ImGui::Separator();
+
+		if (ImGui::Button("Low Quality (Fast)", ImVec2(-1, 0)))
+		{
+			rayTracingSample->SetMaxBounces(2);
+			rayTracingSample->SetSamplesPerPixel(1);
+		}
+
+		if (ImGui::Button("Medium Quality", ImVec2(-1, 0)))
+		{
+			rayTracingSample->SetMaxBounces(3);
+			rayTracingSample->SetSamplesPerPixel(2);
+		}
+
+		if (ImGui::Button("High Quality (Slow)", ImVec2(-1, 0)))
+		{
+			rayTracingSample->SetMaxBounces(5);
+			rayTracingSample->SetSamplesPerPixel(4);
+		}
+
+		if (ImGui::Button("Reset Camera", ImVec2(-1, 0)))
+		{
+			// TODO: 카메라 리셋 기능 구현
 		}
 	}
 	ImGui::End();
