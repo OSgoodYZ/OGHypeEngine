@@ -23,6 +23,7 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 	if (SLANG_FAILED(slang::createGlobalSession(&globalSessionDesc, &slangSession)))
 	{
 		s_lastError = "Failed to create Slang session";
+		LOGD(OG_ID,"%s",s_lastError.c_str());
 		return false;
 	}
 
@@ -33,6 +34,7 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 	{
 		s_lastError = "Failed to create session";
 		slangSession->release();
+		LOGD(OG_ID, "%s", s_lastError.c_str());
 		return false;
 	}
 
@@ -43,6 +45,7 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 		s_lastError = "Failed to create compile request";
 		session->release();
 		slangSession->release();
+		LOGD(OG_ID, "%s", s_lastError.c_str());
 		return false;
 	}
 
@@ -108,6 +111,7 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 		spDestroyCompileRequest(slangRequest);
 		session->release();
 		slangSession->release();
+		LOGD(OG_ID, "%s", s_lastError.c_str());
 		return false;
 	}
 
@@ -120,6 +124,7 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 		spDestroyCompileRequest(slangRequest);
 		session->release();
 		slangSession->release();
+		LOGD(OG_ID, "%s", s_lastError.c_str());
 		return false;
 	}
 

@@ -11,9 +11,10 @@ OG_NAMESPACE_SAMPLE_BEGIN
 
 /**
  * @brief Compute Shader를 테스트하는 샘플
- * 
- * 이 샘플은 compute shader를 사용하여 두 배열의 요소를 더하는 
- * 간단한 GPGPU 작업을 수행합니다.
+ *
+ * 이 샘플은 compute shader를 사용하여 두 배열의 요소를 더하고
+ * 시각적으로 흥미로운 패턴을 생성하는 GPGPU 작업을 수행합니다.
+ * 결과는 실시간으로 렌더링되어 화면에 표시됩니다.
  */
 class OG_API OgComputeSample : public OgSampleBase
 {
@@ -32,19 +33,26 @@ public:
 
     // Compute 결과를 얻는 메서드
     bool GetComputeResults(float* outResults, uint32 count);
+    
+    // 렌더 타겟 관련 오버라이드
+    Render::OgTextureHandle* GetRenderTargetTexture() const override { return _renderTargetTexture; }
+    uint16 GetRenderTargetWidth() const override { return _renderTargetWidth; }
+    uint16 GetRenderTargetHeight() const override { return _renderTargetHeight; }
 
 private:
     // 리소스 생성/파괴
-    void createResources();
+    void createResources(uint16 width, uint16 height);
     void destroyResources();
     void createComputeShader();
     void createBuffers();
     void createComputePipeline();
     void createRenderingResources();
+    void createRenderTarget(uint16 width, uint16 height);
+    void destroyRenderTarget();
 
     // Compute 실행
     void executeCompute(Render::OgSwapChain* swapchain);
-    
+
     // 결과 시각화
     void renderResults(Render::OgCommandEncoderHandle* encoder, uint32 width, uint32 height);
 
@@ -71,12 +79,22 @@ private:
     Render::OgBufferHandle* _vertexBuffer = nullptr;
     Render::OgBufferHandle* _renderUniformBuffer = nullptr;
 
+    // 렌더 타겟 리소스
+    Render::OgTextureHandle* _renderTargetTexture = nullptr;
+    Render::OgTextureHandle* _depthTexture = nullptr;
+    Render::OgRenderPassHandle* _renderTargetRenderPass = nullptr;
+    Render::OgFrameBufferHandle* _renderTargetFrameBuffer = nullptr;
+    uint16 _renderTargetWidth = 0;
+    uint16 _renderTargetHeight = 0;
+
     // 파라미터
     static constexpr uint32 ARRAY_SIZE = 1024;
     static constexpr uint32 WORKGROUP_SIZE = 64;
-    
+
+    // 상태 변수
     bool _computeExecuted = false;
     float _elapsedTime = 0.0f;
+    float _accumulatedTime = 0.0f;  // Compute shader 재실행 타이머
 };
 
 OG_NAMESPACE_SAMPLE_END
