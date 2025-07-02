@@ -56,6 +56,32 @@ public:
 		const char* programName = nullptr);
 	
 	/**
+	 * @brief Slang 셰이더 코드를 SPIR-V로 컴파일
+	 * @param shaderCode Slang 셰이더 소스 코드
+	 * @param shaderType 셰이더 타입 (Vertex, Fragment, RayGen 등)
+	 * @param spirvOut 컴파일된 SPIR-V 코드가 저장될 벡터
+	 * @return 컴파일 성공 여부
+	 */
+	static bool CompileSlangToSPIRV(
+		const char* shaderCode,
+		Render::OgShaderType shaderType,
+		std::vector<uint32_t>& spirvOut);
+	
+	/**
+	 * @brief Slang 셰이더 코드로부터 OgShaderHandle 생성
+	 * @param renderContext 렌더 컨텍스트
+	 * @param shaderCode Slang 셰이더 소스 코드
+	 * @param shaderType 셰이더 타입
+	 * @param shaderName 셰이더 이름 (디버깅용)
+	 * @return 생성된 셰이더 핸들 (실패시 nullptr)
+	 */
+	static Render::OgShaderHandle* CreateShaderFromSlang(
+		Render::OgRenderContext* renderContext,
+		const char* shaderCode,
+		Render::OgShaderType shaderType,
+		const char* shaderName = nullptr);
+	
+	/**
 	 * @brief 마지막 컴파일 에러 메시지 반환
 	 * @return 에러 메시지 문자열
 	 */

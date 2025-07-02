@@ -103,12 +103,19 @@ include_directories(${SLANG_DIR})
 
 # Slang 라이브러리 파일 찾기
 find_library(SLANG_LIBRARY NAMES slang PATHS ${SLANG_LIB_DIR})
+find_library(SLANG_RT_LIBRARY NAMES slang-rt PATHS ${SLANG_LIB_DIR})
 
 # 라이브러리를 찾지 못하면 경고 메시지 출력
 if(NOT SLANG_LIBRARY)
     message(WARNING "Slang 라이브러리를 찾을 수 없습니다. 경로를 확인하세요: ${SLANG_LIB_DIR}")
     # 대체 경로 설정
     set(SLANG_LIBRARY "${SLANG_LIB_DIR}/slang.lib")
+endif()
+
+if(NOT SLANG_RT_LIBRARY)
+    message(WARNING "Slang-RT 라이브러리를 찾을 수 없습니다. 경로를 확인하세요: ${SLANG_LIB_DIR}")
+    # 대체 경로 설정
+    set(SLANG_RT_LIBRARY "${SLANG_LIB_DIR}/slang-rt.lib")
 endif()
 
 # Slang의 정적 라이브러리 등록
@@ -118,11 +125,24 @@ set_target_properties(slang PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${SLANG_DIR}"
 )
 
+# Slang-RT의 정적 라이브러리 등록
+add_library(slang-rt STATIC IMPORTED GLOBAL)
+set_target_properties(slang-rt PROPERTIES
+    IMPORTED_LOCATION "${SLANG_RT_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${SLANG_DIR}"
+)
+
 # 라이브러리 존재 여부 확인
 if(EXISTS "${SLANG_LIBRARY}")
     message(STATUS "Slang 라이브러리를 찾았습니다: ${SLANG_LIBRARY}")
 else()
     message(WARNING "Slang 라이브러리 파일이 존재하지 않습니다: ${SLANG_LIBRARY}")
+endif()
+
+if(EXISTS "${SLANG_RT_LIBRARY}")
+    message(STATUS "Slang-RT 라이브러리를 찾았습니다: ${SLANG_RT_LIBRARY}")
+else()
+    message(WARNING "Slang-RT 라이브러리 파일이 존재하지 않습니다: ${SLANG_RT_LIBRARY}")
 endif()
 
 # Slang 디렉토리 존재 여부 확인
@@ -140,7 +160,7 @@ ELSE()
 ENDIF()
 
 link_directories(${LIB_DIR})
-target_link_libraries(system PUBLIC ${GLFW3} imgui slang)
+target_link_libraries(system PUBLIC ${GLFW3} imgui slang slang-rt)
 
 # target_compile_options(render PUBLIC -Wall)
 IF(OG_ENGINE_SHARED_LIB)
