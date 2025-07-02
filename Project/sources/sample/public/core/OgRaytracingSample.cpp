@@ -446,40 +446,36 @@ void OgRayTracingSample::destroyResources()
 		_hitSBT = nullptr;
 	}
 }
-
 void OgRayTracingSample::createShaders()
 {
-	// Ray Generation 셰이더 (Slang)
-	const char* raygenSlang = R"(
-		import slang.rt;
+	// Ray Generation 셰이더 (GLSL)
+	const char* raygenGLSL = R"(
+		#version 460
+		#extension GL_EXT_ray_tracing : require
+		#extension GL_EXT_shader_explicit_arithmetic_types : require
+		#extension GL_EXT_scalar_block_layout : require
+		#extension GL_EXT_buffer_reference2 : require
+		#extension GL_EXT_nonuniform_qualifier : require
 		
-		[[vk::binding(0, 0)]]
-		RaytracingAccelerationStructure topLevelAS;
+		layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+		layout(binding = 1, set = 0, rgba32f) uniform image2D image;
 		
-		[[vk::binding(1, 0)]]
-		RWTexture2D<float4> image;
-		
-		struct UniformBufferObject {
-			float4x4 viewInverse;
-			float4x4 projInverse;
-			float4 cameraPos;
-			float4 lightPos;
-			float4 lightColor;
-			float4 globalAmbient;
+		layout(binding = 2, set = 0) uniform UniformBufferObject {
+			mat4 viewInverse;
+			mat4 projInverse;
+			vec4 cameraPos;
+			vec4 lightPos;
+			vec4 lightColor;
+			vec4 globalAmbient;
 			uint frameCount;
 			uint maxBounces;
 			uint samplesPerPixel;
 			float padding;
-		};
+		} ubo;
 		
-		[[vk::binding(2, 0)]]
-		ConstantBuffer<UniformBufferObject> ubo;
+		layout(location = 0) rayPayloadEXT vec3 rayPayload;
 		
-		struct RayPayload {
-			float3 color;
-		};
-		
-		static uint rngState;
+		uint rngState;
 		
 		uint pcg_hash(uint input)
 		{
@@ -494,151 +490,150 @@ void OgRayTracingSample::createShaders()
 			return float(rngState) / 4294967295.0;
 		}
 		
-		float2 randomInUnitDisk()
+		vec2 randomInUnitDisk()
 		{
-			float2 p = float2(0.0);
+			vec2 p = vec2(0.0);
 			for (int i = 0; i < 100; i++)
 			{
-				p = 2.0 * float2(randomFloat(), randomFloat()) - 1.0;
+				p = 2.0 * vec2(randomFloat(), randomFloat()) - 1.0;
 				if (dot(p, p) < 1.0)
 					break;
 			}
 			return p;
 		}
 		
-		[shader("raygeneration")]
 		void main()
 		{
-			uint2 launchID = DispatchRaysIndex().xy;
-			uint2 launchSize = DispatchRaysDimensions().xy;
+			uvec2 launchID = gl_LaunchIDEXT.xy;
+			uvec2 launchSize = gl_LaunchSizeEXT.xy;
 			
 			rngState = ubo.frameCount + launchID.x * 1973 + launchID.y * 9277;
 			
-			float2 pixelCenter = float2(launchID) + float2(0.5);
-			float2 inUV = pixelCenter / float2(launchSize);
-			float2 d = inUV * 2.0 - 1.0;
+			vec2 pixelCenter = vec2(launchID) + vec2(0.5);
+			vec2 inUV = pixelCenter / vec2(launchSize);
+			vec2 d = inUV * 2.0 - 1.0;
 			
-			float4 origin = mul(ubo.viewInverse, float4(0, 0, 0, 1));
-			float4 target = mul(ubo.projInverse, float4(d.x, d.y, 1, 1));
-			float4 direction = mul(ubo.viewInverse, float4(normalize(target.xyz), 0));
+			vec4 origin = ubo.viewInverse * vec4(0, 0, 0, 1);
+			vec4 target = ubo.projInverse * vec4(d.x, d.y, 1, 1);
+			vec4 direction = ubo.viewInverse * vec4(normalize(target.xyz), 0);
 			
-			float3 finalColor = float3(0.0);
+			vec3 finalColor = vec3(0.0);
+			
+			// Ray flags
+			const uint rayFlags = gl_RayFlagsOpaqueEXT;
+			const float tMin = 0.001;
+			const float tMax = 10000.0;
 			
 			for (uint s = 0; s < ubo.samplesPerPixel; s++)
 			{
-				float2 offset = (float2(randomFloat(), randomFloat()) - 0.5) / float2(launchSize);
-				float2 nd = d + offset * 2.0;
+				vec2 offset = (vec2(randomFloat(), randomFloat()) - 0.5) / vec2(launchSize);
+				vec2 nd = d + offset * 2.0;
 				
-				float4 ntarget = mul(ubo.projInverse, float4(nd.x, nd.y, 1, 1));
-				float4 ndirection = mul(ubo.viewInverse, float4(normalize(ntarget.xyz), 0));
+				vec4 ntarget = ubo.projInverse * vec4(nd.x, nd.y, 1, 1);
+				vec4 ndirection = ubo.viewInverse * vec4(normalize(ntarget.xyz), 0);
 				
-				RayDesc ray;
-				ray.Origin = origin.xyz;
-				ray.Direction = ndirection.xyz;
-				ray.TMin = 0.001;
-				ray.TMax = 10000.0;
+				// Trace primary ray
+				traceRayEXT(topLevelAS,
+							rayFlags,
+							0xff,         // cullMask
+							0,            // sbtRecordOffset
+							0,            // sbtRecordStride
+							0,            // missIndex
+							origin.xyz,
+							tMin,
+							ndirection.xyz,
+							tMax,
+							0             // payload location
+				);
 				
-				RayPayload payload;
-				payload.color = float3(0.0);
-				
-				TraceRay(topLevelAS, RAY_FLAG_OPAQUE, 0xff, 0, 0, 0, ray, payload);
-				finalColor = finalColor + payload.color;
+				finalColor = finalColor + rayPayload;
 			}
 			
 			finalColor /= float(ubo.samplesPerPixel);
 			
 			if (ubo.frameCount > 0)
 			{
-				float3 previousColor = image[launchID].rgb;
+				vec3 previousColor = imageLoad(image, ivec2(launchID)).rgb;
 				float weight = 1.0 / float(ubo.frameCount + 1);
-				finalColor = lerp(previousColor, finalColor, weight);
+				finalColor = mix(previousColor, finalColor, weight);
 			}
 			
-			image[launchID] = float4(finalColor, 1.0);
+			imageStore(image, ivec2(launchID), vec4(finalColor, 1.0));
 		}
 	)";
 
-	// Miss 셰이더 (Slang)
-	const char* missSlang = R"(
-		import slang.rt;
+	// Miss 셰이더 (GLSL)
+	const char* missGLSL = R"(
+		#version 460
+		#extension GL_EXT_ray_tracing : require
 		
-		struct RayPayload {
-			float3 color;
-		};
+		layout(location = 0) rayPayloadInEXT vec3 rayPayload;
 		
-		struct UniformBufferObject {
-			float4x4 viewInverse;
-			float4x4 projInverse;
-			float4 cameraPos;
-			float4 lightPos;
-			float4 lightColor;
-			float4 globalAmbient;
+		layout(binding = 2, set = 0) uniform UniformBufferObject {
+			mat4 viewInverse;
+			mat4 projInverse;
+			vec4 cameraPos;
+			vec4 lightPos;
+			vec4 lightColor;
+			vec4 globalAmbient;
 			uint frameCount;
 			uint maxBounces;
 			uint samplesPerPixel;
 			float padding;
-		};
+		} ubo;
 		
-		[[vk::binding(2, 0)]]
-		ConstantBuffer<UniformBufferObject> ubo;
-		
-		[shader("miss")]
-		void main(inout RayPayload payload)
+		void main()
 		{
 			// 간단한 하늘 그라데이션
-			float3 direction = normalize(WorldRayDirection());
+			vec3 direction = normalize(gl_WorldRayDirectionEXT);
 			float t = 0.5 * (direction.y + 1.0);
-			float3 skyColor = lerp(float3(0.5, 0.7, 1.0), float3(0.1, 0.2, 0.4), t);
-			payload.color = skyColor * 0.5;
+			vec3 skyColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), t);
+			rayPayload = skyColor * 0.5;
 		}
 	)";
 
-	// Closest Hit 셰이더 (Slang)
-	const char* closestHitSlang = R"(
-		import slang.rt;
+	// Closest Hit 셰이더 (GLSL)
+	const char* closestHitGLSL = R"(
+		#version 460
+		#extension GL_EXT_ray_tracing : require
+		#extension GL_EXT_shader_explicit_arithmetic_types : require
+		#extension GL_EXT_scalar_block_layout : require
+		#extension GL_EXT_buffer_reference2 : require
+		#extension GL_EXT_nonuniform_qualifier : require
 		
-		struct RayPayload {
-			float3 color;
-		};
+		layout(location = 0) rayPayloadInEXT vec3 rayPayload;
+		layout(location = 1) rayPayloadEXT vec3 shadowPayload;
 		
-		struct ShadowPayload {
-			float3 color;
-		};
+		layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 		
-		[[vk::binding(0, 0)]]
-		RaytracingAccelerationStructure topLevelAS;
-		
-		struct UniformBufferObject {
-			float4x4 viewInverse;
-			float4x4 projInverse;
-			float4 cameraPos;
-			float4 lightPos;
-			float4 lightColor;
-			float4 globalAmbient;
+		layout(binding = 2, set = 0) uniform UniformBufferObject {
+			mat4 viewInverse;
+			mat4 projInverse;
+			vec4 cameraPos;
+			vec4 lightPos;
+			vec4 lightColor;
+			vec4 globalAmbient;
 			uint frameCount;
 			uint maxBounces;
 			uint samplesPerPixel;
 			float padding;
-		};
-		
-		[[vk::binding(2, 0)]]
-		ConstantBuffer<UniformBufferObject> ubo;
+		} ubo;
 		
 		struct Vertex {
-			float3 position;
-			float3 normal;
-			float2 texCoord;
-			float4 tangent;
+			vec3 position;
+			vec3 normal;
+			vec2 texCoord;
+			vec4 tangent;
 		};
 		
 		struct Material {
-			float4 baseColorFactor;
-			float4 emissiveFactor;
+			vec4 baseColorFactor;
+			vec4 emissiveFactor;
 			float metallicFactor;
 			float roughnessFactor;
 			float transmissionFactor;
 			float ior;
-			float4 attenuationColor;
+			vec4 attenuationColor;
 			float attenuationDistance;
 			int baseColorTextureIndex;
 			int normalTextureIndex;
@@ -652,44 +647,46 @@ void OgRayTracingSample::createShaders()
 			uint padding;
 		};
 		
-		[[vk::binding(3, 0)]]
-		StructuredBuffer<Vertex> vertexBuffer;
+		layout(binding = 3, set = 0, scalar) buffer VertexBuffer {
+			Vertex vertices[];
+		} vertexBuffer;
 		
-		[[vk::binding(4, 0)]]
-		StructuredBuffer<uint> indexBuffer;
+		layout(binding = 4, set = 0, scalar) buffer IndexBuffer {
+			uint indices[];
+		} indexBuffer;
 		
-		[[vk::binding(5, 0)]]
-		StructuredBuffer<Material> materialBuffer;
+		layout(binding = 5, set = 0, scalar) buffer MaterialBuffer {
+			Material materials[];
+		} materialBuffer;
 		
-		[[vk::binding(6, 0)]]
-		StructuredBuffer<GeometryInfo> geometryInfoBuffer;
+		layout(binding = 6, set = 0, scalar) buffer GeometryInfoBuffer {
+			GeometryInfo geometryInfos[];
+		} geometryInfoBuffer;
 		
-		[[vk::binding(7, 0)]]
-		Texture2D textures[16];
+		layout(binding = 7, set = 0) uniform sampler2D textures[16];
 		
-		[[vk::binding(7, 0)]]
-		SamplerState textureSampler;
+		hitAttributeEXT vec2 attribs;
 		
-		float3 getBarycentric()
+		vec3 getBarycentric()
 		{
-			float2 barycentrics = HitTriangleBarycentrics();
-			return float3(1.0 - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y);
+			vec3 barycentricCoords = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
+			return barycentricCoords;
 		}
 		
 		Vertex getVertex(uint index)
 		{
-			GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
-			return vertexBuffer[geomInfo.vertexOffset + index];
+			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
+			return vertexBuffer.vertices[geomInfo.vertexOffset + index];
 		}
 		
-		static const float PI = 3.14159265359;
+		const float PI = 3.14159265359;
 		
-		float3 fresnelSchlick(float cosTheta, float3 F0)
+		vec3 fresnelSchlick(float cosTheta, vec3 F0)
 		{
-			return F0 + (1.0 - F0) * pow(saturate(1.0 - cosTheta), 5.0);
+			return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 		}
 		
-		float distributionGGX(float3 N, float3 H, float roughness)
+		float distributionGGX(vec3 N, vec3 H, float roughness)
 		{
 			float a = roughness * roughness;
 			float a2 = a * a;
@@ -714,7 +711,7 @@ void OgRayTracingSample::createShaders()
 			return num / max(denom, 0.0001);
 		}
 		
-		float geometrySmith(float3 N, float3 V, float3 L, float roughness)
+		float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 		{
 			float NdotV = max(dot(N, V), 0.0);
 			float NdotL = max(dot(N, L), 0.0);
@@ -724,102 +721,106 @@ void OgRayTracingSample::createShaders()
 			return ggx1 * ggx2;
 		}
 		
-		[shader("closesthit")]
-		void main(inout RayPayload payload, in BuiltInTriangleIntersectionAttributes attribs)
+		void main()
 		{
-			GeometryInfo geomInfo = geometryInfoBuffer[GeometryIndex()];
+			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
 			
-			uint i0 = indexBuffer[geomInfo.indexOffset + PrimitiveIndex() * 3 + 0];
-			uint i1 = indexBuffer[geomInfo.indexOffset + PrimitiveIndex() * 3 + 1];
-			uint i2 = indexBuffer[geomInfo.indexOffset + PrimitiveIndex() * 3 + 2];
+			uint i0 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 0];
+			uint i1 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 1];
+			uint i2 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 2];
 			
 			Vertex v0 = getVertex(i0);
 			Vertex v1 = getVertex(i1);
 			Vertex v2 = getVertex(i2);
 			
-			float3 bary = getBarycentric();
-			float3 position = v0.position * bary.x + v1.position * bary.y + v2.position * bary.z;
-			float3 normal = normalize(v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z);
-			float2 texCoord = v0.texCoord * bary.x + v1.texCoord * bary.y + v2.texCoord * bary.z;
+			vec3 bary = getBarycentric();
+			vec3 position = v0.position * bary.x + v1.position * bary.y + v2.position * bary.z;
+			vec3 normal = normalize(v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z);
+			vec2 texCoord = v0.texCoord * bary.x + v1.texCoord * bary.y + v2.texCoord * bary.z;
 			
-			position = mul(ObjectToWorld3x4(), float4(position, 1.0)).xyz;
-			normal = normalize(mul((float3x3)ObjectToWorld3x4(), normal));
+			// Transform to world space
+			position = gl_ObjectToWorldEXT * vec4(position, 1.0);
+			normal = normalize(mat3(gl_ObjectToWorldEXT) * normal);
 			
-			Material material = materialBuffer[geomInfo.materialIndex];
+			Material material = materialBuffer.materials[geomInfo.materialIndex];
 			
-			float4 baseColor = material.baseColorFactor;
+			vec4 baseColor = material.baseColorFactor;
 			if (material.baseColorTextureIndex >= 0)
 			{
-				baseColor *= textures[material.baseColorTextureIndex].SampleLevel(textureSampler, texCoord, 0);
+				baseColor *= texture(textures[material.baseColorTextureIndex], texCoord);
 			}
 			
 			// PBR 파라미터
 			float metallic = material.metallicFactor;
 			float roughness = material.roughnessFactor;
-			float3 emissive = material.emissiveFactor.rgb;
+			vec3 emissive = material.emissiveFactor.rgb;
 			
-			float3 V = -normalize(WorldRayDirection());
-			float3 L = normalize(ubo.lightPos.xyz);
-			float3 H = normalize(V + L);
+			vec3 V = -normalize(gl_WorldRayDirectionEXT);
+			vec3 L = normalize(ubo.lightPos.xyz);
+			vec3 H = normalize(V + L);
 			
 			// PBR BRDF
-			float3 F0 = float3(0.04);
-			F0 = lerp(F0, baseColor.rgb, metallic);
+			vec3 F0 = vec3(0.04);
+			F0 = mix(F0, baseColor.rgb, metallic);
 			
-			float3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
+			vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 			float NDF = distributionGGX(normal, H, roughness);
 			float G = geometrySmith(normal, V, L, roughness);
 			
-			float3 numerator = NDF * G * F;
+			vec3 numerator = NDF * G * F;
 			float denominator = 4.0 * max(dot(normal, V), 0.0) * max(dot(normal, L), 0.0);
-			float3 specular = numerator / max(denominator, 0.001);
+			vec3 specular = numerator / max(denominator, 0.001);
 			
-			float3 kS = F;
-			float3 kD = float3(1.0) - kS;
+			vec3 kS = F;
+			vec3 kD = vec3(1.0) - kS;
 			kD *= 1.0 - metallic;
 			
 			float NdotL = max(dot(normal, L), 0.0);
-			float3 Lo = (kD * baseColor.rgb / PI + specular) * ubo.lightColor.rgb * NdotL;
+			vec3 Lo = (kD * baseColor.rgb / PI + specular) * ubo.lightColor.rgb * NdotL;
 			
-			float3 ambient = ubo.globalAmbient.rgb * baseColor.rgb;
+			vec3 ambient = ubo.globalAmbient.rgb * baseColor.rgb;
 			
 			// 그림자 레이
 			float tmin = 0.001;
 			float tmax = length(ubo.lightPos.xyz - position);
-			float3 shadowRayOrigin = position + normal * 0.001;
-			float3 shadowRayDirection = normalize(ubo.lightPos.xyz - position);
+			vec3 shadowRayOrigin = position + normal * 0.001;
+			vec3 shadowRayDirection = normalize(ubo.lightPos.xyz - position);
 			
-			RayDesc shadowRay;
-			shadowRay.Origin = shadowRayOrigin;
-			shadowRay.Direction = shadowRayDirection;
-			shadowRay.TMin = tmin;
-			shadowRay.TMax = tmax;
+			shadowPayload = vec3(1.0);
 			
-			ShadowPayload shadowPayload;
-			shadowPayload.color = float3(1.0);
+			uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 			
-			TraceRay(topLevelAS, 
-					 RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_OPAQUE | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER,
-					 0xff, 1, 0, 1, shadowRay, shadowPayload);
+			traceRayEXT(topLevelAS,
+						shadowRayFlags,
+						0xff,         // cullMask
+						1,            // sbtRecordOffset
+						0,            // sbtRecordStride  
+						1,            // missIndex
+						shadowRayOrigin,
+						tmin,
+						shadowRayDirection,
+						tmax,
+						1             // payload location
+			);
 			
-			float3 color = ambient + Lo * shadowPayload.color + emissive;
+			vec3 color = ambient + Lo * shadowPayload + emissive;
 			
 			// 톤 매핑
-			color = color / (color + float3(1.0));
-			color = pow(color, float3(1.0/2.2));
+			color = color / (color + vec3(1.0));
+			color = pow(color, vec3(1.0/2.2));
 			
-			payload.color = color;
+			rayPayload = color;
 		}
 	)";
 
-	// 셰이더 컴파일 (Slang 사용)
-	_raygenShader = OgShaderCompiler::CreateShaderFromSlang(
+	// 셰이더 컴파일 (GLSL 사용)
+	_raygenShader = OgShaderCompiler::CreateShaderFromGLSL(
 		_renderContext,
-		raygenSlang,
+		raygenGLSL,
 		OgShaderType::RAYGEN,
 		"RayGenShader"
 	);
-	
+
 	if (!_raygenShader)
 	{
 		LOGE(OG_ID, "Failed to compile ray generation shader: %s", OgShaderCompiler::GetLastError().c_str());
@@ -827,13 +828,13 @@ void OgRayTracingSample::createShaders()
 	}
 	_raygenShader->Retain();
 
-	_missShader = OgShaderCompiler::CreateShaderFromSlang(
+	_missShader = OgShaderCompiler::CreateShaderFromGLSL(
 		_renderContext,
-		missSlang,
+		missGLSL,
 		OgShaderType::MISS,
 		"MissShader"
 	);
-	
+
 	if (!_missShader)
 	{
 		LOGE(OG_ID, "Failed to compile miss shader: %s", OgShaderCompiler::GetLastError().c_str());
@@ -841,13 +842,13 @@ void OgRayTracingSample::createShaders()
 	}
 	_missShader->Retain();
 
-	_closestHitShader = OgShaderCompiler::CreateShaderFromSlang(
+	_closestHitShader = OgShaderCompiler::CreateShaderFromGLSL(
 		_renderContext,
-		closestHitSlang,
+		closestHitGLSL,
 		OgShaderType::CLOSEST_HIT,
 		"ClosestHitShader"
 	);
-	
+
 	if (!_closestHitShader)
 	{
 		LOGE(OG_ID, "Failed to compile closest hit shader: %s", OgShaderCompiler::GetLastError().c_str());
