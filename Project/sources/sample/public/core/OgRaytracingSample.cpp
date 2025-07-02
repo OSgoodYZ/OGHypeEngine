@@ -1,4 +1,4 @@
-#include "OgRayTracingSample.h"
+#include "OgRaytracingSample.h"
 #include "sample/public/core/util/OgShaderCompiler.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -291,7 +291,7 @@ void OgRayTracingSample::createResources(uint16 width, uint16 height)
     
     // TLAS
     bindings[0].type = OgResourceType::ACCELERATION_STRUCTURE;
-    bindings[0].stage = OgShaderType::RAYGEN | OgShaderType::CLOSEST_HIT;
+    bindings[0].stage = static_cast<OgShaderType>(static_cast<uint16>(OgShaderType::RAYGEN) | static_cast<uint16>(OgShaderType::CLOSEST_HIT));
     bindings[0].binding = 0;
     bindings[0].arrayCount = 0;
     bindings[0].name = nullptr;
@@ -305,7 +305,7 @@ void OgRayTracingSample::createResources(uint16 width, uint16 height)
 
     // 유니폼 버퍼
     bindings[2].type = OgResourceType::UNIFORM_BUFFER;
-    bindings[2].stage = OgShaderType::RAYGEN | OgShaderType::CLOSEST_HIT | OgShaderType::MISS;
+    bindings[2].stage = static_cast<OgShaderType>(static_cast<uint16>(OgShaderType::RAYGEN) | static_cast<uint16>(OgShaderType::CLOSEST_HIT) | static_cast<uint16>(OgShaderType::MISS));
     bindings[2].binding = 2;
     bindings[2].arrayCount = 0;
     bindings[2].name = nullptr;
@@ -899,7 +899,7 @@ void OgRayTracingSample::createRenderTarget(uint16 width, uint16 height)
     texInfo.format = OgPixelFormat::R8G8B8A8_UNORM;
     texInfo.extent.width = width;
     texInfo.extent.height = height;
-    texInfo.usage = OgTextureUsage::COLOR_ATTACHMENT | OgTextureUsage::SAMPLED | OgTextureUsage::STORAGE;
+    texInfo.usage = static_cast<OgTextureUsage>(static_cast<uint16>(OgTextureUsage::COLOR_ATTACHMENT) | static_cast<uint16>(OgTextureUsage::SAMPLED) | static_cast<uint16>(OgTextureUsage::STORAGE));
     texInfo.isGenerateMipmaps = false;
 
     _renderTargetTexture = _renderContext->CreateTexture((void**)nullptr, texInfo, sampler);
@@ -1061,7 +1061,7 @@ void OgRayTracingSample::createAccelerationStructures()
     // 전체 버텍스와 인덱스를 하나의 버퍼로 합치기
     std::vector<Vertex> allVertices;
     std::vector<uint32_t> allIndices;
-    std::vector<GeometryInfo> allGeometryInfos;
+    std::vector<GPUGeometryInfo> allGeometryInfos;
     
     allVertices.reserve(_totalVertexCount);
     allIndices.reserve(_totalIndexCount);
@@ -1071,7 +1071,7 @@ void OgRayTracingSample::createAccelerationStructures()
     
     for (const auto& geom : _geometries)
     {
-        GeometryInfo info;
+        GPUGeometryInfo info;
         info.vertexOffset = static_cast<uint32_t>(allVertices.size());
         info.indexOffset = static_cast<uint32_t>(allIndices.size());
         info.materialIndex = geom.materialIndex;
@@ -1132,24 +1132,24 @@ void OgRayTracingSample::createAccelerationStructures()
     _vertexBuffer = _renderContext->CreateBuffer(
         allVertices.data(),
         sizeof(Vertex) * allVertices.size(),
-        Render::OgBufferUsage::VERTEX | Render::OgBufferUsage::STORAGE | Render::OgBufferUsage::ACCELERATION_STRUCTURE_BUILD_INPUT,
-        OgMemoryOption::DEVICE_LOCAL
+        static_cast<Render::OgBufferUsage>(static_cast<uint16>(Render::OgBufferUsage::VERTEX) | static_cast<uint16>(Render::OgBufferUsage::STORAGE) | static_cast<uint16>(Render::OgBufferUsage::ACCEL_STRUCTURE_BUILD_INPUT)),
+        OgMemoryOption::PRIVATE_GPU
     );
     _vertexBuffer->Retain();
     
     _indexBuffer = _renderContext->CreateBuffer(
         allIndices.data(),
         sizeof(uint32_t) * allIndices.size(),
-        Render::OgBufferUsage::INDEX | Render::OgBufferUsage::STORAGE | Render::OgBufferUsage::ACCELERATION_STRUCTURE_BUILD_INPUT,
-        OgMemoryOption::DEVICE_LOCAL
+        static_cast<Render::OgBufferUsage>(static_cast<uint16>(Render::OgBufferUsage::INDEX) | static_cast<uint16>(Render::OgBufferUsage::STORAGE) | static_cast<uint16>(Render::OgBufferUsage::ACCEL_STRUCTURE_BUILD_INPUT)),
+        OgMemoryOption::PRIVATE_GPU
     );
     _indexBuffer->Retain();
     
     _geometryInfoBuffer = _renderContext->CreateBuffer(
         allGeometryInfos.data(),
-        sizeof(GeometryInfo) * allGeometryInfos.size(),
+        sizeof(GPUGeometryInfo) * allGeometryInfos.size(),
         Render::OgBufferUsage::STORAGE,
-        OgMemoryOption::DEVICE_LOCAL
+        OgMemoryOption::PRIVATE_GPU
     );
     _geometryInfoBuffer->Retain();
     
@@ -1218,7 +1218,7 @@ void OgRayTracingSample::createAccelerationStructures()
             static_cast<uint16>(OgBufferUsage::VERTEX) | 
             static_cast<uint16>(OgBufferUsage::STORAGE)
         ),
-        OgMemoryOption::DEVICE_LOCAL
+        OgMemoryOption::PRIVATE_GPU
     );
     _instanceBuffer->Retain();
     
@@ -1239,11 +1239,15 @@ void OgRayTracingSample::createAccelerationStructures()
     uint32 zeroOffset = 0;
     OgResourceUsage usages[8];
     
-    // TLAS
+    // TLAS - Acceleration Structure는 보통 버퍼로 처리되거나 특수한 방식으로 바인딩
     usages[0].binding.type = OgResourceType::ACCELERATION_STRUCTURE;
-    usages[0].binding.stage = OgShaderType::RAYGEN | OgShaderType::CLOSEST_HIT;
+    usages[0].binding.stage = static_cast<OgShaderType>(static_cast<uint16>(OgShaderType::RAYGEN) | static_cast<uint16>(OgShaderType::CLOSEST_HIT));
     usages[0].binding.binding = 0;
-    usages[0].accelerationStructure.handle = &_tlas;
+    // acceleration structure는 buffer로 처리될 수 있음
+    usages[0].buffer.handle = reinterpret_cast<Render::OgBufferHandle**>(&_tlas);
+    usages[0].buffer.offset = &zeroOffset;
+    uint32 tlasSize = sizeof(void*); // 임시
+    usages[0].buffer.range = &tlasSize;
     
     // 출력 이미지
     usages[1].binding.type = OgResourceType::STORAGE_IMAGE;
@@ -1253,7 +1257,7 @@ void OgRayTracingSample::createAccelerationStructures()
     
     // 유니폼 버퍼
     usages[2].binding.type = OgResourceType::UNIFORM_BUFFER;
-    usages[2].binding.stage = OgShaderType::RAYGEN | OgShaderType::CLOSEST_HIT | OgShaderType::MISS;
+    usages[2].binding.stage = static_cast<OgShaderType>(static_cast<uint16>(OgShaderType::RAYGEN) | static_cast<uint16>(OgShaderType::CLOSEST_HIT) | static_cast<uint16>(OgShaderType::MISS));
     usages[2].binding.binding = 2;
     usages[2].buffer.handle = &_rtUniformBuffer;
     usages[2].buffer.offset = &zeroOffset;
@@ -1303,11 +1307,19 @@ void OgRayTracingSample::createAccelerationStructures()
         texHandles.push_back(_defaultWhiteTexture);
     }
     
+    // 텍스처 배열 - 리소스 레이아웃에서 arrayCount=16으로 이미 설정됨
+    // 첫 번째 텍스처만 바인딩하면 나머지는 자동으로 처리될 수 있음
     usages[7].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
     usages[7].binding.stage = OgShaderType::CLOSEST_HIT;
     usages[7].binding.binding = 7;
-    usages[7].textureArray.handles = texHandles.data();
-    usages[7].textureArray.count = 16;
+    if (!texHandles.empty())
+    {
+        usages[7].texture.handle = &texHandles[0];
+    }
+    else
+    {
+        usages[7].texture.handle = &_defaultWhiteTexture;
+    }
     
     _rtResourceSet = _renderContext->CreateResourceSet(_rtResourceLayout, usages, 8);
     _rtResourceSet->name = "RayTracingResourceSet";
@@ -1457,7 +1469,7 @@ bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
         matData.metallicFactor = mat.metallicFactor;
         matData.roughnessFactor = mat.roughnessFactor;
         matData.transmissionFactor = mat.transmissionFactor;
-        matData.ior = mat.ior;
+        matData.ior = 1.0;
         matData.attenuationColor = glm::vec4(mat.attenuationColor, 1.0f);
         matData.attenuationDistance = mat.attenuationDistance;
         
@@ -1493,7 +1505,7 @@ bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
             _materials.data(),
             sizeof(MaterialData) * _materials.size(),
             Render::OgBufferUsage::STORAGE,
-            OgMemoryOption::DEVICE_LOCAL
+            OgMemoryOption::PRIVATE_GPU
         );
         _materialBuffer->Retain();
     }

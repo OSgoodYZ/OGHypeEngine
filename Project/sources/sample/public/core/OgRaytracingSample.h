@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _OG_RAYTRACING_SAMPLE_H__
-#define _OG_RAYTRACING_SAMPLE_H__
+#ifndef _OG_RAYTRACINGSAMPLE_H__
+#define _OG_RAYTRACINGSAMPLE_H__
 
 #include "OgSampleBase.h"
 #include <memory>
@@ -143,6 +143,16 @@ private:
         uint32_t indexCount = 0;
         uint32_t materialIndex = 0;
     };
+    
+    // GPU로 전달할 지오메트리 정보 (셰이더용)
+    // GLSL의 GeometryInfo 구조체와 일치해야 함
+    struct GPUGeometryInfo
+    {
+        uint32_t vertexOffset;
+        uint32_t indexOffset;
+        uint32_t materialIndex;
+        uint32_t padding;
+    };
 
 private:
     // 리소스 관리
@@ -241,4 +251,4 @@ private:
 
 OG_NAMESPACE_SAMPLE_END
 
-#endif // _OG_RAYTRACING_SAMPLE_H__
+#endif // _OG_RAYTRACINGSAMPLE_H__
