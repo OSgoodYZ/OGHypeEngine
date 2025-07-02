@@ -72,8 +72,27 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 	case OgShaderType::TESSELLATION_EVALUATION:
 		slangStage = SLANG_STAGE_DOMAIN;
 		break;
+	case OgShaderType::RAYGEN:
+		slangStage = SLANG_STAGE_RAY_GENERATION;
+		break;
+	case OgShaderType::ANY_HIT:
+		slangStage = SLANG_STAGE_ANY_HIT;
+		break;
+	case OgShaderType::CLOSEST_HIT:
+		slangStage = SLANG_STAGE_CLOSEST_HIT;
+		break;
+	case OgShaderType::MISS:
+		slangStage = SLANG_STAGE_MISS;
+		break;
+	case OgShaderType::INTERSECTION:
+		slangStage = SLANG_STAGE_INTERSECTION;
+		break;
+	case OgShaderType::CALLABLE:
+		slangStage = SLANG_STAGE_CALLABLE;
+		break;
 	default:
 		s_lastError = "Unsupported shader type";
+		LOGD(OG_ID, "%s", s_lastError.c_str());
 		spDestroyCompileRequest(slangRequest);
 		session->release();
 		slangSession->release();

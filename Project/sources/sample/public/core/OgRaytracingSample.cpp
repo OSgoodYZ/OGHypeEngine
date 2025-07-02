@@ -471,8 +471,7 @@ void OgRayTracingSample::createShaders()
         } ubo;
 
         layout(location = 0) rayPayloadEXT vec3 hitValue;
-
-        // 简单的伪随机数生成器
+        
         uint rngState;
         
         uint pcg_hash(uint input)
@@ -490,16 +489,18 @@ void OgRayTracingSample::createShaders()
         
         vec2 randomInUnitDisk()
         {
-            vec2 p;
-            do {
+            vec2 p = vec2(0.0);
+            for (int i = 0; i < 100; i++) // Maximum iterations to avoid infinite loop
+            {
                 p = 2.0 * vec2(randomFloat(), randomFloat()) - 1.0;
-            } while (dot(p, p) >= 1.0);
+                if (dot(p, p) < 1.0)
+                    break;
+            }
             return p;
         }
 
         void main() 
         {
-            // 初始化随机数种子
             rngState = ubo.frameCount + gl_LaunchIDEXT.x * 1973 + gl_LaunchIDEXT.y * 9277;
             
             const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
@@ -512,23 +513,23 @@ void OgRayTracingSample::createShaders()
 
             vec3 finalColor = vec3(0.0);
             
-            // 多采样抗锯齿
             for (uint s = 0; s < ubo.samplesPerPixel; s++)
             {
-                // 添加随机偏移实现抗锯齿
                 vec2 offset = (vec2(randomFloat(), randomFloat()) - 0.5) / vec2(gl_LaunchSizeEXT.xy);
                 vec2 nd = d + offset * 2.0;
                 
                 vec4 ntarget = ubo.projInverse * vec4(nd.x, nd.y, 1, 1);
                 vec4 ndirection = ubo.viewInverse * vec4(normalize(ntarget.xyz), 0);
                 
+                // Initialize hitValue before tracing
+                hitValue = vec3(0.0);
+                
                 traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, 0.001, ndirection.xyz, 10000.0, 0);
-                finalColor += hitValue;
+                finalColor = finalColor + hitValue;
             }
             
             finalColor /= float(ubo.samplesPerPixel);
             
-            // 累积之前的帧（实现渐进式渲染）
             if (ubo.frameCount > 0)
             {
                 vec3 previousColor = imageLoad(image, ivec2(gl_LaunchIDEXT.xy)).rgb;
@@ -630,21 +631,18 @@ void OgRayTracingSample::createShaders()
         layout(binding = 6) readonly buffer GeometryInfoBuffer { GeometryInfo geometryInfos[]; } geometryInfoBuffer;
         layout(binding = 7) uniform sampler2D textures[16];
 
-        // 获取重心坐标
         vec3 getBarycentric()
         {
             vec3 barycentrics = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
             return barycentrics;
         }
 
-        // 获取顶点数据
         Vertex getVertex(uint index)
         {
             GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
             return vertexBuffer.vertices[geomInfo.vertexOffset + index];
         }
 
-        // PBR 光照计算
         const float PI = 3.14159265359;
         
         vec3 fresnelSchlick(float cosTheta, vec3 F0)
@@ -689,33 +687,26 @@ void OgRayTracingSample::createShaders()
 
         void main()
         {
-            // 获取几何信息
             GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
             
-            // 获取三角形顶点索引
             uint i0 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 0];
             uint i1 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 1];
             uint i2 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 2];
             
-            // 获取顶点
             Vertex v0 = getVertex(i0);
             Vertex v1 = getVertex(i1);
             Vertex v2 = getVertex(i2);
             
-            // 重心坐标插值
             vec3 bary = getBarycentric();
             vec3 position = v0.position * bary.x + v1.position * bary.y + v2.position * bary.z;
             vec3 normal = normalize(v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z);
             vec2 texCoord = v0.texCoord * bary.x + v1.texCoord * bary.y + v2.texCoord * bary.z;
             
-            // 世界坐标系转换
             position = gl_ObjectToWorldEXT * vec4(position, 1.0);
             normal = normalize((transpose(gl_WorldToObjectEXT) * vec4(normal, 0.0)).xyz);
             
-            // 获取材质
             Material material = materialBuffer.materials[geomInfo.materialIndex];
             
-            // 基础颜色
             vec4 baseColor = material.baseColorFactor;
             if (material.baseColorTextureIndex >= 0)
             {
@@ -727,7 +718,6 @@ void OgRayTracingSample::createShaders()
             float roughness = material.roughnessFactor;
             vec3 emissive = material.emissiveFactor.rgb;
             
-            // 光照计算
             vec3 V = -normalize(gl_WorldRayDirectionEXT);
             vec3 L = normalize(ubo.lightPos.xyz);
             vec3 H = normalize(V + L);
@@ -751,10 +741,8 @@ void OgRayTracingSample::createShaders()
             float NdotL = max(dot(normal, L), 0.0);
             vec3 Lo = (kD * baseColor.rgb / PI + specular) * ubo.lightColor.rgb * NdotL;
             
-            // 环境光
             vec3 ambient = ubo.globalAmbient.rgb * baseColor.rgb;
             
-            // 阴影检测
             float tmin = 0.001;
             float tmax = length(ubo.lightPos.xyz - position);
             vec3 shadowRayOrigin = position + normal * 0.001;
@@ -764,10 +752,8 @@ void OgRayTracingSample::createShaders()
             traceRayEXT(topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT,
                         0xff, 1, 0, 1, shadowRayOrigin, tmin, shadowRayDirection, tmax, 1);
             
-            // 最终颜色
             vec3 color = ambient + Lo * shadowHitValue + emissive;
             
-            // 简单的色调映射
             color = color / (color + vec3(1.0));
             color = pow(color, vec3(1.0/2.2));
             
