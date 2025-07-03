@@ -77,6 +77,27 @@ set(PROGRAM_PERMISSIONS_DEFAULT
 install(TARGETS application CONFIGURATIONS Debug  DESTINATION "${INSTALL_FOLDER}" PERMISSIONS ${PROGRAM_PERMISSIONS_DEFAULT} SETUID)
 install(DIRECTORY ${DLL_DEBUG_DIR}/ CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
 
+# Slang DLL 복사
+IF(WIN32 AND EXISTS "${SLANG_DLL_PATH}")
+    install(FILES "${SLANG_DLL_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
+    install(FILES "${SLANG_RT_DLL_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
+    install(FILES "${SLANG_GLSLANG_DLL_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
+    
+    # Post-build 명령으로도 복사
+    add_custom_command(TARGET application POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${SLANG_DLL_PATH}"
+        $<TARGET_FILE_DIR:application>)
+    add_custom_command(TARGET application POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${SLANG_RT_DLL_PATH}"
+        $<TARGET_FILE_DIR:application>)
+    add_custom_command(TARGET application POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${SLANG_GLSLANG_DLL_PATH}"
+        $<TARGET_FILE_DIR:application>)
+ENDIF()
+
 
 #install(DIRECTORY ${RES_DIR}/icons CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
 message(STATUS " - RES_DIR \t ${RES_DIR}")

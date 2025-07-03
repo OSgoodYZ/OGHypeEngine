@@ -266,6 +266,22 @@ ELSE()
 	MESSAGE("Cannot Find GLFW3 LIB")
 ENDIF()
 
+#DLL_DEBUG_DIR
+# Slang 라이브러리 설정 
+IF(WIN32)
+	SET(SLANG_LIB ${LIB_DEBUG_DIR}/slang.lib CACHE PATH "")
+	SET(SLANG_RT_LIB ${LIB_DEBUG_DIR}/slang-rt.lib CACHE PATH "")
+	SET(SLANG_DLL_PATH "${DLL_DEBUG_DIR}/slang.dll")
+	SET(SLANG_RT_DLL_PATH "${DLL_DEBUG_DIR}/slang-rt.dll")
+	SET(SLANG_GLSLANG_DLL_PATH "${DLL_DEBUG_DIR}/slang-glslang.dll")
+ENDIF()
+IF (SLANG_LIB)
+    MESSAGE("Using Slang library: ${SLANG_LIB}")
+    MESSAGE("Using Slang-RT library: ${SLANG_RT_LIB}")
+ELSE()
+	MESSAGE("Cannot Find SLANG LIB")
+ENDIF()
+
 
 #find_library(FBX NAMES libfbxsdk.a fbxsdk libfbxsdk-md HINTS ${DLL_DIR} ${LIB_DIR} REQUIRED)
 #IF(APPLE)
