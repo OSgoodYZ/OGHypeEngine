@@ -63,6 +63,14 @@ ENDIF()
 set_property(TARGET application PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_BINARY_DIR}")
 set_property(TARGET application PROPERTY VS_DEBUGGER_COMMAND_ARGUMENTS "-g VULKAN")
 
+# Visual Studio 디버거가 PDB 파일을 자동으로 로드하도록 설정
+IF(MSVC)
+    set_property(TARGET application PROPERTY VS_JUST_MY_CODE_DEBUGGING OFF)
+    # 심볼 경로 환경 변수 설정
+    set_property(TARGET application PROPERTY 
+        VS_DEBUGGER_ENVIRONMENT "_NT_SYMBOL_PATH=${DLL_DEBUG_DIR};$<TARGET_FILE_DIR:application>")
+ENDIF()
+
 
 set(RES_DIR ${PROJECT_SOURCE_DIR}/res)
 
@@ -77,13 +85,25 @@ set(PROGRAM_PERMISSIONS_DEFAULT
 install(TARGETS application CONFIGURATIONS Debug  DESTINATION "${INSTALL_FOLDER}" PERMISSIONS ${PROGRAM_PERMISSIONS_DEFAULT} SETUID)
 install(DIRECTORY ${DLL_DEBUG_DIR}/ CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
 
-# Slang DLL 복사
+# Slang DLL 및 PDB 복사
 IF(WIN32 AND EXISTS "${SLANG_DLL_PATH}")
+    # DLL 파일 복사
     install(FILES "${SLANG_DLL_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
     install(FILES "${SLANG_RT_DLL_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
     install(FILES "${SLANG_GLSLANG_DLL_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
     
-    # Post-build 명령으로도 복사
+    # PDB 파일 복사 (Debug 빌드시)
+    IF(EXISTS "${SLANG_PDB_PATH}")
+        install(FILES "${SLANG_PDB_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
+    ENDIF()
+    IF(EXISTS "${SLANG_RT_PDB_PATH}")
+        install(FILES "${SLANG_RT_PDB_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
+    ENDIF()
+    IF(EXISTS "${SLANG_GFX_PDB_PATH}")
+        install(FILES "${SLANG_GFX_PDB_PATH}" CONFIGURATIONS Debug DESTINATION "${INSTALL_FOLDER}")
+    ENDIF()
+    
+    # Post-build 명령으로 DLL 복사
     add_custom_command(TARGET application POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${SLANG_DLL_PATH}"
@@ -96,6 +116,26 @@ IF(WIN32 AND EXISTS "${SLANG_DLL_PATH}")
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${SLANG_GLSLANG_DLL_PATH}"
         $<TARGET_FILE_DIR:application>)
+        
+    # Post-build 명령으로 PDB 복사 (존재하는 경우만)
+    IF(EXISTS "${SLANG_PDB_PATH}")
+        add_custom_command(TARGET application POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SLANG_PDB_PATH}"
+            $<TARGET_FILE_DIR:application>)
+    ENDIF()
+    IF(EXISTS "${SLANG_RT_PDB_PATH}")
+        add_custom_command(TARGET application POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SLANG_RT_PDB_PATH}"
+            $<TARGET_FILE_DIR:application>)
+    ENDIF()
+    IF(EXISTS "${SLANG_GFX_PDB_PATH}")
+        add_custom_command(TARGET application POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SLANG_GFX_PDB_PATH}"
+            $<TARGET_FILE_DIR:application>)
+    ENDIF()
 ENDIF()
 
 

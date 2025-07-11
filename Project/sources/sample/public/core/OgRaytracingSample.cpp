@@ -451,13 +451,13 @@ void OgRayTracingSample::createShaders()
 	// Ray Generation 셰이더 (GLSL)
 	const char* raygenGLSL = R"(
 		#version 460
-		#extension GL_EXT_ray_tracing : require
+		#extension GL_KHR_ray_tracing : require
 		#extension GL_EXT_shader_explicit_arithmetic_types : require
 		#extension GL_EXT_scalar_block_layout : require
 		#extension GL_EXT_buffer_reference2 : require
 		#extension GL_EXT_nonuniform_qualifier : require
 		
-		layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+		layout(binding = 0, set = 0) uniform accelerationStructureKHR topLevelAS;
 		layout(binding = 1, set = 0, rgba32f) uniform image2D image;
 		
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
@@ -473,7 +473,7 @@ void OgRayTracingSample::createShaders()
 			float padding;
 		} ubo;
 		
-		layout(location = 0) rayPayloadEXT vec3 rayPayload;
+		layout(rayPayloadKHR, location = 0) out vec3 hitValue;
 		
 		uint rngState;
 		
@@ -504,8 +504,8 @@ void OgRayTracingSample::createShaders()
 		
 		void main()
 		{
-			uvec2 launchID = gl_LaunchIDEXT.xy;
-			uvec2 launchSize = gl_LaunchSizeEXT.xy;
+			uvec2 launchID = gl_LaunchIDKHR.xy;
+			uvec2 launchSize = gl_LaunchSizeKHR.xy;
 			
 			rngState = ubo.frameCount + launchID.x * 1973 + launchID.y * 9277;
 			
@@ -520,7 +520,7 @@ void OgRayTracingSample::createShaders()
 			vec3 finalColor = vec3(0.0);
 			
 			// Ray flags
-			const uint rayFlags = gl_RayFlagsOpaqueEXT;
+			const uint rayFlags = gl_RayFlagsOpaqueKHR;
 			const float tMin = 0.001;
 			const float tMax = 10000.0;
 			
@@ -533,7 +533,7 @@ void OgRayTracingSample::createShaders()
 				vec4 ndirection = ubo.viewInverse * vec4(normalize(ntarget.xyz), 0);
 				
 				// Trace primary ray
-				traceRayEXT(topLevelAS,
+				traceRayKHR(topLevelAS,
 							rayFlags,
 							0xff,         // cullMask
 							0,            // sbtRecordOffset
@@ -546,7 +546,7 @@ void OgRayTracingSample::createShaders()
 							0             // payload location
 				);
 				
-				finalColor = finalColor + rayPayload;
+				finalColor = finalColor + hitValue;
 			}
 			
 			finalColor /= float(ubo.samplesPerPixel);
@@ -565,9 +565,9 @@ void OgRayTracingSample::createShaders()
 	// Miss 셰이더 (GLSL)
 	const char* missGLSL = R"(
 		#version 460
-		#extension GL_EXT_ray_tracing : require
+		#extension GL_KHR_ray_tracing : require
 		
-		layout(location = 0) rayPayloadInEXT vec3 rayPayload;
+		layout(rayPayloadInKHR, location = 0) in vec3 hitValue;
 		
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
@@ -585,26 +585,26 @@ void OgRayTracingSample::createShaders()
 		void main()
 		{
 			// 간단한 하늘 그라데이션
-			vec3 direction = normalize(gl_WorldRayDirectionEXT);
+			vec3 direction = normalize(gl_WorldRayDirectionKHR);
 			float t = 0.5 * (direction.y + 1.0);
 			vec3 skyColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), t);
-			rayPayload = skyColor * 0.5;
+			hitValue = skyColor * 0.5;
 		}
 	)";
 
 	// Closest Hit 셰이더 (GLSL)
 	const char* closestHitGLSL = R"(
 		#version 460
-		#extension GL_EXT_ray_tracing : require
+		#extension GL_KHR_ray_tracing : require
 		#extension GL_EXT_shader_explicit_arithmetic_types : require
 		#extension GL_EXT_scalar_block_layout : require
 		#extension GL_EXT_buffer_reference2 : require
 		#extension GL_EXT_nonuniform_qualifier : require
 		
-		layout(location = 0) rayPayloadInEXT vec3 rayPayload;
-		layout(location = 1) rayPayloadEXT vec3 shadowPayload;
+		layout(rayPayloadInKHR, location = 0) in vec3 hitValue;
+		layout(rayPayloadKHR, location = 1) out vec3 shadowHitValue;
 		
-		layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+		layout(binding = 0, set = 0) uniform accelerationStructureKHR topLevelAS;
 		
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
@@ -665,7 +665,7 @@ void OgRayTracingSample::createShaders()
 		
 		layout(binding = 7, set = 0) uniform sampler2D textures[16];
 		
-		hitAttributeEXT vec2 attribs;
+		hitAttributeKHR vec2 attribs;
 		
 		vec3 getBarycentric()
 		{
@@ -675,7 +675,7 @@ void OgRayTracingSample::createShaders()
 		
 		Vertex getVertex(uint index)
 		{
-			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
+			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexKHR];
 			return vertexBuffer.vertices[geomInfo.vertexOffset + index];
 		}
 		
@@ -723,7 +723,7 @@ void OgRayTracingSample::createShaders()
 		
 		void main()
 		{
-			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
+			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexKHR];
 			
 			uint i0 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 0];
 			uint i1 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 1];
@@ -739,8 +739,8 @@ void OgRayTracingSample::createShaders()
 			vec2 texCoord = v0.texCoord * bary.x + v1.texCoord * bary.y + v2.texCoord * bary.z;
 			
 			// Transform to world space
-			position = gl_ObjectToWorldEXT * vec4(position, 1.0);
-			normal = normalize(mat3(gl_ObjectToWorldEXT) * normal);
+			position = gl_ObjectToWorldKHR * vec4(position, 1.0);
+			normal = normalize(mat3(gl_ObjectToWorldKHR) * normal);
 			
 			Material material = materialBuffer.materials[geomInfo.materialIndex];
 			
@@ -755,7 +755,7 @@ void OgRayTracingSample::createShaders()
 			float roughness = material.roughnessFactor;
 			vec3 emissive = material.emissiveFactor.rgb;
 			
-			vec3 V = -normalize(gl_WorldRayDirectionEXT);
+			vec3 V = -normalize(gl_WorldRayDirectionKHR);
 			vec3 L = normalize(ubo.lightPos.xyz);
 			vec3 H = normalize(V + L);
 			
@@ -786,11 +786,11 @@ void OgRayTracingSample::createShaders()
 			vec3 shadowRayOrigin = position + normal * 0.001;
 			vec3 shadowRayDirection = normalize(ubo.lightPos.xyz - position);
 			
-			shadowPayload = vec3(1.0);
+			shadowHitValue = vec3(1.0);
 			
-			uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+			uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitKHR | gl_RayFlagsOpaqueKHR | gl_RayFlagsSkipClosestHitShaderKHR;
 			
-			traceRayEXT(topLevelAS,
+			traceRayKHR(topLevelAS,
 						shadowRayFlags,
 						0xff,         // cullMask
 						1,            // sbtRecordOffset
@@ -803,13 +803,13 @@ void OgRayTracingSample::createShaders()
 						1             // payload location
 			);
 			
-			vec3 color = ambient + Lo * shadowPayload + emissive;
+			vec3 color = ambient + Lo * shadowHitValue + emissive;
 			
 			// 톤 매핑
 			color = color / (color + vec3(1.0));
 			color = pow(color, vec3(1.0/2.2));
 			
-			rayPayload = color;
+			hitValue = color;
 		}
 	)";
 

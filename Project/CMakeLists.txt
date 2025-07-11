@@ -41,6 +41,11 @@ IF (CMAKE_CONFIGURATION_TYPES)
 		set(CMAKE_CXX_FLAGS_DEBUGCROSS "${CMAKE_CXX_FLAGS_DEBUG} /UMBCS /D_UNICODE /DUNICODE /Gz")
 		set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /UMBCS /D_UNICODE /DUNICODE /Gz /wd4819")
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /UMBCS /D_UNICODE /DUNICODE /Gz /wd4819")
+		# PDB 자동 로드를 위한 설정 추가
+		set(CMAKE_VS_JUST_MY_CODE_DEBUGGING OFF)  # Just My Code 비활성화
+	
+		# 심볼 서버 설정
+		set(CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD ON)
 	ELSEIF(APPLE)
 		#set(CMAKE_CXX_FLAGS_DEBUGCROSS "${CMAKE_CXX_FLAGS_DEBUG}")
 	ELSEIF(ANDROID)
@@ -121,7 +126,7 @@ IF (MSVC)
 
 
 
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /UMBCS /D_UNICODE /DUNICODE /Gz")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /UMBCS /D_UNICODE /DUNICODE /Gz")
 	IF("${MSVC_C_ARCHITECTURE_ID}" STREQUAL "X86")
 		SET(ARCH "i686")
 	ELSEIF("${MSVC_C_ARCHITECTURE_ID}" STREQUAL "x64")
@@ -135,7 +140,7 @@ IF (MSVC)
 		MESSAGE(FATAL_ERROR "Failed to determine the MSVC target architecture: ${MSVC_C_ARCHITECTURE_ID}")
 	ENDIF()
 ELSEIF(APPLE)
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 	#execute_process(
 	#	COMMAND ${CMAKE_C_COMPILER} -dumpmachine
 	#	RESULT_VARIABLE RESULT
@@ -156,11 +161,11 @@ ELSEIF(ANDROID)
 ENDIF()
 
 IF(WIN32)
-    IF(ARCH MATCHES "x86_64")
+	IF(ARCH MATCHES "x86_64")
 		SET(CMAKE_INSTALL_PREFIX "C:/Program Files/${CMAKE_PROJECT_NAME}")
-    ELSE()
+	ELSE()
 		SET(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/${CMAKE_PROJECT_NAME}")
-    ENDIF()
+	ENDIF()
 ENDIF()
 
 
@@ -189,8 +194,8 @@ IF(${ARCH} STREQUAL "x86")
 ENDIF()
 
 IF(APPLE)
-    # 빌드 환경 변수 : https://pewpewthespells.com/blog/buildsettings.html
-    
+	# 빌드 환경 변수 : https://pewpewthespells.com/blog/buildsettings.html
+	
    #SET(LIB_DEBUG_DIR "${OGHypeEngine_SOURCE_DIR}/deps/libs/osx/x86_64/Debug")
 	#SET(DLL_DEBUG_DIR "${OGHypeEngine_SOURCE_DIR}/deps/dll/osx/x86_64/Debug")
    
@@ -245,7 +250,7 @@ ELSEIF(WIN32)
 	SET(VULKAN ${LIB_DEBUG_DIR}/vulkan-1.lib CACHE PATH "")
 ENDIF()
 IF (VULKAN)
-    MESSAGE("Using bundled VULKAN version ${VULKAN}")
+	MESSAGE("Using bundled VULKAN version ${VULKAN}")
 	# 이건 반드시 CACHE INTERNAL. Render CMakeList에서 사용함.
 ELSE()
 	MESSAGE("Cannot Find VULKAN LIB")
@@ -260,7 +265,7 @@ ELSEIF(WIN32)
 	MESSAGE("PROJECT_BINARY_DIR \t ${PROJECT_BINARY_DIR}")
 ENDIF()
 IF (GLFW3)
-    MESSAGE("Using bundled GLFW3 version ${GLFW3}")
+	MESSAGE("Using bundled GLFW3 version ${GLFW3}")
 	# 이건 반드시 CACHE INTERNAL. Render CMakeList에서 사용함.
 ELSE()
 	MESSAGE("Cannot Find GLFW3 LIB")
@@ -274,10 +279,14 @@ IF(WIN32)
 	SET(SLANG_DLL_PATH "${DLL_DEBUG_DIR}/slang.dll")
 	SET(SLANG_RT_DLL_PATH "${DLL_DEBUG_DIR}/slang-rt.dll")
 	SET(SLANG_GLSLANG_DLL_PATH "${DLL_DEBUG_DIR}/slang-glslang.dll")
+	# PDB 파일 경로 추가
+	SET(SLANG_PDB_PATH "${DLL_DEBUG_DIR}/slang.pdb")
+	SET(SLANG_RT_PDB_PATH "${DLL_DEBUG_DIR}/slang-rt.pdb")
+	SET(SLANG_GFX_PDB_PATH "${DLL_DEBUG_DIR}/gfx.pdb")
 ENDIF()
 IF (SLANG_LIB)
-    MESSAGE("Using Slang library: ${SLANG_LIB}")
-    MESSAGE("Using Slang-RT library: ${SLANG_RT_LIB}")
+	MESSAGE("Using Slang library: ${SLANG_LIB}")
+	MESSAGE("Using Slang-RT library: ${SLANG_RT_LIB}")
 ELSE()
 	MESSAGE("Cannot Find SLANG LIB")
 ENDIF()
