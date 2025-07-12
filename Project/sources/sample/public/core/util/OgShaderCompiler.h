@@ -2,6 +2,8 @@
 #ifndef _OG_SHADER_COMPILER_H__
 #define _OG_SHADER_COMPILER_H__
 
+#include <slang.h>
+
 #include "OgPrecompile.h"
 #include "render/OgRenderDefinitions.h"
 #include <vector>
@@ -22,7 +24,7 @@ public:
      * @param spirvOut 컴파일된 SPIR-V 코드가 저장될 벡터
      * @return 컴파일 성공 여부
      */
-    static bool CompileGLSLtoSPIRV(
+    bool CompileGLSLtoSPIRV(
         const char* shaderCode,
         Render::OgShaderType shaderType,
         std::vector<uint32_t>& spirvOut);
@@ -88,6 +90,10 @@ public:
     static const std::string& GetLastError() { return s_lastError; }
 
 private:
+    static void logAndAppendDiagnostics(slang::IBlob* diagnostics);
+
+
+
     static std::string s_lastError;
 };
 

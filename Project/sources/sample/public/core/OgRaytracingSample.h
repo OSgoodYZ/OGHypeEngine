@@ -183,7 +183,8 @@ private:
 private:
     // 레이트레이싱 파이프라인 리소스
     Render::OgShaderHandle* _raygenShader = nullptr;
-    Render::OgShaderHandle* _missShader = nullptr;
+    Render::OgShaderHandle* _missShader{ nullptr };
+    Render::OgShaderHandle* _shadowMissShader{ nullptr };
     Render::OgShaderHandle* _closestHitShader = nullptr;
     Render::OgProgramHandle* _rtProgram = nullptr;
     Render::OgResourceLayoutHandle* _rtResourceLayout = nullptr;

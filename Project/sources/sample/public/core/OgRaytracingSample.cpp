@@ -379,13 +379,19 @@ void OgRayTracingSample::destroyResources()
 		_rtProgram = nullptr;
 	}
 
-	if (_closestHitShader)
-	{
-		_closestHitShader->Release();
-		_closestHitShader = nullptr;
-	}
+			if (_closestHitShader)
+		{
+			_closestHitShader->Release();
+			_closestHitShader = nullptr;
+		}
 
-	if (_missShader)
+		if (_shadowMissShader)
+		{
+			_shadowMissShader->Release();
+			_shadowMissShader = nullptr;
+		}
+
+		if (_missShader)
 	{
 		_missShader->Release();
 		_missShader = nullptr;
@@ -448,18 +454,15 @@ void OgRayTracingSample::destroyResources()
 }
 void OgRayTracingSample::createShaders()
 {
-	// Ray Generation 셰이더 (GLSL)
-	const char* raygenGLSL = R"(
+	// Ray Generation 셰이더 (Slang)
+	const char* raygenSlang = R"(
 		#version 460
-		#extension GL_KHR_ray_tracing : require
-		#extension GL_EXT_shader_explicit_arithmetic_types : require
-		#extension GL_EXT_scalar_block_layout : require
-		#extension GL_EXT_buffer_reference2 : require
-		#extension GL_EXT_nonuniform_qualifier : require
-		
-		layout(binding = 0, set = 0) uniform accelerationStructureKHR topLevelAS;
+		#extension GL_EXT_ray_tracing : require
+
+		layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
+			
 		layout(binding = 1, set = 0, rgba32f) uniform image2D image;
-		
+
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
 			mat4 projInverse;
@@ -472,92 +475,64 @@ void OgRayTracingSample::createShaders()
 			uint samplesPerPixel;
 			float padding;
 		} ubo;
-		
-		layout(rayPayloadKHR, location = 0) out vec3 hitValue;
-		
+
+		layout(location = 0) rayPayloadEXT vec3 hitValue;
+
 		uint rngState;
-		
+
 		uint pcg_hash(uint input)
 		{
 			uint state = input * 747796405u + 2891336453u;
 			uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
 			return (word >> 22u) ^ word;
 		}
-		
+
 		float randomFloat()
 		{
 			rngState = pcg_hash(rngState);
 			return float(rngState) / 4294967295.0;
 		}
-		
-		vec2 randomInUnitDisk()
-		{
-			vec2 p = vec2(0.0);
-			for (int i = 0; i < 100; i++)
-			{
-				p = 2.0 * vec2(randomFloat(), randomFloat()) - 1.0;
-				if (dot(p, p) < 1.0)
-					break;
-			}
-			return p;
-		}
-		
+
 		void main()
 		{
-			uvec2 launchID = gl_LaunchIDKHR.xy;
-			uvec2 launchSize = gl_LaunchSizeKHR.xy;
-			
+			// initPayload 
+			hitValue = vec3(0, 0, 0);
+			uvec2 launchID = gl_LaunchIDEXT.xy;
+			uvec2 launchSize = gl_LaunchSizeEXT.xy;
+
 			rngState = ubo.frameCount + launchID.x * 1973 + launchID.y * 9277;
-			
+
 			vec2 pixelCenter = vec2(launchID) + vec2(0.5);
 			vec2 inUV = pixelCenter / vec2(launchSize);
 			vec2 d = inUV * 2.0 - 1.0;
-			
+
 			vec4 origin = ubo.viewInverse * vec4(0, 0, 0, 1);
 			vec4 target = ubo.projInverse * vec4(d.x, d.y, 1, 1);
 			vec4 direction = ubo.viewInverse * vec4(normalize(target.xyz), 0);
-			
-			vec3 finalColor = vec3(0.0);
-			
-			// Ray flags
-			const uint rayFlags = gl_RayFlagsOpaqueKHR;
-			const float tMin = 0.001;
-			const float tMax = 10000.0;
-			
-			for (uint s = 0; s < ubo.samplesPerPixel; s++)
-			{
-				vec2 offset = (vec2(randomFloat(), randomFloat()) - 0.5) / vec2(launchSize);
-				vec2 nd = d + offset * 2.0;
-				
-				vec4 ntarget = ubo.projInverse * vec4(nd.x, nd.y, 1, 1);
-				vec4 ndirection = ubo.viewInverse * vec4(normalize(ntarget.xyz), 0);
-				
-				// Trace primary ray
-				traceRayKHR(topLevelAS,
-							rayFlags,
-							0xff,         // cullMask
-							0,            // sbtRecordOffset
-							0,            // sbtRecordStride
-							0,            // missIndex
-							origin.xyz,
-							tMin,
-							ndirection.xyz,
-							tMax,
-							0             // payload location
-				);
-				
-				finalColor = finalColor + hitValue;
-			}
-			
-			finalColor /= float(ubo.samplesPerPixel);
-			
+
+			// Trace primary ray
+			traceRayEXT(topLevelAS,
+						gl_RayFlagsOpaqueEXT,
+						0xff,         // cullMask
+						0,            // sbtRecordOffset
+						0,            // sbtRecordStride
+						0,            // missIndex
+						origin.xyz,
+						0.001,
+						direction.xyz,
+						10000.0,
+						0             // payload location
+			);
+
+			vec3 finalColor = hitValue;
+
 			if (ubo.frameCount > 0)
 			{
 				vec3 previousColor = imageLoad(image, ivec2(launchID)).rgb;
 				float weight = 1.0 / float(ubo.frameCount + 1);
 				finalColor = mix(previousColor, finalColor, weight);
 			}
-			
+
 			imageStore(image, ivec2(launchID), vec4(finalColor, 1.0));
 		}
 	)";
@@ -567,7 +542,10 @@ void OgRayTracingSample::createShaders()
 		#version 460
 		#extension GL_KHR_ray_tracing : require
 		
-		layout(rayPayloadInKHR, location = 0) in vec3 hitValue;
+						#version 460
+		#extension GL_KHR_ray_tracing : require
+		
+		layout(location = 0) rayPayloadInKHR vec3 hitValue;
 		
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
@@ -601,8 +579,11 @@ void OgRayTracingSample::createShaders()
 		#extension GL_EXT_buffer_reference2 : require
 		#extension GL_EXT_nonuniform_qualifier : require
 		
-		layout(rayPayloadInKHR, location = 0) in vec3 hitValue;
-		layout(rayPayloadKHR, location = 1) out vec3 shadowHitValue;
+				#extension GL_EXT_buffer_reference2 : require
+		#extension GL_EXT_nonuniform_qualifier : require
+		
+		layout(location = 0) rayPayloadInKHR vec3 hitValue;
+		layout(location = 1) rayPayloadKHR vec3 shadowHitValue;
 		
 		layout(binding = 0, set = 0) uniform accelerationStructureKHR topLevelAS;
 		
@@ -816,7 +797,7 @@ void OgRayTracingSample::createShaders()
 	// 셰이더 컴파일 (GLSL 사용)
 	_raygenShader = OgShaderCompiler::CreateShaderFromGLSL(
 		_renderContext,
-		raygenGLSL,
+		raygenSlang,
 		OgShaderType::RAYGEN,
 		"RayGenShader"
 	);
