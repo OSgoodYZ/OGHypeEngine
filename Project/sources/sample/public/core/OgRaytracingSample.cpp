@@ -456,8 +456,9 @@ void OgRayTracingSample::createShaders()
 {
 	// Ray Generation 셰이더 (Slang)
 	const char* raygenSlang = R"(
-		#version 460
+	#version 460
 		#extension GL_EXT_ray_tracing : require
+
 
 		layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 			
@@ -480,9 +481,9 @@ void OgRayTracingSample::createShaders()
 
 		uint rngState;
 
-		uint pcg_hash(uint input)
+		uint pcg_hash(uint i)
 		{
-			uint state = input * 747796405u + 2891336453u;
+			uint state = i * 747796405u + 2891336453u;
 			uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
 			return (word >> 22u) ^ word;
 		}
@@ -537,6 +538,7 @@ void OgRayTracingSample::createShaders()
 		}
 	)";
 
+#pragma region missShader 
 	// Miss 셰이더 (GLSL)
 	const char* missGLSL = R"(
 		#version 460
@@ -569,8 +571,8 @@ void OgRayTracingSample::createShaders()
 			hitValue = skyColor * 0.5;
 		}
 	)";
-
-	// Closest Hit 셰이더 (GLSL)
+#pragma endregion
+#pragma region closestHitShader
 	const char* closestHitGLSL = R"(
 		#version 460
 		#extension GL_KHR_ray_tracing : require
@@ -793,11 +795,14 @@ void OgRayTracingSample::createShaders()
 			hitValue = color;
 		}
 	)";
+#pragma endregion
+	// Closest Hit 셰이더 (GLSL)
+
 
 	// 셰이더 컴파일 (GLSL 사용)
 	_raygenShader = OgShaderCompiler::CreateShaderFromGLSL(
 		_renderContext,
-		raygenSlang,
+		raygenSlang, //raygenSlang
 		OgShaderType::RAYGEN,
 		"RayGenShader"
 	);

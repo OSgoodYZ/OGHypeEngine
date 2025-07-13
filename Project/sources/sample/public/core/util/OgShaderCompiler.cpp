@@ -158,6 +158,11 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 		return false;
 	}
 
+	if (!compositeProgram)
+	{
+		return false;
+	}
+
 	// 프로그램 링크
 	ComPtr<slang::IComponentType> linkedProgram;
 	if (SLANG_FAILED(compositeProgram->link(
@@ -177,9 +182,15 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 
 	// SPIR-V 코드 생성
 	ComPtr<slang::IBlob> spirvCode;
-	
+
+	//linkedProgram->getTargetCode(
+	//	0, // 타겟 인덱스 (0은 첫 번째 타겟)
+	//	nullptr,
+	//	nullptr
+	//);
+
 	if (SLANG_FAILED(linkedProgram->getTargetCode(
-		0, nu,
+		0, spirvCode.writeRef(),
 		diagnostics.writeRef())))
 	{
 		s_lastError = "Failed to generate SPIR-V code";
@@ -192,8 +203,6 @@ bool OgShaderCompiler::CompileGLSLtoSPIRV(
 		return false;
 	}
 
-
-	// SPIR-V 코드를 출력 벡터에 복사
 	size_t codeSize = spirvCode->getBufferSize();
 	size_t wordCount = codeSize / sizeof(uint32_t);
 	const uint32_t* spirvWords = reinterpret_cast<const uint32_t*>(spirvCode->getBufferPointer());

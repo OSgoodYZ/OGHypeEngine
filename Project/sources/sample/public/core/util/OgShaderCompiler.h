@@ -24,7 +24,7 @@ public:
      * @param spirvOut 컴파일된 SPIR-V 코드가 저장될 벡터
      * @return 컴파일 성공 여부
      */
-    bool CompileGLSLtoSPIRV(
+    static bool CompileGLSLtoSPIRV(
         const char* shaderCode,
         Render::OgShaderType shaderType,
         std::vector<uint32_t>& spirvOut);
