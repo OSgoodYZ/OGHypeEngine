@@ -1128,19 +1128,6 @@ void OgRayTracingSample::createAccelerationStructures()
 		// CPU 캐시된 데이터 사용
 		allVertices.insert(allVertices.end(), geom.cpuVertices.begin(), geom.cpuVertices.end());
 		allIndices.insert(allIndices.end(), geom.cpuIndices.begin(), geom.cpuIndices.end());
-
-		// BLAS geometry 정보 설정
-		Render::OgAccelStructureGeometry asGeom{};
-		asGeom.vertexBuffer = geom.vertexBuffer;
-		asGeom.vertexStride = sizeof(Vertex);
-		asGeom.vertexCount = geom.vertexCount;
-		asGeom.indexBuffer = geom.indexBuffer;
-		asGeom.indexType = (geom.indexBuffer && geom.indexBuffer->size == sizeof(uint16_t) * geom.indexCount)
-			? OgIndexType::UINT16 : OgIndexType::UINT32;
-		asGeom.indexCount = geom.indexCount;
-		asGeom.transformOffset = 0;
-
-		blasGeometries.push_back(asGeom);
 	}
 	
 	// 통합 버퍼 생성 (SHADER_DEVICE_ADDRESS 포함 - BLAS 빌드에 필요)
@@ -1176,18 +1163,38 @@ void OgRayTracingSample::createAccelerationStructures()
 	);
 	_geometryInfoBuffer->Retain();
 
-	// BLAS geometry를 통합 버퍼 기반으로 재설정
-	// 모든 geometry를 하나의 통합 버퍼에서 offset으로 구분
+	// BLAS geometry를 통합 버퍼 기반으로 재설정 (geometry별 offset 사용)
 	blasGeometries.clear();
-	Render::OgAccelStructureGeometry singleGeom{};
-	singleGeom.vertexBuffer = _vertexBuffer;
-	singleGeom.vertexStride = sizeof(Vertex);
-	singleGeom.vertexCount = static_cast<uint32_t>(allVertices.size());
-	singleGeom.indexBuffer = _indexBuffer;
-	singleGeom.indexType = OgIndexType::UINT32;
-	singleGeom.indexCount = static_cast<uint32_t>(allIndices.size());
-	singleGeom.transformOffset = 0;
-	blasGeometries.push_back(singleGeom);
+	for (size_t gi = 0; gi < _geometries.size(); ++gi)
+	{
+		const auto& geom = _geometries[gi];
+		const auto& geoInfo = allGeometryInfos[gi];
+
+		Render::OgAccelStructureGeometry asGeom{};
+		asGeom.vertexBuffer = _vertexBuffer;
+		asGeom.vertexStride = sizeof(Vertex);
+		asGeom.vertexCount = geom.vertexCount;
+		asGeom.vertexByteOffset = geoInfo.vertexOffset * sizeof(Vertex);
+		asGeom.indexBuffer = _indexBuffer;
+		asGeom.indexType = OgIndexType::UINT32;
+		asGeom.indexCount = geom.indexCount;
+		asGeom.indexByteOffset = geoInfo.indexOffset * sizeof(uint32_t);
+		asGeom.transformOffset = 0;
+		blasGeometries.push_back(asGeom);
+	}
+
+	// 디버그: geometry 정보 출력
+	LOGD(OG_ID, "BLAS geometries: %zu, total vertices: %zu, total indices: %zu",
+		blasGeometries.size(), allVertices.size(), allIndices.size());
+	uint32_t totalTriangles = 0;
+	for (size_t gi = 0; gi < blasGeometries.size(); ++gi)
+	{
+		const auto& bg = blasGeometries[gi];
+		LOGD(OG_ID, "  Geom[%zu]: vtxCount=%u vtxByteOff=%u idxCount=%u idxByteOff=%u",
+			gi, bg.vertexCount, bg.vertexByteOffset, bg.indexCount, bg.indexByteOffset);
+		totalTriangles += bg.indexCount / 3;
+	}
+	LOGD(OG_ID, "Total triangles: %u", totalTriangles);
 
 	// BLAS 생성
 	Render::OgAccelStructureBuildInfo blasBuildInfo{};

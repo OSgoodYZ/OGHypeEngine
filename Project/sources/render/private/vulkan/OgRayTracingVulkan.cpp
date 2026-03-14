@@ -112,23 +112,23 @@ OG_CHECK(_vulkanDevice->vkGetBufferDeviceAddressKHR != nullptr, "vkGetBufferDevi
 				VkBufferDeviceAddressInfo addressInfo{};
 				addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 				addressInfo.buffer = vertexBuffer->bufferVK;
-				vkGeom.geometry.triangles.vertexData.deviceAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &addressInfo);
+				vkGeom.geometry.triangles.vertexData.deviceAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &addressInfo) + geom.vertexByteOffset;
 				vkGeom.geometry.triangles.vertexStride = geom.vertexStride;
 				vkGeom.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT; // Assuming float3
 				vkGeom.geometry.triangles.maxVertex = geom.vertexCount - 1;
 			}
-			
+
 			if (geom.indexBuffer)
 			{
 				OgBufferVK* indexBuffer = (OgBufferVK*)geom.indexBuffer;
 				VkBufferDeviceAddressInfo addressInfo{};
 				addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 				addressInfo.buffer = indexBuffer->bufferVK;
-				vkGeom.geometry.triangles.indexData.deviceAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &addressInfo);
-				vkGeom.geometry.triangles.indexType = geom.indexType == OgIndexType::UINT16 ? 
+				vkGeom.geometry.triangles.indexData.deviceAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &addressInfo) + geom.indexByteOffset;
+				vkGeom.geometry.triangles.indexType = geom.indexType == OgIndexType::UINT16 ?
 					VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
 			}
-			
+
 			buildRangeInfos[i].primitiveCount = geom.indexCount / 3;
 			buildRangeInfos[i].primitiveOffset = 0;
 			buildRangeInfos[i].firstVertex = 0;
@@ -167,13 +167,20 @@ OG_CHECK(_vulkanDevice->vkGetBufferDeviceAddressKHR != nullptr, "vkGetBufferDevi
 	
 	buildGeometryInfo.geometryCount = static_cast<uint32_t>(geometries.Size());
 	buildGeometryInfo.pGeometries = geometries.Data();
-	
+
+	// pMaxPrimitiveCounts는 geometry 개수만큼의 배열이어야 함
+	OgVector<uint32_t> maxPrimitiveCounts(geometries.Size());
+	for (uint32 i = 0; i < geometries.Size(); ++i)
+	{
+		maxPrimitiveCounts[i] = buildRangeInfos[i].primitiveCount;
+	}
+
 	// Get required sizes
 	VkAccelerationStructureBuildSizesInfoKHR sizeInfo{};
 	sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 	_vulkanDevice->vkGetAccelerationStructureBuildSizesKHR(_logicalDeviceVK,
 		VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-		&buildGeometryInfo, &primitiveCount, &sizeInfo);
+		&buildGeometryInfo, maxPrimitiveCounts.Data(), &sizeInfo);
 
 	// Save scratch size for later build
 	accelStructure->buildScratchSize = sizeInfo.buildScratchSize;
@@ -278,23 +285,23 @@ void OgRenderContextVulkan::BuildAccelerationStructure(OgCommandEncoderHandle* e
 				VkBufferDeviceAddressInfo addressInfo{};
 				addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 				addressInfo.buffer = vertexBuffer->bufferVK;
-				vkGeom.geometry.triangles.vertexData.deviceAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &addressInfo);
+				vkGeom.geometry.triangles.vertexData.deviceAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &addressInfo) + geom.vertexByteOffset;
 				vkGeom.geometry.triangles.vertexStride = geom.vertexStride;
 				vkGeom.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
 				vkGeom.geometry.triangles.maxVertex = geom.vertexCount - 1;
 			}
-			
+
 			if (geom.indexBuffer)
 			{
 				OgBufferVK* indexBuffer = (OgBufferVK*)geom.indexBuffer;
 				VkBufferDeviceAddressInfo addressInfo{};
 				addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 				addressInfo.buffer = indexBuffer->bufferVK;
-				vkGeom.geometry.triangles.indexData.deviceAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &addressInfo);
-				vkGeom.geometry.triangles.indexType = geom.indexType == OgIndexType::UINT16 ? 
+				vkGeom.geometry.triangles.indexData.deviceAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &addressInfo) + geom.indexByteOffset;
+				vkGeom.geometry.triangles.indexType = geom.indexType == OgIndexType::UINT16 ?
 					VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
 			}
-			
+
 			buildRangeInfos[i].primitiveCount = geom.indexCount / 3;
 			buildRangeInfos[i].primitiveOffset = 0;
 			buildRangeInfos[i].firstVertex = 0;

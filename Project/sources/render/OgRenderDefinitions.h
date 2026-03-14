@@ -792,13 +792,15 @@ inline bool operator&(OgRayTracingBuildFlag a, OgRayTracingBuildFlag b)
 
 struct OgAccelStructureGeometry
 {
-	OgBufferHandle* vertexBuffer;
-	uint32 vertexStride;
-	uint32 vertexCount;
-	OgBufferHandle* indexBuffer;
-	OgIndexType indexType;
-	uint32 indexCount;
-	uint32 transformOffset;
+	OgBufferHandle* vertexBuffer = nullptr;
+	uint32 vertexStride = 0;
+	uint32 vertexCount = 0;
+	uint32 vertexByteOffset = 0;	// Byte offset into vertexBuffer
+	OgBufferHandle* indexBuffer = nullptr;
+	OgIndexType indexType = OgIndexType::UINT32;
+	uint32 indexCount = 0;
+	uint32 indexByteOffset = 0;		// Byte offset into indexBuffer
+	uint32 transformOffset = 0;
 };
 
 struct OgAccelStructureBuildInfo
