@@ -2897,6 +2897,23 @@ OgResourceLayoutHandle::OgResourceLayoutHandle(OgResourceBinding* inputBindings,
 
 				break;
 			}
+			case OgResourceType::STORAGE_IMAGE:
+			{
+				++textureUsageCount;
+
+				textureCount += bindings[i].arrayCount == 0 ? 1 : bindings[i].arrayCount;
+
+				break;
+			}
+			case OgResourceType::ACCELERATION_STRUCTURE:
+			{
+				// Acceleration structure는 별도 카운트이지만,
+				// writeDescriptorSets 배열 크기 계산을 위해 bufferUsageCount에 포함
+				++bufferUsageCount;
+				bufferCount += 1;
+
+				break;
+			}
 			default:
 				LOGE(OG_ID, "Not Supported Yet");
 				break;

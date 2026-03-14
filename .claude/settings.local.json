@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cmake:*)",
+      "Bash(echo $VULKAN_SDK)",
+      "Read(//c/Osgood/EngineDevelop/OGHypeEngine/$VULKAN_SDK/Lib/**)",
+      "Bash(echo VULKAN_SDK=$VULKAN_SDK)",
+      "Read(//c/Osgood/EngineDevelop/OGHypeEngine/$VULKAN_SDK/**)",
+      "Bash(taskkill:*)",
+      "Bash(tasklist:*)"
+    ]
+  }
+}

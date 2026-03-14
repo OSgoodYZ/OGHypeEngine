@@ -142,6 +142,9 @@ private:
         uint32_t vertexCount = 0;
         uint32_t indexCount = 0;
         uint32_t materialIndex = 0;
+        // CPU side copies for acceleration structure building
+        std::vector<Vertex> cpuVertices;
+        std::vector<uint32_t> cpuIndices;
     };
     
     // GPU로 전달할 지오메트리 정보 (셰이더용)
@@ -243,9 +246,12 @@ private:
     bool _useFlyCamera = true;
     glm::mat4 _previousViewMatrix;
     
+    // SBT alignment 정보
+    uint32_t _sbtHandleSizeAligned = 0;
+
     // 프레임 카운터 (프로그레시브 렌더링용)
     uint32_t _frameCount = 0;
-    
+
     // 디버그 설정
     bool _enableDebugVisualization = false;
 };

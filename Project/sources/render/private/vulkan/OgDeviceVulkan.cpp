@@ -456,6 +456,16 @@ VkResult OgDeviceVulkan::CreateBuffer(VkBufferUsageFlags usageFlags, VkMemoryPro
 	memAlloc.allocationSize = memReqs.size;
 	// Find a memory type index that fits the properties of the buffer
 	memAlloc.memoryTypeIndex = GetMemoryType(memReqs.memoryTypeBits, memoryPropertyFlags);
+
+	// SHADER_DEVICE_ADDRESS 사용 시 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT 필요
+	VkMemoryAllocateFlagsInfo memAllocFlags{};
+	if (usageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+	{
+		memAllocFlags.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+		memAllocFlags.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+		memAlloc.pNext = &memAllocFlags;
+	}
+
 	VK_CHECK_RESULT(vkAllocateMemory(logicalDevice, &memAlloc, nullptr, memory));
 
 	// If a pointer to the buffer data has been passed, map the buffer and copy over the data
@@ -511,6 +521,16 @@ VkResult OgDeviceVulkan::CreateBuffer(VkBufferUsageFlags usageFlags, VkMemoryPro
 	memAlloc.allocationSize = memReqs.size;
 	// Find a memory type index that fits the properties of the buffer
 	memAlloc.memoryTypeIndex = GetMemoryType(memReqs.memoryTypeBits, memoryPropertyFlags);
+
+	// SHADER_DEVICE_ADDRESS 사용 시 VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT 필요
+	VkMemoryAllocateFlagsInfo memAllocFlags2{};
+	if (usageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+	{
+		memAllocFlags2.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+		memAllocFlags2.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+		memAlloc.pNext = &memAllocFlags2;
+	}
+
 	VK_CHECK_RESULT(vkAllocateMemory(logicalDevice, &memAlloc, nullptr, memory));
 
 	// Attach the memory to the buffer object

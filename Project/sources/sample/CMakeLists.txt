@@ -58,7 +58,7 @@ list(APPEND TOTAL_FILE ${PUBLIC_APPLICATION})
 
 add_library(sample STATIC ${TOTAL_FILE})
 link_directories(${LIB_DIR})
-target_link_libraries(sample render ${SLANG_LIB} ${SLANG_RT_LIB})#${GLFW3}
+target_link_libraries(sample render ${SLANG_LIB} ${SLANG_RT_LIB} ${GLSLANG_LIBS})#${GLFW3}
 
 IF(OG_ENGINE_SHARED_LIB)
 	target_compile_definitions(sample PUBLIC "-DOG_API_EXPORT")

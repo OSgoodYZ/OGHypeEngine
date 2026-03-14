@@ -143,32 +143,31 @@ void OgRayTracingSample::OnRender(Render::OgCommandEncoderHandle* encoder, Rende
 	encoder->BindRayTracingPipeline(_rtPipeline);
 	encoder->BindResourceSet(_rtResourceSet);
 
-	// 레이트레이싱 디스패치
+	// 레이트레이싱 디스패치 - SBT 레이아웃: [raygen][miss][shadowMiss][hit]
+	uint32_t aligned = _sbtHandleSizeAligned;
+
 	Render::OgShaderBindingTable sbt{};
 	sbt.raygenSBT = _raygenSBT;
 	sbt.raygenOffset = 0;
-	sbt.raygenStride = 0;
-	
+	sbt.raygenStride = aligned;
+	sbt.raygenSize = aligned;
+
 	sbt.missSBT = _missSBT;
-	sbt.missOffset = 0;
-	sbt.missStride = 0;
-	sbt.missSize = 1;
-	
+	sbt.missOffset = 1 * aligned;       // raygen 다음
+	sbt.missStride = aligned;
+	sbt.missSize = 2 * aligned;          // miss 2개 (primary + shadow)
+
 	sbt.hitSBT = _hitSBT;
-	sbt.hitOffset = 0;
-	sbt.hitStride = 0;
-	sbt.hitSize = 1;
-	
+	sbt.hitOffset = 3 * aligned;         // raygen + 2 miss 다음
+	sbt.hitStride = aligned;
+	sbt.hitSize = aligned;
+
 	sbt.callableSBT = nullptr;
 	sbt.callableOffset = 0;
 	sbt.callableStride = 0;
 	sbt.callableSize = 0;
 	
 	encoder->TraceRays(sbt, _renderTargetWidth, _renderTargetHeight, 1);
-
-	// 렌더 타겟에 결과 표시 (후처리용 렌더 패스)
-	encoder->BeginRenderPass(_renderTargetRenderPass, _renderTargetFrameBuffer, area, 1, &colorClear, 0, nullptr, &depthStencilClear);
-	encoder->EndRenderPass();
 
 	encoder->EndDebugMarker();
 }
@@ -379,19 +378,19 @@ void OgRayTracingSample::destroyResources()
 		_rtProgram = nullptr;
 	}
 
-			if (_closestHitShader)
-		{
-			_closestHitShader->Release();
-			_closestHitShader = nullptr;
-		}
+	if (_closestHitShader)
+	{
+		_closestHitShader->Release();
+		_closestHitShader = nullptr;
+	}
 
-		if (_shadowMissShader)
-		{
-			_shadowMissShader->Release();
-			_shadowMissShader = nullptr;
-		}
+	if (_shadowMissShader)
+	{
+		_shadowMissShader->Release();
+		_shadowMissShader = nullptr;
+	}
 
-		if (_missShader)
+	if (_missShader)
 	{
 		_missShader->Release();
 		_missShader = nullptr;
@@ -538,17 +537,14 @@ void OgRayTracingSample::createShaders()
 		}
 	)";
 
-#pragma region missShader 
-	// Miss 셰이더 (GLSL)
+#pragma region missShader
+	// Miss 셰이더 (GLSL) - 하늘 그라데이션
 	const char* missGLSL = R"(
 		#version 460
-		#extension GL_KHR_ray_tracing : require
-		
-						#version 460
-		#extension GL_KHR_ray_tracing : require
-		
-		layout(location = 0) rayPayloadInKHR vec3 hitValue;
-		
+		#extension GL_EXT_ray_tracing : require
+
+		layout(location = 0) rayPayloadInEXT vec3 hitValue;
+
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
 			mat4 projInverse;
@@ -561,34 +557,44 @@ void OgRayTracingSample::createShaders()
 			uint samplesPerPixel;
 			float padding;
 		} ubo;
-		
+
 		void main()
 		{
-			// 간단한 하늘 그라데이션
-			vec3 direction = normalize(gl_WorldRayDirectionKHR);
+			vec3 direction = normalize(gl_WorldRayDirectionEXT);
 			float t = 0.5 * (direction.y + 1.0);
 			vec3 skyColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), t);
 			hitValue = skyColor * 0.5;
 		}
 	)";
 #pragma endregion
+
+	// Shadow Miss 셰이더 - shadow ray가 아무것도 안 맞으면 빛이 도달
+	const char* shadowMissGLSL = R"(
+		#version 460
+		#extension GL_EXT_ray_tracing : require
+
+		layout(location = 1) rayPayloadInEXT vec3 shadowHitValue;
+
+		void main()
+		{
+			shadowHitValue = vec3(1.0);
+		}
+	)";
+
 #pragma region closestHitShader
 	const char* closestHitGLSL = R"(
 		#version 460
-		#extension GL_KHR_ray_tracing : require
+		#extension GL_EXT_ray_tracing : require
 		#extension GL_EXT_shader_explicit_arithmetic_types : require
 		#extension GL_EXT_scalar_block_layout : require
 		#extension GL_EXT_buffer_reference2 : require
 		#extension GL_EXT_nonuniform_qualifier : require
-		
-				#extension GL_EXT_buffer_reference2 : require
-		#extension GL_EXT_nonuniform_qualifier : require
-		
-		layout(location = 0) rayPayloadInKHR vec3 hitValue;
-		layout(location = 1) rayPayloadKHR vec3 shadowHitValue;
-		
-		layout(binding = 0, set = 0) uniform accelerationStructureKHR topLevelAS;
-		
+
+		layout(location = 0) rayPayloadInEXT vec3 hitValue;
+		layout(location = 1) rayPayloadEXT vec3 shadowHitValue;
+
+		layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
 			mat4 projInverse;
@@ -601,14 +607,14 @@ void OgRayTracingSample::createShaders()
 			uint samplesPerPixel;
 			float padding;
 		} ubo;
-		
+
 		struct Vertex {
-			vec3 position;
-			vec3 normal;
-			vec2 texCoord;
-			vec4 tangent;
+			float px, py, pz;       // position (12 bytes)
+			float nx, ny, nz;       // normal (12 bytes)
+			float u, v;             // texCoord (8 bytes)
+			vec4 tangent;           // tangent (16 bytes)
 		};
-		
+
 		struct Material {
 			vec4 baseColorFactor;
 			vec4 emissiveFactor;
@@ -622,187 +628,190 @@ void OgRayTracingSample::createShaders()
 			int normalTextureIndex;
 			int metallicRoughnessTextureIndex;
 		};
-		
+
 		struct GeometryInfo {
 			uint vertexOffset;
 			uint indexOffset;
 			uint materialIndex;
 			uint padding;
 		};
-		
+
 		layout(binding = 3, set = 0, scalar) buffer VertexBuffer {
 			Vertex vertices[];
 		} vertexBuffer;
-		
+
 		layout(binding = 4, set = 0, scalar) buffer IndexBuffer {
 			uint indices[];
 		} indexBuffer;
-		
+
 		layout(binding = 5, set = 0, scalar) buffer MaterialBuffer {
 			Material materials[];
 		} materialBuffer;
-		
+
 		layout(binding = 6, set = 0, scalar) buffer GeometryInfoBuffer {
 			GeometryInfo geometryInfos[];
 		} geometryInfoBuffer;
-		
+
 		layout(binding = 7, set = 0) uniform sampler2D textures[16];
-		
-		hitAttributeKHR vec2 attribs;
-		
+
+		hitAttributeEXT vec2 attribs;
+
 		vec3 getBarycentric()
 		{
 			vec3 barycentricCoords = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
 			return barycentricCoords;
 		}
-		
+
 		Vertex getVertex(uint index)
 		{
-			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexKHR];
+			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
 			return vertexBuffer.vertices[geomInfo.vertexOffset + index];
 		}
-		
+
+		vec3 getPosition(Vertex vtx) { return vec3(vtx.px, vtx.py, vtx.pz); }
+		vec3 getNormal(Vertex vtx) { return vec3(vtx.nx, vtx.ny, vtx.nz); }
+		vec2 getTexCoord(Vertex vtx) { return vec2(vtx.u, vtx.v); }
+
 		const float PI = 3.14159265359;
-		
+
 		vec3 fresnelSchlick(float cosTheta, vec3 F0)
 		{
 			return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 		}
-		
+
 		float distributionGGX(vec3 N, vec3 H, float roughness)
 		{
 			float a = roughness * roughness;
 			float a2 = a * a;
 			float NdotH = max(dot(N, H), 0.0);
 			float NdotH2 = NdotH * NdotH;
-			
+
 			float num = a2;
 			float denom = (NdotH2 * (a2 - 1.0) + 1.0);
 			denom = PI * denom * denom;
-			
+
 			return num / max(denom, 0.0001);
 		}
-		
+
 		float geometrySchlickGGX(float NdotV, float roughness)
 		{
 			float r = (roughness + 1.0);
 			float k = (r * r) / 8.0;
-			
+
 			float num = NdotV;
 			float denom = NdotV * (1.0 - k) + k;
-			
+
 			return num / max(denom, 0.0001);
 		}
-		
+
 		float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 		{
 			float NdotV = max(dot(N, V), 0.0);
 			float NdotL = max(dot(N, L), 0.0);
 			float ggx2 = geometrySchlickGGX(NdotV, roughness);
 			float ggx1 = geometrySchlickGGX(NdotL, roughness);
-			
+
 			return ggx1 * ggx2;
 		}
-		
+
 		void main()
 		{
-			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexKHR];
-			
+			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
+
 			uint i0 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 0];
 			uint i1 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 1];
 			uint i2 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 2];
-			
+
 			Vertex v0 = getVertex(i0);
 			Vertex v1 = getVertex(i1);
 			Vertex v2 = getVertex(i2);
-			
+
 			vec3 bary = getBarycentric();
-			vec3 position = v0.position * bary.x + v1.position * bary.y + v2.position * bary.z;
-			vec3 normal = normalize(v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z);
-			vec2 texCoord = v0.texCoord * bary.x + v1.texCoord * bary.y + v2.texCoord * bary.z;
-			
+			vec3 position = getPosition(v0) * bary.x + getPosition(v1) * bary.y + getPosition(v2) * bary.z;
+			vec3 normal = normalize(getNormal(v0) * bary.x + getNormal(v1) * bary.y + getNormal(v2) * bary.z);
+			vec2 texCoord = getTexCoord(v0) * bary.x + getTexCoord(v1) * bary.y + getTexCoord(v2) * bary.z;
+
 			// Transform to world space
-			position = gl_ObjectToWorldKHR * vec4(position, 1.0);
-			normal = normalize(mat3(gl_ObjectToWorldKHR) * normal);
-			
+			position = gl_ObjectToWorldEXT * vec4(position, 1.0);
+			normal = normalize(mat3(gl_ObjectToWorldEXT) * normal);
+
 			Material material = materialBuffer.materials[geomInfo.materialIndex];
-			
+
 			vec4 baseColor = material.baseColorFactor;
 			if (material.baseColorTextureIndex >= 0)
 			{
 				baseColor *= texture(textures[material.baseColorTextureIndex], texCoord);
 			}
-			
+
 			// PBR 파라미터
 			float metallic = material.metallicFactor;
 			float roughness = material.roughnessFactor;
 			vec3 emissive = material.emissiveFactor.rgb;
-			
-			vec3 V = -normalize(gl_WorldRayDirectionKHR);
+
+			vec3 V = -normalize(gl_WorldRayDirectionEXT);
 			vec3 L = normalize(ubo.lightPos.xyz);
 			vec3 H = normalize(V + L);
-			
+
 			// PBR BRDF
 			vec3 F0 = vec3(0.04);
 			F0 = mix(F0, baseColor.rgb, metallic);
-			
+
 			vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 			float NDF = distributionGGX(normal, H, roughness);
 			float G = geometrySmith(normal, V, L, roughness);
-			
+
 			vec3 numerator = NDF * G * F;
 			float denominator = 4.0 * max(dot(normal, V), 0.0) * max(dot(normal, L), 0.0);
 			vec3 specular = numerator / max(denominator, 0.001);
-			
+
 			vec3 kS = F;
 			vec3 kD = vec3(1.0) - kS;
 			kD *= 1.0 - metallic;
-			
+
 			float NdotL = max(dot(normal, L), 0.0);
 			vec3 Lo = (kD * baseColor.rgb / PI + specular) * ubo.lightColor.rgb * NdotL;
-			
+
 			vec3 ambient = ubo.globalAmbient.rgb * baseColor.rgb;
-			
+
 			// 그림자 레이
 			float tmin = 0.001;
 			float tmax = length(ubo.lightPos.xyz - position);
 			vec3 shadowRayOrigin = position + normal * 0.001;
 			vec3 shadowRayDirection = normalize(ubo.lightPos.xyz - position);
-			
-			shadowHitValue = vec3(1.0);
-			
-			uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitKHR | gl_RayFlagsOpaqueKHR | gl_RayFlagsSkipClosestHitShaderKHR;
-			
-			traceRayKHR(topLevelAS,
+
+			// 초기값 0 = 그림자 상태, shadow miss 셰이더가 1.0으로 설정 = 빛 도달
+			shadowHitValue = vec3(0.0);
+
+			uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+
+			traceRayEXT(topLevelAS,
 						shadowRayFlags,
 						0xff,         // cullMask
-						1,            // sbtRecordOffset
-						0,            // sbtRecordStride  
-						1,            // missIndex
+						0,            // sbtRecordOffset (hit group은 0번부터)
+						0,            // sbtRecordStride
+						1,            // missIndex (shadow miss = index 1)
 						shadowRayOrigin,
 						tmin,
 						shadowRayDirection,
 						tmax,
 						1             // payload location
 			);
-			
+
 			vec3 color = ambient + Lo * shadowHitValue + emissive;
-			
+
 			// 톤 매핑
 			color = color / (color + vec3(1.0));
 			color = pow(color, vec3(1.0/2.2));
-			
+
 			hitValue = color;
 		}
 	)";
 #pragma endregion
-	// Closest Hit 셰이더 (GLSL)
-
 
 	// 셰이더 컴파일 (GLSL 사용)
 	_raygenShader = OgShaderCompiler::CreateShaderFromGLSL(
 		_renderContext,
-		raygenSlang, //raygenSlang
+		raygenSlang,
 		OgShaderType::RAYGEN,
 		"RayGenShader"
 	);
@@ -828,6 +837,20 @@ void OgRayTracingSample::createShaders()
 	}
 	_missShader->Retain();
 
+	_shadowMissShader = OgShaderCompiler::CreateShaderFromGLSL(
+		_renderContext,
+		shadowMissGLSL,
+		OgShaderType::MISS,
+		"ShadowMissShader"
+	);
+
+	if (!_shadowMissShader)
+	{
+		LOGE(OG_ID, "Failed to compile shadow miss shader: %s", OgShaderCompiler::GetLastError().c_str());
+		return;
+	}
+	_shadowMissShader->Retain();
+
 	_closestHitShader = OgShaderCompiler::CreateShaderFromGLSL(
 		_renderContext,
 		closestHitGLSL,
@@ -842,9 +865,9 @@ void OgRayTracingSample::createShaders()
 	}
 	_closestHitShader->Retain();
 
-	// 레이트레이싱 프로그램 생성
-	OgShaderHandle* handles[]{ _raygenShader, _missShader, _closestHitShader };
-	_rtProgram = _renderContext->CreateProgram(handles, 3);
+	// 레이트레이싱 프로그램 생성 (4 shaders: raygen, miss, shadow miss, closest hit)
+	OgShaderHandle* handles[]{ _raygenShader, _missShader, _shadowMissShader, _closestHitShader };
+	_rtProgram = _renderContext->CreateProgram(handles, 4);
 	_rtProgram->name = "RayTracingProgram";
 	_rtProgram->Retain();
 }
@@ -856,39 +879,46 @@ void OgRayTracingSample::createRayTracingPipeline()
 	rtPipeDesc.name = "RayTracingPipeline";
 	rtPipeDesc.resourceLayout = _rtResourceLayout;
 	rtPipeDesc.maxRecursionDepth = 2; // Primary ray + shadow ray
-	
-	// 셰이더 스테이지 설정
-	Render::OgRayTracingShaderGroup groups[3];
-	
-	// Ray generation group
+
+	// 셰이더 그룹 설정 (4 groups)
+	Render::OgRayTracingShaderGroup groups[4];
+
+	// Group 0: Ray generation
 	groups[0].type = Render::OgRayTracingShaderGroup::GENERAL;
 	groups[0].generalShader = 0; // raygen shader index
 	groups[0].closestHitShader = ~0u;
 	groups[0].anyHitShader = ~0u;
 	groups[0].intersectionShader = ~0u;
-	
-	// Miss group
+
+	// Group 1: Primary miss
 	groups[1].type = Render::OgRayTracingShaderGroup::GENERAL;
 	groups[1].generalShader = 1; // miss shader index
 	groups[1].closestHitShader = ~0u;
 	groups[1].anyHitShader = ~0u;
 	groups[1].intersectionShader = ~0u;
-	
-	// Hit group
-	groups[2].type = Render::OgRayTracingShaderGroup::TRIANGLES_HIT_GROUP;
-	groups[2].generalShader = ~0u;
-	groups[2].closestHitShader = 2; // closest hit shader index
+
+	// Group 2: Shadow miss
+	groups[2].type = Render::OgRayTracingShaderGroup::GENERAL;
+	groups[2].generalShader = 2; // shadow miss shader index
+	groups[2].closestHitShader = ~0u;
 	groups[2].anyHitShader = ~0u;
 	groups[2].intersectionShader = ~0u;
-	
+
+	// Group 3: Hit group (closest hit)
+	groups[3].type = Render::OgRayTracingShaderGroup::TRIANGLES_HIT_GROUP;
+	groups[3].generalShader = ~0u;
+	groups[3].closestHitShader = 3; // closest hit shader index
+	groups[3].anyHitShader = ~0u;
+	groups[3].intersectionShader = ~0u;
+
 	rtPipeDesc.shaderGroups = groups;
-	rtPipeDesc.shaderGroupCount = 3;
-	
-	// 셰이더 설정
-	Render::OgShaderHandle* shaders[3] = { _raygenShader, _missShader, _closestHitShader };
+	rtPipeDesc.shaderGroupCount = 4;
+
+	// 셰이더 설정 (4 shaders)
+	Render::OgShaderHandle* shaders[4] = { _raygenShader, _missShader, _shadowMissShader, _closestHitShader };
 	rtPipeDesc.shaders = shaders;
-	rtPipeDesc.shaderCount = 3;
-	
+	rtPipeDesc.shaderCount = 4;
+
 	_rtPipeline = _renderContext->CreateRayTracingPipeline(rtPipeDesc);
 	_rtPipeline->Retain();
 }
@@ -1092,75 +1122,52 @@ void OgRayTracingSample::createAccelerationStructures()
 		info.indexOffset = static_cast<uint32_t>(allIndices.size());
 		info.materialIndex = geom.materialIndex;
 		info.padding = 0;
-		
+
 		allGeometryInfos.push_back(info);
-		
-		// 버텍스 복사
-		std::vector<Vertex> vertices(geom.vertexCount);
-		void* vertexData = _renderContext->MapBuffer(geom.vertexBuffer, sizeof(Vertex) * geom.vertexCount);
-		if (vertexData)
-		{
-			memcpy(vertices.data(), vertexData, sizeof(Vertex) * geom.vertexCount);
-			_renderContext->UnmapBuffer(geom.vertexBuffer);
-			allVertices.insert(allVertices.end(), vertices.begin(), vertices.end());
-		}
-		
-		// 인덱스 복사
-		if (geom.indexCount > 0)
-		{
-			std::vector<uint32_t> indices(geom.indexCount);
-			void* indexData = _renderContext->MapBuffer(geom.indexBuffer, sizeof(uint32_t) * geom.indexCount);
-			if (indexData)
-			{
-				// uint16에서 uint32로 변환 가능성 고려
-				if (geom.indexBuffer->size == sizeof(uint16_t) * geom.indexCount)
-				{
-					uint16_t* indices16 = static_cast<uint16_t*>(indexData);
-					for (uint32_t i = 0; i < geom.indexCount; ++i)
-					{
-						indices[i] = indices16[i];
-					}
-				}
-				else
-				{
-					memcpy(indices.data(), indexData, sizeof(uint32_t) * geom.indexCount);
-				}
-				_renderContext->UnmapBuffer(geom.indexBuffer);
-				allIndices.insert(allIndices.end(), indices.begin(), indices.end());
-			}
-		}
-		
+
+		// CPU 캐시된 데이터 사용
+		allVertices.insert(allVertices.end(), geom.cpuVertices.begin(), geom.cpuVertices.end());
+		allIndices.insert(allIndices.end(), geom.cpuIndices.begin(), geom.cpuIndices.end());
+
 		// BLAS geometry 정보 설정
 		Render::OgAccelStructureGeometry asGeom{};
 		asGeom.vertexBuffer = geom.vertexBuffer;
 		asGeom.vertexStride = sizeof(Vertex);
 		asGeom.vertexCount = geom.vertexCount;
 		asGeom.indexBuffer = geom.indexBuffer;
-		asGeom.indexType = (geom.indexBuffer->size == sizeof(uint16_t) * geom.indexCount) 
+		asGeom.indexType = (geom.indexBuffer && geom.indexBuffer->size == sizeof(uint16_t) * geom.indexCount)
 			? OgIndexType::UINT16 : OgIndexType::UINT32;
 		asGeom.indexCount = geom.indexCount;
 		asGeom.transformOffset = 0;
-		
+
 		blasGeometries.push_back(asGeom);
 	}
 	
-	// 통합 버퍼 생성
+	// 통합 버퍼 생성 (SHADER_DEVICE_ADDRESS 포함 - BLAS 빌드에 필요)
 	_vertexBuffer = _renderContext->CreateBuffer(
 		allVertices.data(),
 		sizeof(Vertex) * allVertices.size(),
-		static_cast<Render::OgBufferUsage>(static_cast<uint16>(Render::OgBufferUsage::VERTEX) | static_cast<uint16>(Render::OgBufferUsage::STORAGE) | static_cast<uint16>(Render::OgBufferUsage::ACCEL_STRUCTURE_BUILD_INPUT)),
+		static_cast<Render::OgBufferUsage>(
+			static_cast<uint16>(Render::OgBufferUsage::VERTEX) |
+			static_cast<uint16>(Render::OgBufferUsage::STORAGE) |
+			static_cast<uint16>(Render::OgBufferUsage::SHADER_DEVICE_ADDRESS) |
+			static_cast<uint16>(Render::OgBufferUsage::ACCEL_STRUCTURE_BUILD_INPUT)),
 		OgMemoryOption::PRIVATE_GPU
 	);
 	_vertexBuffer->Retain();
-	
+
 	_indexBuffer = _renderContext->CreateBuffer(
 		allIndices.data(),
 		sizeof(uint32_t) * allIndices.size(),
-		static_cast<Render::OgBufferUsage>(static_cast<uint16>(Render::OgBufferUsage::INDEX) | static_cast<uint16>(Render::OgBufferUsage::STORAGE) | static_cast<uint16>(Render::OgBufferUsage::ACCEL_STRUCTURE_BUILD_INPUT)),
+		static_cast<Render::OgBufferUsage>(
+			static_cast<uint16>(Render::OgBufferUsage::INDEX) |
+			static_cast<uint16>(Render::OgBufferUsage::STORAGE) |
+			static_cast<uint16>(Render::OgBufferUsage::SHADER_DEVICE_ADDRESS) |
+			static_cast<uint16>(Render::OgBufferUsage::ACCEL_STRUCTURE_BUILD_INPUT)),
 		OgMemoryOption::PRIVATE_GPU
 	);
 	_indexBuffer->Retain();
-	
+
 	_geometryInfoBuffer = _renderContext->CreateBuffer(
 		allGeometryInfos.data(),
 		sizeof(GPUGeometryInfo) * allGeometryInfos.size(),
@@ -1168,7 +1175,20 @@ void OgRayTracingSample::createAccelerationStructures()
 		OgMemoryOption::PRIVATE_GPU
 	);
 	_geometryInfoBuffer->Retain();
-	
+
+	// BLAS geometry를 통합 버퍼 기반으로 재설정
+	// 모든 geometry를 하나의 통합 버퍼에서 offset으로 구분
+	blasGeometries.clear();
+	Render::OgAccelStructureGeometry singleGeom{};
+	singleGeom.vertexBuffer = _vertexBuffer;
+	singleGeom.vertexStride = sizeof(Vertex);
+	singleGeom.vertexCount = static_cast<uint32_t>(allVertices.size());
+	singleGeom.indexBuffer = _indexBuffer;
+	singleGeom.indexType = OgIndexType::UINT32;
+	singleGeom.indexCount = static_cast<uint32_t>(allIndices.size());
+	singleGeom.transformOffset = 0;
+	blasGeometries.push_back(singleGeom);
+
 	// BLAS 생성
 	Render::OgAccelStructureBuildInfo blasBuildInfo{};
 	blasBuildInfo.type = Render::OgAccelStructureType::BOTTOM_LEVEL;
@@ -1179,6 +1199,9 @@ void OgRayTracingSample::createAccelerationStructures()
 	// BLAS를 생성하고 빌드
 	Render::OgAccelStructureHandle* blas = _renderContext->CreateAccelerationStructure(blasBuildInfo);
 	blas->Retain();
+
+	// BLAS 즉시 빌드
+	_renderContext->BuildAccelerationStructureImmediate(blas, blasBuildInfo);
 	
 	// BLAS instance 저장
 	BLASInstance instance;
@@ -1231,8 +1254,9 @@ void OgRayTracingSample::createAccelerationStructures()
 		tlasInstances.data(),
 		sizeof(InstanceData) * tlasInstances.size(),
 		static_cast<OgBufferUsage>(
-			static_cast<uint16>(OgBufferUsage::VERTEX) | 
-			static_cast<uint16>(OgBufferUsage::STORAGE)
+			static_cast<uint16>(OgBufferUsage::STORAGE) |
+			static_cast<uint16>(OgBufferUsage::SHADER_DEVICE_ADDRESS) |
+			static_cast<uint16>(OgBufferUsage::ACCEL_STRUCTURE_BUILD_INPUT)
 		),
 		OgMemoryOption::PRIVATE_GPU
 	);
@@ -1247,6 +1271,9 @@ void OgRayTracingSample::createAccelerationStructures()
 	
 	_tlas = _renderContext->CreateAccelerationStructure(tlasBuildInfo);
 	_tlas->Retain();
+
+	// TLAS 즉시 빌드
+	_renderContext->BuildAccelerationStructureImmediate(_tlas, tlasBuildInfo);
 	
 	// Shader Binding Table 생성
 	createShaderBindingTable();
@@ -1255,15 +1282,11 @@ void OgRayTracingSample::createAccelerationStructures()
 	uint32 zeroOffset = 0;
 	OgResourceUsage usages[8];
 	
-	// TLAS - Acceleration Structure는 보통 버퍼로 처리되거나 특수한 방식으로 바인딩
+	// TLAS - Acceleration Structure
 	usages[0].binding.type = OgResourceType::ACCELERATION_STRUCTURE;
 	usages[0].binding.stage = static_cast<OgShaderType>(static_cast<uint16>(OgShaderType::RAYGEN) | static_cast<uint16>(OgShaderType::CLOSEST_HIT));
 	usages[0].binding.binding = 0;
-	// acceleration structure는 buffer로 처리될 수 있음
-	usages[0].buffer.handle = reinterpret_cast<Render::OgBufferHandle**>(&_tlas);
-	usages[0].buffer.offset = &zeroOffset;
-	uint32 tlasSize = sizeof(void*); // 임시
-	usages[0].buffer.range = &tlasSize;
+	usages[0].accelStructure.handle = &_tlas;
 	
 	// 출력 이미지
 	usages[1].binding.type = OgResourceType::STORAGE_IMAGE;
@@ -1323,19 +1346,12 @@ void OgRayTracingSample::createAccelerationStructures()
 		texHandles.push_back(_defaultWhiteTexture);
 	}
 	
-	// 텍스처 배열 - 리소스 레이아웃에서 arrayCount=16으로 이미 설정됨
-	// 첫 번째 텍스처만 바인딩하면 나머지는 자동으로 처리될 수 있음
+	// 텍스처 배열 - 16개 모두 바인딩
 	usages[7].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	usages[7].binding.stage = OgShaderType::CLOSEST_HIT;
 	usages[7].binding.binding = 7;
-	if (!texHandles.empty())
-	{
-		usages[7].texture.handle = &texHandles[0];
-	}
-	else
-	{
-		usages[7].texture.handle = &_defaultWhiteTexture;
-	}
+	usages[7].binding.arrayCount = 16;
+	usages[7].texture.handle = texHandles.data();
 	
 	_rtResourceSet = _renderContext->CreateResourceSet(_rtResourceLayout, usages, 8);
 	_rtResourceSet->name = "RayTracingResourceSet";
@@ -1344,37 +1360,44 @@ void OgRayTracingSample::createAccelerationStructures()
 
 void OgRayTracingSample::createShaderBindingTable()
 {
-	// OgRenderContext::CreateShaderBindingTable을 사용
-	Render::OgRayTracingShaderGroup groups[3];
-	
-	// 이전에 설정한 것과 동일하게 설정
+	// SBT handle alignment 정보 가져오기
+	_sbtHandleSizeAligned = _renderContext->GetShaderGroupHandleSizeAligned();
+
+	// 셰이더 그룹 설정 (4 groups: raygen, miss, shadow miss, hit)
+	Render::OgRayTracingShaderGroup groups[4];
+
 	groups[0].type = Render::OgRayTracingShaderGroup::GENERAL;
 	groups[0].generalShader = 0;
 	groups[0].closestHitShader = ~0u;
 	groups[0].anyHitShader = ~0u;
 	groups[0].intersectionShader = ~0u;
-	
+
 	groups[1].type = Render::OgRayTracingShaderGroup::GENERAL;
 	groups[1].generalShader = 1;
 	groups[1].closestHitShader = ~0u;
 	groups[1].anyHitShader = ~0u;
 	groups[1].intersectionShader = ~0u;
-	
-	groups[2].type = Render::OgRayTracingShaderGroup::TRIANGLES_HIT_GROUP;
-	groups[2].generalShader = ~0u;
-	groups[2].closestHitShader = 2;
+
+	groups[2].type = Render::OgRayTracingShaderGroup::GENERAL;
+	groups[2].generalShader = 2;
+	groups[2].closestHitShader = ~0u;
 	groups[2].anyHitShader = ~0u;
 	groups[2].intersectionShader = ~0u;
-	
-	// 전체 SBT 생성
-	Render::OgBufferHandle* sbtBuffer = _renderContext->CreateShaderBindingTable(_rtPipeline, groups, 3);
-	
-	// SBT를 각 그룹별로 나눠서 사용 (임시)
-	// 실제로는 하나의 버퍼에서 offset을 사용해야 함
+
+	groups[3].type = Render::OgRayTracingShaderGroup::TRIANGLES_HIT_GROUP;
+	groups[3].generalShader = ~0u;
+	groups[3].closestHitShader = 3;
+	groups[3].anyHitShader = ~0u;
+	groups[3].intersectionShader = ~0u;
+
+	// 전체 SBT 생성 (하나의 버퍼에 모든 핸들 포함)
+	Render::OgBufferHandle* sbtBuffer = _renderContext->CreateShaderBindingTable(_rtPipeline, groups, 4);
+
+	// 동일한 버퍼를 offset으로 구분하여 사용
 	_raygenSBT = sbtBuffer;
 	_missSBT = sbtBuffer;
 	_hitSBT = sbtBuffer;
-	
+
 	sbtBuffer->Retain();
 	sbtBuffer->Retain();
 	sbtBuffer->Retain();
@@ -1582,11 +1605,41 @@ void OgRayTracingSample::processMeshForRayTracing(const Mesh& mesh, int meshInde
 			geom.vertexCount = primitive.vertexCount;
 			geom.indexCount = primitive.indexCount;
 			geom.materialIndex = (primitive.materialIndex >= 0) ? primitive.materialIndex : 0;
-			
-			_geometries.push_back(geom);
-			
-			_totalVertexCount += geom.vertexCount;
-			_totalIndexCount += geom.indexCount;
+
+			// CPU side vertex data copy (MapBuffer for MAP_MANAGED buffers)
+			geom.cpuVertices.resize(primitive.vertexCount);
+			void* vData = _renderContext->MapBuffer(primitive.vertexBuffer, sizeof(Vertex) * primitive.vertexCount);
+			if (vData)
+			{
+				memcpy(geom.cpuVertices.data(), vData, sizeof(Vertex) * primitive.vertexCount);
+				_renderContext->UnmapBuffer(primitive.vertexBuffer);
+			}
+
+			// CPU side index data copy
+			if (primitive.indexCount > 0 && primitive.indexBuffer)
+			{
+				geom.cpuIndices.resize(primitive.indexCount);
+				void* iData = _renderContext->MapBuffer(primitive.indexBuffer, primitive.indexBuffer->size);
+				if (iData)
+				{
+					if (primitive.indexType == 5123) // UINT16
+					{
+						uint16_t* idx16 = static_cast<uint16_t*>(iData);
+						for (uint32_t i = 0; i < primitive.indexCount; ++i)
+							geom.cpuIndices[i] = idx16[i];
+					}
+					else // UINT32
+					{
+						memcpy(geom.cpuIndices.data(), iData, sizeof(uint32_t) * primitive.indexCount);
+					}
+					_renderContext->UnmapBuffer(primitive.indexBuffer);
+				}
+			}
+
+			_geometries.push_back(std::move(geom));
+
+			_totalVertexCount += primitive.vertexCount;
+			_totalIndexCount += primitive.indexCount;
 		}
 	}
 }

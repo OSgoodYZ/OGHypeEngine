@@ -1591,6 +1591,7 @@ enum class OgBufferUsage : uint16
 	SHADER_DEVICE_ADDRESS = 0x00000400,
 	ACCEL_STRUCTURE_BUILD_INPUT = 0x00000800,
 	ACCEL_STRUCTURE_STORAGE = 0x00001000,
+	SHADER_BINDING_TABLE = 0x00002000,
 };
 
 // Memory barrier flags for compute shader synchronization
@@ -2332,6 +2333,8 @@ struct OG_API OgResourceBinding
 	}
 };
 
+struct OgAccelStructureHandle; // forward declaration for OgResourceUsage
+
 struct OG_API OgResourceUsage
 {
 	OgResourceUsage();
@@ -2351,6 +2354,11 @@ struct OG_API OgResourceUsage
 			uint32* offset;
 			uint32* range;
 		} buffer;
+
+		struct
+		{
+			OgAccelStructureHandle** handle;
+		} accelStructure;
 	};
 };
 

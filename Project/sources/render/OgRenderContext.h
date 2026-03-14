@@ -542,6 +542,23 @@ public:
 	*/
 	virtual bool IsRayTracingSupported() = 0;
 
+	/**
+	* @brief Builds an acceleration structure immediately using a one-shot command buffer.
+	* @param accelStructure The acceleration structure to build
+	* @param buildInfo Build information
+	*/
+	virtual void BuildAccelerationStructureImmediate(OgAccelStructureHandle* accelStructure, const OgAccelStructureBuildInfo& buildInfo) = 0;
+
+	/**
+	* @brief Returns the shader group handle size aligned to shaderGroupHandleAlignment.
+	*/
+	virtual uint32 GetShaderGroupHandleSizeAligned() = 0;
+
+	/**
+	* @brief Returns the shader group base alignment.
+	*/
+	virtual uint32 GetShaderGroupBaseAlignment() = 0;
+
 private:
 	
 };

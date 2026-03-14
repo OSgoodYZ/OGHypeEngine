@@ -402,6 +402,26 @@ struct OgComputePipelineVK : OgPipelineHandle
 	VkPipeline pipeline;
 };
 
+// OgShaderType 비트마스크를 VkShaderStageFlags로 변환
+inline VkShaderStageFlags ConvertOgShaderTypeToVkStageFlags(OgShaderType ogStage)
+{
+	VkShaderStageFlags flags = 0;
+	uint16 s = static_cast<uint16>(ogStage);
+	if (s & static_cast<uint16>(OgShaderType::VERTEX))                  flags |= VK_SHADER_STAGE_VERTEX_BIT;
+	if (s & static_cast<uint16>(OgShaderType::TESSELLATION_CONTROL))    flags |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+	if (s & static_cast<uint16>(OgShaderType::TESSELLATION_EVALUATION)) flags |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+	if (s & static_cast<uint16>(OgShaderType::GEOMETRY))                flags |= VK_SHADER_STAGE_GEOMETRY_BIT;
+	if (s & static_cast<uint16>(OgShaderType::FRAGMENT))                flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+	if (s & static_cast<uint16>(OgShaderType::COMPUTE))                 flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+	if (s & static_cast<uint16>(OgShaderType::RAYGEN))                  flags |= VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+	if (s & static_cast<uint16>(OgShaderType::ANY_HIT))                 flags |= VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+	if (s & static_cast<uint16>(OgShaderType::CLOSEST_HIT))             flags |= VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+	if (s & static_cast<uint16>(OgShaderType::MISS))                    flags |= VK_SHADER_STAGE_MISS_BIT_KHR;
+	if (s & static_cast<uint16>(OgShaderType::INTERSECTION))            flags |= VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+	if (s & static_cast<uint16>(OgShaderType::CALLABLE))                flags |= VK_SHADER_STAGE_CALLABLE_BIT_KHR;
+	return flags;
+}
+
 struct OgResourceLayoutVK : OgResourceLayoutHandle
 {
 	OgResourceLayoutVK() = delete;
@@ -420,9 +440,15 @@ struct OgResourceLayoutVK : OgResourceLayoutHandle
 			const OgResourceBinding& rb = bindings[i];
 
 			setLayoutBindings[i].binding = rb.binding;
-			setLayoutBindings[i].descriptorType = static_cast<VkDescriptorType>(rb.type);
+			// ACCELERATION_STRUCTURE와 STORAGE_IMAGE는 enum 값이 VkDescriptorType과 다르므로 명시적 매핑
+			if (rb.type == OgResourceType::ACCELERATION_STRUCTURE)
+				setLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+			else if (rb.type == OgResourceType::STORAGE_IMAGE)
+				setLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			else
+				setLayoutBindings[i].descriptorType = static_cast<VkDescriptorType>(rb.type);
 			setLayoutBindings[i].descriptorCount = rb.arrayCount == 0 ? 1 : rb.arrayCount;
-			setLayoutBindings[i].stageFlags = static_cast<VkShaderStageFlagBits>(rb.stage);
+			setLayoutBindings[i].stageFlags = ConvertOgShaderTypeToVkStageFlags(rb.stage);
 			setLayoutBindings[i].pImmutableSamplers = nullptr; // 주의 꼭 nullptr 넣어야함.
 		}
 
@@ -636,6 +662,9 @@ struct OgAccelStructureVK : public OgAccelStructureHandle
 	VkBuffer buffer;
 	VkDeviceMemory memory;
 	VkDeviceAddress deviceAddress;
+	VkDeviceSize buildScratchSize;
+	VkBuffer scratchBuffer;
+	VkDeviceMemory scratchMemory;
 
 	OgAccelStructureVK(OgDeviceVulkan& device)
 		: vulkanDevice(device)
@@ -643,6 +672,9 @@ struct OgAccelStructureVK : public OgAccelStructureHandle
 		, buffer(VK_NULL_HANDLE)
 		, memory(VK_NULL_HANDLE)
 		, deviceAddress(0)
+		, buildScratchSize(0)
+		, scratchBuffer(VK_NULL_HANDLE)
+		, scratchMemory(VK_NULL_HANDLE)
 	{}
 
 	~OgAccelStructureVK()

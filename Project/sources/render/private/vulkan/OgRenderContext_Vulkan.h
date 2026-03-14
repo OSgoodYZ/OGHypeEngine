@@ -123,6 +123,9 @@ public:
 	OgPipelineHandle* CreateRayTracingPipeline(const OgRayTracingPipelineDescriptor& descriptor) override;
 	OgBufferHandle* CreateShaderBindingTable(OgPipelineHandle* pipeline, const OgRayTracingShaderGroup* groups, uint32 groupCount) override;
 	bool IsRayTracingSupported() override;
+	void BuildAccelerationStructureImmediate(OgAccelStructureHandle* accelStructure, const OgAccelStructureBuildInfo& buildInfo) override;
+	uint32 GetShaderGroupHandleSizeAligned() override;
+	uint32 GetShaderGroupBaseAlignment() override;
 
 private:
 

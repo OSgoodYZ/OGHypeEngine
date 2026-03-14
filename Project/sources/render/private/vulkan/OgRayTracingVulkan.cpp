@@ -171,10 +171,13 @@ OG_CHECK(_vulkanDevice->vkGetBufferDeviceAddressKHR != nullptr, "vkGetBufferDevi
 	// Get required sizes
 	VkAccelerationStructureBuildSizesInfoKHR sizeInfo{};
 	sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-	_vulkanDevice->vkGetAccelerationStructureBuildSizesKHR(_logicalDeviceVK, 
+	_vulkanDevice->vkGetAccelerationStructureBuildSizesKHR(_logicalDeviceVK,
 		VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
 		&buildGeometryInfo, &primitiveCount, &sizeInfo);
-	
+
+	// Save scratch size for later build
+	accelStructure->buildScratchSize = sizeInfo.buildScratchSize;
+
 	// Create buffer for acceleration structure
 	VkBufferCreateInfo bufferInfo{};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -326,9 +329,50 @@ void OgRenderContextVulkan::BuildAccelerationStructure(OgCommandEncoderHandle* e
 	buildGeometryInfo.geometryCount = static_cast<uint32_t>(geometries.Size());
 	buildGeometryInfo.pGeometries = geometries.Data();
 	
+	// Create scratch buffer
+	OgAccelStructureVK* accelVKForScratch = static_cast<OgAccelStructureVK*>(accelStructure);
+	VkDeviceSize scratchSize = accelVKForScratch->buildScratchSize;
+
+	VkBufferCreateInfo scratchBufferInfo{};
+	scratchBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	scratchBufferInfo.size = scratchSize;
+	scratchBufferInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
+	VkBuffer scratchBuffer;
+	VK_CHECK_RESULT(vkCreateBuffer(_logicalDeviceVK, &scratchBufferInfo, nullptr, &scratchBuffer));
+
+	VkMemoryRequirements scratchMemReqs;
+	vkGetBufferMemoryRequirements(_logicalDeviceVK, scratchBuffer, &scratchMemReqs);
+
+	VkMemoryAllocateFlagsInfo scratchAllocFlags{};
+	scratchAllocFlags.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+	scratchAllocFlags.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+
+	VkMemoryAllocateInfo scratchAllocInfo{};
+	scratchAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	scratchAllocInfo.pNext = &scratchAllocFlags;
+	scratchAllocInfo.allocationSize = scratchMemReqs.size;
+	scratchAllocInfo.memoryTypeIndex = _vulkanDevice->GetMemoryType(scratchMemReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	VkDeviceMemory scratchMemory;
+	VK_CHECK_RESULT(vkAllocateMemory(_logicalDeviceVK, &scratchAllocInfo, nullptr, &scratchMemory));
+	VK_CHECK_RESULT(vkBindBufferMemory(_logicalDeviceVK, scratchBuffer, scratchMemory, 0));
+
+	VkBufferDeviceAddressInfo scratchAddrInfo{};
+	scratchAddrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+	scratchAddrInfo.buffer = scratchBuffer;
+	VkDeviceAddress scratchAddress = _vulkanDevice->vkGetBufferDeviceAddressKHR(_logicalDeviceVK, &scratchAddrInfo);
+
+	buildGeometryInfo.scratchData.deviceAddress = scratchAddress;
+
 	// Build on device
 	const VkAccelerationStructureBuildRangeInfoKHR* pBuildRangeInfos = buildRangeInfos.Data();
 	_vulkanDevice->vkCmdBuildAccelerationStructuresKHR(encoderVK->cmdBufferVK, 1, &buildGeometryInfo, &pBuildRangeInfos);
+
+	// Note: scratch buffer lifetime is managed by the caller via the command buffer
+	// We store it temporarily for cleanup in BuildAccelerationStructureImmediate
+	accelVKForScratch->scratchBuffer = scratchBuffer;
+	accelVKForScratch->scratchMemory = scratchMemory;
 }
 
 OgPipelineHandle* OgRenderContextVulkan::CreateRayTracingPipeline(const OgRayTracingPipelineDescriptor& descriptor)
@@ -421,22 +465,98 @@ OgBufferHandle* OgRenderContextVulkan::CreateShaderBindingTable(OgPipelineHandle
 	
 	OgRayTracingPipelineVK* rtPipeline = static_cast<OgRayTracingPipelineVK*>(pipeline);
 	
-	// Calculate SBT size
+	// Calculate SBT size with proper alignment
 	uint32 handleSize = _rayTracingPipelineProperties.shaderGroupHandleSize;
 	uint32 handleSizeAligned = AlignUp(handleSize, _rayTracingPipelineProperties.shaderGroupHandleAlignment);
-	uint32 sbtSize = groupCount * handleSizeAligned;
-	
-	// Get shader group handles
-	OgVector<uint8> shaderHandleStorage(sbtSize);
-	VK_CHECK_RESULT(_vulkanDevice->vkGetRayTracingShaderGroupHandlesKHR(_logicalDeviceVK, rtPipeline->pipeline, 
-		0, groupCount, sbtSize, shaderHandleStorage.Data()));
-	
+	uint32 baseAlignment = _rayTracingPipelineProperties.shaderGroupBaseAlignment;
+	// Each group entry is aligned to baseAlignment for SBT region addressing
+	uint32 entrySize = AlignUp(handleSizeAligned, baseAlignment);
+	uint32 sbtSize = groupCount * entrySize;
+
+	// Get raw shader group handles (packed at handleSize intervals)
+	uint32 rawHandlesSize = groupCount * handleSize;
+	OgVector<uint8> rawHandles(rawHandlesSize);
+	VK_CHECK_RESULT(_vulkanDevice->vkGetRayTracingShaderGroupHandlesKHR(_logicalDeviceVK, rtPipeline->pipeline,
+		0, groupCount, rawHandlesSize, rawHandles.Data()));
+
+	// Build padded SBT buffer with each handle at entrySize intervals
+	OgVector<uint8> sbtData(sbtSize);
+	memset(sbtData.Data(), 0, sbtSize);
+	for (uint32 i = 0; i < groupCount; ++i)
+	{
+		memcpy(sbtData.Data() + i * entrySize, rawHandles.Data() + i * handleSize, handleSize);
+	}
+
 	// Create SBT buffer
-	OgBufferHandle* sbtBuffer = CreateBuffer(shaderHandleStorage.Data(), sbtSize, 
-		static_cast<OgBufferUsage>(static_cast<uint8>(OgBufferUsage::STORAGE) | static_cast<uint8>(OgBufferUsage::SHADER_DEVICE_ADDRESS)), 
+	OgBufferHandle* sbtBuffer = CreateBuffer(sbtData.Data(), sbtSize,
+		static_cast<OgBufferUsage>(
+			static_cast<uint16>(OgBufferUsage::STORAGE) |
+			static_cast<uint16>(OgBufferUsage::SHADER_DEVICE_ADDRESS) |
+			static_cast<uint16>(OgBufferUsage::SHADER_BINDING_TABLE)),
 		OgMemoryOption::PRIVATE_GPU);
-	
+
 	return sbtBuffer;
+}
+
+void OgRenderContextVulkan::BuildAccelerationStructureImmediate(OgAccelStructureHandle* accelStructure, const OgAccelStructureBuildInfo& buildInfo)
+{
+	OG_CHECK(_rayTracingSupported, "Ray tracing is not supported");
+	OG_CHECK(accelStructure != nullptr, "Acceleration structure is null");
+
+	// Create a temporary encoder (allocates its own command buffer)
+	OgCommandEncoderVK tempEncoder(_vulkanDevice, _cmdPoolVK);
+	tempEncoder.Begin();
+
+	// Build the acceleration structure (this also creates the scratch buffer)
+	BuildAccelerationStructure(&tempEncoder, accelStructure, buildInfo);
+
+	// Memory barrier to ensure build is complete before use
+	VkMemoryBarrier memoryBarrier{};
+	memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+	memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+	vkCmdPipelineBarrier(tempEncoder.cmdBufferVK,
+		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+		VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+		0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+
+	VK_CHECK_RESULT(vkEndCommandBuffer(tempEncoder.cmdBufferVK));
+
+	// Submit and wait
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &tempEncoder.cmdBufferVK;
+	VK_CHECK_RESULT(vkQueueSubmit(_graphicsQueueVK, 1, &submitInfo, VK_NULL_HANDLE));
+	VK_CHECK_RESULT(vkQueueWaitIdle(_graphicsQueueVK));
+
+	// Cleanup scratch buffer
+	OgAccelStructureVK* accelVK = static_cast<OgAccelStructureVK*>(accelStructure);
+	if (accelVK->scratchBuffer != VK_NULL_HANDLE)
+	{
+		vkDestroyBuffer(_logicalDeviceVK, accelVK->scratchBuffer, nullptr);
+		accelVK->scratchBuffer = VK_NULL_HANDLE;
+	}
+	if (accelVK->scratchMemory != VK_NULL_HANDLE)
+	{
+		vkFreeMemory(_logicalDeviceVK, accelVK->scratchMemory, nullptr);
+		accelVK->scratchMemory = VK_NULL_HANDLE;
+	}
+	// tempEncoder destructor will free the command buffer
+}
+
+uint32 OgRenderContextVulkan::GetShaderGroupHandleSizeAligned()
+{
+	uint32 handleSize = _rayTracingPipelineProperties.shaderGroupHandleSize;
+	uint32 handleAlignment = _rayTracingPipelineProperties.shaderGroupHandleAlignment;
+	uint32 baseAlignment = _rayTracingPipelineProperties.shaderGroupBaseAlignment;
+	// Return entry size aligned to baseAlignment (matches SBT buffer layout)
+	return AlignUp(AlignUp(handleSize, handleAlignment), baseAlignment);
+}
+
+uint32 OgRenderContextVulkan::GetShaderGroupBaseAlignment()
+{
+	return _rayTracingPipelineProperties.shaderGroupBaseAlignment;
 }
 
 OG_NAMESPACE_RENDER_END
@@ -479,11 +599,26 @@ OgPipelineHandle* OgRenderContextVulkan::CreateRayTracingPipeline(const OgRayTra
 	return nullptr;
 }
 
-OgBufferHandle* OgRenderContextVulkan::CreateShaderBindingTable(OgPipelineHandle* pipeline, 
+OgBufferHandle* OgRenderContextVulkan::CreateShaderBindingTable(OgPipelineHandle* pipeline,
 	const OgRayTracingShaderGroup* groups, uint32 groupCount)
 {
 	LOGE(OG_ID, "Ray tracing is not enabled in this build");
 	return nullptr;
+}
+
+void OgRenderContextVulkan::BuildAccelerationStructureImmediate(OgAccelStructureHandle* accelStructure, const OgAccelStructureBuildInfo& buildInfo)
+{
+	LOGE(OG_ID, "Ray tracing is not enabled in this build");
+}
+
+uint32 OgRenderContextVulkan::GetShaderGroupHandleSizeAligned()
+{
+	return 0;
+}
+
+uint32 OgRenderContextVulkan::GetShaderGroupBaseAlignment()
+{
+	return 0;
 }
 
 OG_NAMESPACE_RENDER_END

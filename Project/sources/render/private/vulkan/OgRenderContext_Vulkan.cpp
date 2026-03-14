@@ -47,7 +47,6 @@ static const Lv::LvFixedList<const char*, 8> s_validationLayers =
 #else
 static const std::vector<const char*> s_validationLayers =
 {
-	"VK_LAYER_LUNARG_standard_validation",
 	"VK_LAYER_KHRONOS_validation"
 };
 #endif
@@ -147,12 +146,22 @@ bool check_validation_layer_support()
 #if defined(_DEBUG)
 		for (const char* layerName : s_validationLayers)
 		{
+			bool layerFound = false;
 			for (const VkLayerProperties& layerProperties : availableLayers)
 			{
 				if (strcmp(layerName, layerProperties.layerName) == 0)
-					return true;
+				{
+					layerFound = true;
+					break;
+				}
+			}
+			if (!layerFound)
+			{
+				LOGE(OG_ID, "Validation layer not found: %s", layerName);
+				return false;
 			}
 		}
+		return true;
 #endif
 	}
 
@@ -288,31 +297,13 @@ void OgRenderContextVulkan::initInstance()
 	instanceInfo.enabledExtensionCount = static_cast<uint32_t>(_enabledInstanceExtensions.size());
 	instanceInfo.ppEnabledExtensionNames = _enabledInstanceExtensions.data();
 
-	list<const char*> validationLayers;
 	if (s_enableValidationLayers)
 	{
 #if defined(_DEBUG)
 		if (s_validationLayers.size() > 0)
 		{
-#if defined(__DESKTOP__)
-
-			if (s_sdkVersion.major >= 1 && s_sdkVersion.minor >= 2)
-			{
-				validationLayers.push_back("VK_LAYER_KHRONOS_validation");
-				
-				instanceInfo.enabledLayerCount = (uint32_t)validationLayers.size();
-				instanceInfo.ppEnabledLayerNames = &validationLayers.front();
-			}
-			else
-			{
-				validationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
-				instanceInfo.enabledLayerCount = (uint32_t)validationLayers.size();
-				instanceInfo.ppEnabledLayerNames = &validationLayers.front();
-			}
-#else
-			instanceInfo.enabledLayerCount = static_cast<uint32_t>(s_validationLayers.Count());
+			instanceInfo.enabledLayerCount = static_cast<uint32_t>(s_validationLayers.size());
 			instanceInfo.ppEnabledLayerNames = s_validationLayers.data();
-#endif
 		}
 #endif
 	}
@@ -477,13 +468,17 @@ void OgRenderContextVulkan::initDescriptorPool()
 
 	// Manual Initialize for VkDescriptorPool
 	// 나중에 이것을 관리하는 DescriptorPool Manager를 만들어야 함.
-	vector<VkDescriptorPoolSize> poolSizes(3);
+	vector<VkDescriptorPoolSize> poolSizes(5);
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = _maxUniformBufferFromPool;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = _maxTextureFromPool;
 	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	poolSizes[2].descriptorCount = _maxUniformBufferFromPool; // Storage buffer와 uniform buffer 개수를 동일하게 설정
+	poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	poolSizes[3].descriptorCount = 64;
+	poolSizes[4].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+	poolSizes[4].descriptorCount = 64;
 
 	VkDescriptorPoolCreateInfo descriptorPoolInfo;
 	descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1047,6 +1042,14 @@ OgBufferHandle* OgRenderContextVulkan::CreateBuffer(void* data, size_t size, OgB
 		vkUsage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	if ((uint16)usage & (uint16)OgBufferUsage::INDIRECT)
 		vkUsage |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+	if ((uint16)usage & (uint16)OgBufferUsage::SHADER_DEVICE_ADDRESS)
+		vkUsage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+	if ((uint16)usage & (uint16)OgBufferUsage::ACCEL_STRUCTURE_BUILD_INPUT)
+		vkUsage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+	if ((uint16)usage & (uint16)OgBufferUsage::ACCEL_STRUCTURE_STORAGE)
+		vkUsage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+	if ((uint16)usage & (uint16)OgBufferUsage::SHADER_BINDING_TABLE)
+		vkUsage |= VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
 
 	if (usage == OgBufferUsage::UNIFORM)
 		r = new OgUniformBufferVK(*_vulkanDevice, (uint32)size, usage, option);
@@ -1215,7 +1218,23 @@ OgShaderHandle* OgRenderContextVulkan::CreateShader(OgShaderType flag, const cha
 	}
 
 	shader->shaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	shader->shaderStageInfo.stage = static_cast<VkShaderStageFlagBits>(flag);
+	// OgShaderType과 VkShaderStageFlagBits의 값이 다르므로 명시적 변환
+	switch (flag)
+	{
+	case OgShaderType::VERTEX:                  shader->shaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT; break;
+	case OgShaderType::TESSELLATION_CONTROL:    shader->shaderStageInfo.stage = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT; break;
+	case OgShaderType::TESSELLATION_EVALUATION: shader->shaderStageInfo.stage = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT; break;
+	case OgShaderType::GEOMETRY:                shader->shaderStageInfo.stage = VK_SHADER_STAGE_GEOMETRY_BIT; break;
+	case OgShaderType::FRAGMENT:                shader->shaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT; break;
+	case OgShaderType::COMPUTE:                 shader->shaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT; break;
+	case OgShaderType::RAYGEN:                  shader->shaderStageInfo.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR; break;
+	case OgShaderType::ANY_HIT:                 shader->shaderStageInfo.stage = VK_SHADER_STAGE_ANY_HIT_BIT_KHR; break;
+	case OgShaderType::CLOSEST_HIT:             shader->shaderStageInfo.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR; break;
+	case OgShaderType::MISS:                    shader->shaderStageInfo.stage = VK_SHADER_STAGE_MISS_BIT_KHR; break;
+	case OgShaderType::INTERSECTION:            shader->shaderStageInfo.stage = VK_SHADER_STAGE_INTERSECTION_BIT_KHR; break;
+	case OgShaderType::CALLABLE:                shader->shaderStageInfo.stage = VK_SHADER_STAGE_CALLABLE_BIT_KHR; break;
+	default:                                    shader->shaderStageInfo.stage = static_cast<VkShaderStageFlagBits>(flag); break;
+	}
 
 	if (funcName == nullptr)
 		shader->shaderStageInfo.pName = "main";
@@ -1423,15 +1442,21 @@ void OgRenderContextVulkan::buildTexture(OgTextureVK* texture)
 
 	if ((info.usage & OgTextureUsage::SAMPLED) != 0) //SAMPLED
 	{
-		// Sampling한다면 attachment/shader read 둘 다로 쓰일 수 있는 layout으로
-		texture->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		// STORAGE와 SAMPLED가 동시에 필요하면 GENERAL 레이아웃 사용
+		if ((info.usage & OgTextureUsage::STORAGE) != 0)
+		{
+			texture->imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		}
+		else
+		{
+			// Sampling한다면 attachment/shader read 둘 다로 쓰일 수 있는 layout으로
+			texture->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		// TODO !!! : Spec에 맞추어 sample할 때의 최적의 image layout 고치기
-
-		// depth/stencil 처리
-		if (isDepthOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-		else if (isStencilOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-		else if (isDepthStencilOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+			// depth/stencil 처리
+			if (isDepthOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+			else if (isStencilOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+			else if (isDepthStencilOnly) texture->imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		}
 	}
 
 
@@ -2443,6 +2468,60 @@ void OgRenderContextVulkan::buildResourceSet(OgResourceSetVK* rSet)
 			writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 			writeDescriptorSet.pImageInfo = nullptr;
 			writeDescriptorSet.pBufferInfo = bufferInfoArray.Data();
+			writeDescriptorSet.pTexelBufferView = nullptr;
+
+			++bufferIndex;
+			break;
+		}
+		case OgResourceType::STORAGE_IMAGE:
+		{
+			OgVector<VkDescriptorImageInfo>& imageInfoArray = texInfos[textureIndex];
+			imageInfoArray.Resize(count);
+			for (uint16 infoArrayIndex = 0; infoArrayIndex < count; ++infoArrayIndex)
+			{
+				const OgTextureVK* textureVK = reinterpret_cast<OgTextureVK*>(rUsage.texture.handle[infoArrayIndex]);
+				imageInfoArray[infoArrayIndex].sampler = VK_NULL_HANDLE;
+				imageInfoArray[infoArrayIndex].imageView = textureVK->view;
+				imageInfoArray[infoArrayIndex].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+			}
+
+			writeDescriptorSets[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			VkWriteDescriptorSet& writeDescriptorSet = writeDescriptorSets[i];
+			writeDescriptorSet.pNext = nullptr;
+			writeDescriptorSet.dstSet = rSet->descriptorSetVK;
+			writeDescriptorSet.dstBinding = rUsage.binding.binding;
+			writeDescriptorSet.dstArrayElement = 0;
+			writeDescriptorSet.descriptorCount = count;
+			writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			writeDescriptorSet.pImageInfo = imageInfoArray.Data();
+			writeDescriptorSet.pBufferInfo = nullptr;
+			writeDescriptorSet.pTexelBufferView = nullptr;
+
+			++textureIndex;
+			break;
+		}
+		case OgResourceType::ACCELERATION_STRUCTURE:
+		{
+			OgAccelStructureVK* accelVK = static_cast<OgAccelStructureVK*>(*rUsage.accelStructure.handle);
+
+			// VkWriteDescriptorSetAccelerationStructureKHR는 스택에 유지해야 하므로 static으로 선언
+			// (vkUpdateDescriptorSets 호출 시점까지 유효해야 함)
+			static VkWriteDescriptorSetAccelerationStructureKHR accelWriteInfo{};
+			accelWriteInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+			accelWriteInfo.pNext = nullptr;
+			accelWriteInfo.accelerationStructureCount = 1;
+			accelWriteInfo.pAccelerationStructures = &accelVK->accelStructure;
+
+			writeDescriptorSets[i] = { VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET };
+			VkWriteDescriptorSet& writeDescriptorSet = writeDescriptorSets[i];
+			writeDescriptorSet.pNext = &accelWriteInfo;
+			writeDescriptorSet.dstSet = rSet->descriptorSetVK;
+			writeDescriptorSet.dstBinding = rUsage.binding.binding;
+			writeDescriptorSet.dstArrayElement = 0;
+			writeDescriptorSet.descriptorCount = 1;
+			writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+			writeDescriptorSet.pImageInfo = nullptr;
+			writeDescriptorSet.pBufferInfo = nullptr;
 			writeDescriptorSet.pTexelBufferView = nullptr;
 
 			++bufferIndex;
