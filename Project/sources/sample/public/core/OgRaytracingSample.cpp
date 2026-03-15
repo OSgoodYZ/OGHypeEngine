@@ -461,7 +461,7 @@ void OgRayTracingSample::createShaders()
 
 		layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 			
-		layout(binding = 1, set = 0, rgba32f) uniform image2D image;
+		layout(binding = 1, set = 0, rgba8) uniform image2D image;
 
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
@@ -749,7 +749,7 @@ void OgRayTracingSample::createShaders()
 			vec3 emissive = material.emissiveFactor.rgb;
 
 			vec3 V = -normalize(gl_WorldRayDirectionEXT);
-			vec3 L = normalize(ubo.lightPos.xyz);
+			vec3 L = normalize(ubo.lightPos.xyz - position);
 			vec3 H = normalize(V + L);
 
 			// PBR BRDF

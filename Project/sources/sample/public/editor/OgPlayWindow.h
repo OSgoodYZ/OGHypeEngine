@@ -61,6 +61,7 @@ protected:
 	// 샘플별 이벤트 핸들러
 	void handleModelSampleEvent(OgModelSample* modelSample, const OgNativeEvent& evt, const ImGuiIO& io);
 	void handleComputeSampleEvent(OgComputeSample* computeSample, const OgNativeEvent& evt, const ImGuiIO& io);
+	void handleRayTracingSampleEvent(OgRayTracingSample* rayTracingSample, const OgNativeEvent& evt, const ImGuiIO& io);
 
 protected:
 	// 브라우저 표시 여부 (서브클래스에서 접근 가능)

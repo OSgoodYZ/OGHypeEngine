@@ -295,6 +295,11 @@ void OgPlayWindow::handleSampleSpecificEvent(const OgNativeEvent& evt, const ImG
 	{
 		handleComputeSampleEvent(computeSample, evt, io);
 	}
+	// OgRayTracingSample 이벤트 처리
+	else if (OgRayTracingSample* rayTracingSample = dynamic_cast<OgRayTracingSample*>(_currentSample.get()))
+	{
+		handleRayTracingSampleEvent(rayTracingSample, evt, io);
+	}
 	// OgTriangleSample은 이벤트 처리가 필요 없음
 }
 
@@ -364,6 +369,50 @@ void OgPlayWindow::handleComputeSampleEvent(OgComputeSample* computeSample, cons
 	case OG_MOUSE_MOVE:
 	{
 		// 필요시 마우스 이벤트 처리
+	}
+	break;
+	}
+}
+
+// 레이트레이싱 샘플 이벤트 처리
+void OgPlayWindow::handleRayTracingSampleEvent(OgRayTracingSample* rayTracingSample, const OgNativeEvent& evt, const ImGuiIO& io)
+{
+	switch (evt.type)
+	{
+	case OG_KEY_PRESS:
+	case OG_KEY_RELEASE:
+	{
+		if (!io.WantCaptureKeyboard)
+		{
+			int action = (evt.type == OG_KEY_PRESS) ? OG_PRESS : OG_RELEASE;
+			int mods = 0;
+			if (evt.key.shift) mods |= OG_MOD_SHIFT;
+			if (evt.key.control) mods |= OG_MOD_CONTROL;
+			if (evt.key.alt) mods |= OG_MOD_ALT;
+			if (evt.key.system) mods |= OG_MOD_SUPER;
+
+			rayTracingSample->OnKeyPress(evt.key.keyCode, action, mods);
+		}
+	}
+	break;
+
+	case OG_MOUSE_PRESS:
+	case OG_MOUSE_RELEASE:
+	{
+		int action = (evt.type == OG_MOUSE_PRESS) ? OG_PRESS : OG_RELEASE;
+		rayTracingSample->OnMouseButton(evt.mouse.button, action, evt.mouse.mods);
+	}
+	break;
+
+	case OG_MOUSE_MOVE:
+	{
+		rayTracingSample->OnMouseMove(evt.mouse.pos.x, evt.mouse.pos.y);
+	}
+	break;
+
+	case OG_MOUSE_WHEEL_CHANGE:
+	{
+		rayTracingSample->OnMouseScroll(0.0, static_cast<double>(evt.mouse.wheelDelta));
 	}
 	break;
 	}
