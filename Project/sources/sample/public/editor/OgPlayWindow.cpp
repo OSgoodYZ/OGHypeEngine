@@ -1508,6 +1508,14 @@ void OgSampleViewerWindow::renderRayTracingControls(OgRayTracingSample* rayTraci
 			settingsChanged = true;
 		}
 
+		// 드래곤 재질 변형 (Attenuation ↔ Surface Coloring Only)
+		bool surfaceColorVariant = rayTracingSample->GetSurfaceColorVariant();
+		if (ImGui::Checkbox("Surface Color Variant", &surfaceColorVariant))
+		{
+			rayTracingSample->SetSurfaceColorVariant(surfaceColorVariant);
+			settingsChanged = true;
+		}
+
 		ImGui::Separator();
 
 		// Camera mode

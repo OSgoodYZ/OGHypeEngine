@@ -55,7 +55,7 @@ public:
         uint32_t frameCount;            // 4 bytes
         uint32_t maxBounces;            // 4 bytes
         uint32_t samplesPerPixel;       // 4 bytes
-        float padding;                  // 4 bytes
+        uint32_t surfaceColorVariant;   // 4 bytes (0 = Attenuation, 1 = Surface Coloring Only)
     };
 
     // Material 데이터 (GPU 전달용)
@@ -112,6 +112,8 @@ public:
     void SetSamplesPerPixel(uint32_t samples) { _rtUniformData.samplesPerPixel = samples; _frameCount = 0; }
     uint32_t GetMaxBounces() const { return _rtUniformData.maxBounces; }
     uint32_t GetSamplesPerPixel() const { return _rtUniformData.samplesPerPixel; }
+    void SetSurfaceColorVariant(bool enable) { _rtUniformData.surfaceColorVariant = enable ? 1u : 0u; _frameCount = 0; }
+    bool GetSurfaceColorVariant() const { return _rtUniformData.surfaceColorVariant != 0; }
     
     // 카메라 인터페이스
     bool IsUsingFlyCamera() const { return _useFlyCamera; }
