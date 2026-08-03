@@ -22,9 +22,9 @@ OgRayTracingSample::OgRayTracingSample(Render::OgRenderContext* renderContext)
 	_camera->SetTarget(glm::vec3(0.0f, 0.0f, 0.0f));
 	
 	// 레이트레이싱 초기 설정
-	_rtUniformData.maxBounces = 3;
+	_rtUniformData.maxBounces = 8;
 	_rtUniformData.samplesPerPixel = 1;
-	_rtUniformData.globalAmbient = glm::vec4(0.03f, 0.03f, 0.03f, 1.0f);
+	_rtUniformData.globalAmbient = glm::vec4(0.15f, 0.15f, 0.15f, 1.0f);
 }
 
 OgRayTracingSample::~OgRayTracingSample()
@@ -461,7 +461,7 @@ void OgRayTracingSample::createShaders()
 
 		layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 			
-		layout(binding = 1, set = 0, rgba8) uniform image2D image;
+		layout(binding = 1, set = 0, rgba32f) uniform image2D image;
 
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
@@ -476,7 +476,11 @@ void OgRayTracingSample::createShaders()
 			float padding;
 		} ubo;
 
-		layout(location = 0) rayPayloadEXT vec3 hitValue;
+		struct RayPayload {
+			vec3 color;
+			uint depth;
+		};
+		layout(location = 0) rayPayloadEXT RayPayload payload;
 
 		uint rngState;
 
@@ -495,14 +499,17 @@ void OgRayTracingSample::createShaders()
 
 		void main()
 		{
-			// initPayload 
-			hitValue = vec3(0, 0, 0);
+			// initPayload
+			payload.color = vec3(0, 0, 0);
+			payload.depth = 0;
 			uvec2 launchID = gl_LaunchIDEXT.xy;
 			uvec2 launchSize = gl_LaunchSizeEXT.xy;
 
 			rngState = ubo.frameCount + launchID.x * 1973 + launchID.y * 9277;
 
-			vec2 pixelCenter = vec2(launchID) + vec2(0.5);
+			// 프레임마다 픽셀 내 위치를 지터해서 누적 시 안티앨리어싱 (프로그레시브 refinement)
+			vec2 jitter = ubo.frameCount > 0 ? vec2(randomFloat(), randomFloat()) - 0.5 : vec2(0.0);
+			vec2 pixelCenter = vec2(launchID) + vec2(0.5) + jitter;
 			vec2 inUV = pixelCenter / vec2(launchSize);
 			vec2 d = inUV * 2.0 - 1.0;
 
@@ -524,7 +531,10 @@ void OgRayTracingSample::createShaders()
 						0             // payload location
 			);
 
-			vec3 finalColor = hitValue;
+			// 톤 매핑 + 감마 보정 (최종 1회만 적용)
+			vec3 finalColor = payload.color;
+			finalColor = finalColor / (finalColor + vec3(1.0));
+			finalColor = pow(finalColor, vec3(1.0/2.2));
 
 			if (ubo.frameCount > 0)
 			{
@@ -543,7 +553,11 @@ void OgRayTracingSample::createShaders()
 		#version 460
 		#extension GL_EXT_ray_tracing : require
 
-		layout(location = 0) rayPayloadInEXT vec3 hitValue;
+		struct RayPayload {
+			vec3 color;
+			uint depth;
+		};
+		layout(location = 0) rayPayloadInEXT RayPayload payload;
 
 		layout(binding = 2, set = 0) uniform UniformBufferObject {
 			mat4 viewInverse;
@@ -563,7 +577,7 @@ void OgRayTracingSample::createShaders()
 			vec3 direction = normalize(gl_WorldRayDirectionEXT);
 			float t = 0.5 * (direction.y + 1.0);
 			vec3 skyColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), t);
-			hitValue = skyColor * 0.5;
+			payload.color = skyColor;
 		}
 	)";
 #pragma endregion
@@ -590,7 +604,11 @@ void OgRayTracingSample::createShaders()
 		#extension GL_EXT_buffer_reference2 : require
 		#extension GL_EXT_nonuniform_qualifier : require
 
-		layout(location = 0) rayPayloadInEXT vec3 hitValue;
+		struct RayPayload {
+			vec3 color;
+			uint depth;
+		};
+		layout(location = 0) rayPayloadInEXT RayPayload payload;
 		layout(location = 1) rayPayloadEXT vec3 shadowHitValue;
 
 		layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
@@ -664,7 +682,7 @@ void OgRayTracingSample::createShaders()
 
 		Vertex getVertex(uint index)
 		{
-			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
+			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_InstanceCustomIndexEXT + gl_GeometryIndexEXT];
 			return vertexBuffer.vertices[geomInfo.vertexOffset + index];
 		}
 
@@ -714,9 +732,14 @@ void OgRayTracingSample::createShaders()
 			return ggx1 * ggx2;
 		}
 
+		float fresnelSchlickScalar(float cosTheta, float f0)
+		{
+			return f0 + (1.0 - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+		}
+
 		void main()
 		{
-			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_GeometryIndexEXT];
+			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_InstanceCustomIndexEXT + gl_GeometryIndexEXT];
 
 			uint i0 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 0];
 			uint i1 = indexBuffer.indices[geomInfo.indexOffset + gl_PrimitiveID * 3 + 1];
@@ -747,8 +770,125 @@ void OgRayTracingSample::createShaders()
 			float metallic = material.metallicFactor;
 			float roughness = material.roughnessFactor;
 			vec3 emissive = material.emissiveFactor.rgb;
+			float transmission = material.transmissionFactor;
 
 			vec3 V = -normalize(gl_WorldRayDirectionEXT);
+			vec3 rayDir = gl_WorldRayDirectionEXT;
+
+			// Transmission (굴절) 처리
+			// payload.depth로 재귀 깊이 관리 (ubo.maxBounces까지)
+			uint depth = payload.depth;
+			bool canRefract = depth < ubo.maxBounces;
+			if (transmission > 0.0 && !canRefract)
+			{
+				// 굴절 깊이 소진: 불투명 fallback 대신 감쇠된 하늘색으로 종료 (얼룩 경계 방지)
+				float skyT = 0.5 * (normalize(rayDir).y + 1.0);
+				vec3 sky = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), skyT);
+				payload.color = sky * material.attenuationColor.rgb;
+				return;
+			}
+			if (transmission > 0.0 && canRefract)
+			{
+				float ior = material.ior;
+				if (ior <= 0.0) ior = 1.5;
+
+				// inside/outside 판별
+				float NdotV = dot(normal, V);
+				bool isInside = NdotV < 0.0;
+				vec3 faceNormal = isInside ? -normal : normal;
+				float cosI = abs(NdotV);
+
+				// eta = n1/n2
+				float eta = isInside ? ior : (1.0 / ior);
+
+				// 굴절 방향 (Snell's law)
+				vec3 refractDir = refract(rayDir, faceNormal, eta);
+
+				// Fresnel 반사율 (Schlick 근사)
+				float f0 = pow((1.0 - ior) / (1.0 + ior), 2.0);
+				float fresnel = fresnelSchlickScalar(cosI, f0);
+
+				// 전반사 체크
+				bool totalInternalReflection = (length(refractDir) < 0.001);
+
+				vec3 refractedColor = vec3(0.0);
+
+				if (!totalInternalReflection)
+				{
+					// 굴절 레이 트레이싱
+					vec3 refractOrigin = position - faceNormal * 0.001;
+					payload.color = vec3(0.0);
+					payload.depth = depth + 1;
+
+					traceRayEXT(topLevelAS,
+								gl_RayFlagsOpaqueEXT,
+								0xff,
+								0, 0, 0,
+								refractOrigin,
+								0.001,
+								refractDir,
+								10000.0,
+								0
+					);
+					refractedColor = payload.color;
+				}
+
+				// Beer-Lambert 감쇠 (매질 내부를 지날 때)
+				if (isInside && material.attenuationDistance > 0.0)
+				{
+					float dist = gl_HitTEXT;
+					vec3 absorb = -log(material.attenuationColor.rgb + 0.001) / material.attenuationDistance;
+					refractedColor *= exp(-absorb * dist);
+				}
+
+				vec3 reflectDir = reflect(rayDir, faceNormal);
+				vec3 reflectedColor;
+				if (totalInternalReflection)
+				{
+					fresnel = 1.0;
+				}
+
+				// 반사 레이 추적: 전반사는 항상, 표면 반사는 얕은 깊이에서만 (레이 수 폭증 방지)
+				if (totalInternalReflection || depth < 2)
+				{
+					vec3 reflectOrigin = position + faceNormal * 0.001;
+					payload.color = vec3(0.0);
+					payload.depth = depth + 1;
+
+					traceRayEXT(topLevelAS,
+								gl_RayFlagsOpaqueEXT,
+								0xff,
+								0, 0, 0,
+								reflectOrigin,
+								0.001,
+								reflectDir,
+								10000.0,
+								0
+					);
+					reflectedColor = payload.color;
+				}
+				else
+				{
+					// 깊은 재귀에서는 스카이 근사로 대체
+					float skyT = 0.5 * (reflectDir.y + 1.0);
+					reflectedColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), skyT) * 0.5;
+				}
+
+				// Fresnel 혼합
+				vec3 transColor = mix(refractedColor, reflectedColor, fresnel);
+
+				// transmission 비율로 opaque와 혼합
+				vec3 L = normalize(ubo.lightPos.xyz - position);
+				float NdotL = max(dot(faceNormal, L), 0.0);
+				vec3 opaqueColor = baseColor.rgb * ubo.lightColor.rgb * ubo.lightColor.w * NdotL + ubo.globalAmbient.rgb * baseColor.rgb;
+
+				vec3 color = mix(opaqueColor, transColor, transmission) + emissive;
+
+				payload.color = color;
+				return;
+			}
+
+			// === 기존 Opaque PBR 로직 ===
 			vec3 L = normalize(ubo.lightPos.xyz - position);
 			vec3 H = normalize(V + L);
 
@@ -769,7 +909,7 @@ void OgRayTracingSample::createShaders()
 			kD *= 1.0 - metallic;
 
 			float NdotL = max(dot(normal, L), 0.0);
-			vec3 Lo = (kD * baseColor.rgb / PI + specular) * ubo.lightColor.rgb * NdotL;
+			vec3 Lo = (kD * baseColor.rgb / PI + specular) * ubo.lightColor.rgb * ubo.lightColor.w * NdotL;
 
 			vec3 ambient = ubo.globalAmbient.rgb * baseColor.rgb;
 
@@ -779,31 +919,39 @@ void OgRayTracingSample::createShaders()
 			vec3 shadowRayOrigin = position + normal * 0.001;
 			vec3 shadowRayDirection = normalize(ubo.lightPos.xyz - position);
 
-			// 초기값 0 = 그림자 상태, shadow miss 셰이더가 1.0으로 설정 = 빛 도달
-			shadowHitValue = vec3(0.0);
-
 			uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
+			// 그림자 레이 1: 불투명 물체만 (cullMask 0x01) → 가려지면 완전 차단
+			shadowHitValue = vec3(0.0);
 			traceRayEXT(topLevelAS,
 						shadowRayFlags,
-						0xff,         // cullMask
-						0,            // sbtRecordOffset (hit group은 0번부터)
-						0,            // sbtRecordStride
-						1,            // missIndex (shadow miss = index 1)
+						0x01,
+						0, 0, 1,
 						shadowRayOrigin,
 						tmin,
 						shadowRayDirection,
 						tmax,
-						1             // payload location
+						1
 			);
+			vec3 shadowOpaque = shadowHitValue;
 
-			vec3 color = ambient + Lo * shadowHitValue + emissive;
+			// 그림자 레이 2: 유리 포함 전체 (cullMask 0xff) → 유리에만 가려지면 빛 일부 투과
+			shadowHitValue = vec3(0.0);
+			traceRayEXT(topLevelAS,
+						shadowRayFlags,
+						0xff,
+						0, 0, 1,
+						shadowRayOrigin,
+						tmin,
+						shadowRayDirection,
+						tmax,
+						1
+			);
+			vec3 shadowFactor = shadowOpaque * mix(vec3(0.4), vec3(1.0), shadowHitValue);
 
-			// 톤 매핑
-			color = color / (color + vec3(1.0));
-			color = pow(color, vec3(1.0/2.2));
+			vec3 color = ambient + Lo * shadowFactor + emissive;
 
-			hitValue = color;
+			payload.color = color;
 		}
 	)";
 #pragma endregion
@@ -878,7 +1026,7 @@ void OgRayTracingSample::createRayTracingPipeline()
 	Render::OgRayTracingPipelineDescriptor rtPipeDesc{};
 	rtPipeDesc.name = "RayTracingPipeline";
 	rtPipeDesc.resourceLayout = _rtResourceLayout;
-	rtPipeDesc.maxRecursionDepth = 2; // Primary ray + shadow ray
+	rtPipeDesc.maxRecursionDepth = 12; // primary(1) + refraction/TIR 최대 8회 + shadow(1) + 여유
 
 	// 셰이더 그룹 설정 (4 groups)
 	Render::OgRayTracingShaderGroup groups[4];
@@ -942,7 +1090,7 @@ void OgRayTracingSample::createRenderTarget(uint16 width, uint16 height)
 	// 렌더 타겟 텍스처 생성 (레이트레이싱 출력용)
 	OgTextureInfo texInfo{};
 	texInfo.type = OgTextureType::TEX_2D;
-	texInfo.format = OgPixelFormat::R8G8B8A8_UNORM;
+	texInfo.format = OgPixelFormat::R32G32B32A32_SFLOAT;
 	texInfo.extent.width = width;
 	texInfo.extent.height = height;
 	texInfo.usage = static_cast<OgTextureUsage>(static_cast<uint16>(OgTextureUsage::COLOR_ATTACHMENT) | static_cast<uint16>(OgTextureUsage::SAMPLED) | static_cast<uint16>(OgTextureUsage::STORAGE));
@@ -968,7 +1116,7 @@ void OgRayTracingSample::createRenderTarget(uint16 width, uint16 height)
 	// 렌더 패스 생성
 	OgAttachment rtColor{};
 	rtColor.isDepthStencilAttachment = false;
-	rtColor.format = OgRenderTextureFormat::R8G8B8A8_UNORM;
+	rtColor.format = OgRenderTextureFormat::R32G32B32A32;
 	rtColor.load = OgRenderBufferLoadAction::CLEAR;
 	rtColor.store = OgRenderBufferStoreAction::STORE;
 
@@ -1163,61 +1311,75 @@ void OgRayTracingSample::createAccelerationStructures()
 	);
 	_geometryInfoBuffer->Retain();
 
-	// BLAS geometry를 통합 버퍼 기반으로 재설정 (geometry별 offset 사용)
-	blasGeometries.clear();
-	for (size_t gi = 0; gi < _geometries.size(); ++gi)
+	// 메시 단위로 BLAS를 분리 생성 (노드 인스턴스가 자기 메시의 BLAS만 참조하도록)
+	std::vector<int> meshBlasIndex(_loadedModel.meshes.size(), -1);
+
+	for (size_t mi = 0; mi < _loadedModel.meshes.size(); ++mi)
 	{
-		const auto& geom = _geometries[gi];
-		const auto& geoInfo = allGeometryInfos[gi];
+		blasGeometries.clear();
+		uint32_t firstGeometryIndex = 0;
+		uint32_t meshVertexOffset = 0;
+		uint32_t meshVertexCount = 0;
 
-		Render::OgAccelStructureGeometry asGeom{};
-		asGeom.vertexBuffer = _vertexBuffer;
-		asGeom.vertexStride = sizeof(Vertex);
-		asGeom.vertexCount = geom.vertexCount;
-		asGeom.vertexByteOffset = geoInfo.vertexOffset * sizeof(Vertex);
-		asGeom.indexBuffer = _indexBuffer;
-		asGeom.indexType = OgIndexType::UINT32;
-		asGeom.indexCount = geom.indexCount;
-		asGeom.indexByteOffset = geoInfo.indexOffset * sizeof(uint32_t);
-		asGeom.transformOffset = 0;
-		blasGeometries.push_back(asGeom);
+		for (size_t gi = 0; gi < _geometries.size(); ++gi)
+		{
+			const auto& geom = _geometries[gi];
+			if (geom.meshIndex != static_cast<int>(mi))
+				continue;
+
+			const auto& geoInfo = allGeometryInfos[gi];
+
+			if (blasGeometries.empty())
+			{
+				firstGeometryIndex = static_cast<uint32_t>(gi);
+				meshVertexOffset = geoInfo.vertexOffset;
+			}
+
+			Render::OgAccelStructureGeometry asGeom{};
+			asGeom.vertexBuffer = _vertexBuffer;
+			asGeom.vertexStride = sizeof(Vertex);
+			asGeom.vertexCount = geom.vertexCount;
+			asGeom.vertexByteOffset = geoInfo.vertexOffset * sizeof(Vertex);
+			asGeom.indexBuffer = _indexBuffer;
+			asGeom.indexType = OgIndexType::UINT32;
+			asGeom.indexCount = geom.indexCount;
+			asGeom.indexByteOffset = geoInfo.indexOffset * sizeof(uint32_t);
+			asGeom.transformOffset = 0;
+			blasGeometries.push_back(asGeom);
+
+			meshVertexCount += geom.vertexCount;
+		}
+
+		if (blasGeometries.empty())
+			continue;
+
+		LOGD(OG_ID, "BLAS[mesh %zu]: geometries=%zu firstGeometryIndex=%u",
+			mi, blasGeometries.size(), firstGeometryIndex);
+
+		// BLAS 생성
+		Render::OgAccelStructureBuildInfo blasBuildInfo{};
+		blasBuildInfo.type = Render::OgAccelStructureType::BOTTOM_LEVEL;
+		blasBuildInfo.flags = Render::OgRayTracingBuildFlag::PREFER_FAST_TRACE;
+		blasBuildInfo.bottomLevel.geometries = blasGeometries.data();
+		blasBuildInfo.bottomLevel.geometryCount = static_cast<uint32_t>(blasGeometries.size());
+
+		// BLAS를 생성하고 빌드
+		Render::OgAccelStructureHandle* blas = _renderContext->CreateAccelerationStructure(blasBuildInfo);
+		blas->Retain();
+
+		// BLAS 즉시 빌드
+		_renderContext->BuildAccelerationStructureImmediate(blas, blasBuildInfo);
+
+		// BLAS instance 저장 (primitiveOffset = 이 메시의 첫 geometry 인덱스, TLAS instanceCustomIndex로 사용)
+		BLASInstance instance;
+		instance.blas = blas;
+		instance.primitiveOffset = firstGeometryIndex;
+		instance.primitiveCount = static_cast<uint32_t>(blasGeometries.size());
+		instance.vertexOffset = meshVertexOffset;
+		instance.vertexCount = meshVertexCount;
+		meshBlasIndex[mi] = static_cast<int>(_blasInstances.size());
+		_blasInstances.push_back(instance);
 	}
-
-	// 디버그: geometry 정보 출력
-	LOGD(OG_ID, "BLAS geometries: %zu, total vertices: %zu, total indices: %zu",
-		blasGeometries.size(), allVertices.size(), allIndices.size());
-	uint32_t totalTriangles = 0;
-	for (size_t gi = 0; gi < blasGeometries.size(); ++gi)
-	{
-		const auto& bg = blasGeometries[gi];
-		LOGD(OG_ID, "  Geom[%zu]: vtxCount=%u vtxByteOff=%u idxCount=%u idxByteOff=%u",
-			gi, bg.vertexCount, bg.vertexByteOffset, bg.indexCount, bg.indexByteOffset);
-		totalTriangles += bg.indexCount / 3;
-	}
-	LOGD(OG_ID, "Total triangles: %u", totalTriangles);
-
-	// BLAS 생성
-	Render::OgAccelStructureBuildInfo blasBuildInfo{};
-	blasBuildInfo.type = Render::OgAccelStructureType::BOTTOM_LEVEL;
-	blasBuildInfo.flags = Render::OgRayTracingBuildFlag::PREFER_FAST_TRACE;
-	blasBuildInfo.bottomLevel.geometries = blasGeometries.data();
-	blasBuildInfo.bottomLevel.geometryCount = static_cast<uint32_t>(blasGeometries.size());
-	
-	// BLAS를 생성하고 빌드
-	Render::OgAccelStructureHandle* blas = _renderContext->CreateAccelerationStructure(blasBuildInfo);
-	blas->Retain();
-
-	// BLAS 즉시 빌드
-	_renderContext->BuildAccelerationStructureImmediate(blas, blasBuildInfo);
-	
-	// BLAS instance 저장
-	BLASInstance instance;
-	instance.blas = blas;
-	instance.primitiveOffset = 0;
-	instance.primitiveCount = static_cast<uint32_t>(_geometries.size());
-	instance.vertexOffset = 0;
-	instance.vertexCount = _totalVertexCount;
-	_blasInstances.push_back(instance);
 	
 	// TLAS 생성을 위한 인스턴스 데이터 준비
 	// Vulkan 구현에서는 VkAccelerationStructureInstanceKHR 사용
@@ -1236,8 +1398,13 @@ void OgRayTracingSample::createAccelerationStructures()
 	std::vector<InstanceData> tlasInstances;
 	for (const auto& inst : _instances)
 	{
+		if (inst.meshIndex >= meshBlasIndex.size() || meshBlasIndex[inst.meshIndex] < 0)
+			continue;
+
+		const BLASInstance& meshBlas = _blasInstances[meshBlasIndex[inst.meshIndex]];
+
 		InstanceData tlasInst{};
-		
+
 		// Transform matrix (3x4 row-major)
 		glm::mat4 transform = inst.transform;
 		for (int row = 0; row < 3; ++row)
@@ -1247,13 +1414,27 @@ void OgRayTracingSample::createAccelerationStructures()
 				tlasInst.transform[row][col] = transform[col][row];
 			}
 		}
-		
-		tlasInst.instanceCustomIndex = 0;
-		tlasInst.mask = 0xFF;
+
+		// 이 메시에 투과(유리) 재질이 있으면 그림자 레이(cullMask 0x01)에서 제외
+		bool transmissive = false;
+		for (const auto& geom : _geometries)
+		{
+			if (geom.meshIndex == static_cast<int>(inst.meshIndex) &&
+				geom.materialIndex < _materials.size() &&
+				_materials[geom.materialIndex].transmissionFactor > 0.0f)
+			{
+				transmissive = true;
+				break;
+			}
+		}
+
+		// 셰이더에서 geometryInfo 조회 시 베이스 인덱스로 사용
+		tlasInst.instanceCustomIndex = meshBlas.primitiveOffset;
+		tlasInst.mask = transmissive ? 0xFE : 0xFF;
 		tlasInst.instanceShaderBindingTableRecordOffset = 0;
 		tlasInst.flags = 0; // TRIANGLE_FACING_CULL_DISABLE
-		tlasInst.accelerationStructureReference = blas->deviceAddress;
-		
+		tlasInst.accelerationStructureReference = meshBlas.blas->deviceAddress;
+
 		tlasInstances.push_back(tlasInst);
 	}
 	
@@ -1515,7 +1696,7 @@ bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
 		matData.metallicFactor = mat.metallicFactor;
 		matData.roughnessFactor = mat.roughnessFactor;
 		matData.transmissionFactor = mat.transmissionFactor;
-		matData.ior = 1.0;
+		matData.ior = 1.5; // 기본 유리 IOR (KHR_materials_ior 기본값)
 		matData.attenuationColor = glm::vec4(mat.attenuationColor, 1.0f);
 		matData.attenuationDistance = mat.attenuationDistance;
 		
@@ -1612,6 +1793,7 @@ void OgRayTracingSample::processMeshForRayTracing(const Mesh& mesh, int meshInde
 			geom.vertexCount = primitive.vertexCount;
 			geom.indexCount = primitive.indexCount;
 			geom.materialIndex = (primitive.materialIndex >= 0) ? primitive.materialIndex : 0;
+			geom.meshIndex = meshIndex;
 
 			// CPU side vertex data copy (MapBuffer for MAP_MANAGED buffers)
 			geom.cpuVertices.resize(primitive.vertexCount);

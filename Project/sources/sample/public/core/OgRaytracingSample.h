@@ -142,6 +142,7 @@ private:
         uint32_t vertexCount = 0;
         uint32_t indexCount = 0;
         uint32_t materialIndex = 0;
+        int meshIndex = 0;
         // CPU side copies for acceleration structure building
         std::vector<Vertex> cpuVertices;
         std::vector<uint32_t> cpuIndices;

@@ -9,7 +9,8 @@
       "Bash(echo VULKAN_SDK=$VULKAN_SDK)",
       "Read(//c/Osgood/EngineDevelop/OGHypeEngine/$VULKAN_SDK/**)",
       "Bash(taskkill:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(git add:*)"
     ]
   }
 }
