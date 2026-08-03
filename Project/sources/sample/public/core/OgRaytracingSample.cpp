@@ -1,4 +1,4 @@
-﻿#include "OgRaytracingSample.h"
+#include "OgRaytracingSample.h"
 #include "sample/public/core/util/OgShaderCompiler.h"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -17,11 +17,11 @@ OgRayTracingSample::OgRayTracingSample(Render::OgRenderContext* renderContext)
 	, _camera(std::make_unique<OgFlyCamera>())
 	, _gltfLoader(std::make_unique<OgGLTFLoader>(renderContext))
 {
-	// 移대찓??珥덇린 ?ㅼ젙
+	// 카메라 초기 설정
 	_camera->SetPosition(glm::vec3(0.0f, 5.0f, 10.0f));
 	_camera->SetTarget(glm::vec3(0.0f, 0.0f, 0.0f));
 	
-	// ?덉씠?몃젅?댁떛 珥덇린 ?ㅼ젙
+	// 레이트레이싱 초기 설정
 	_rtUniformData.maxBounces = 8;
 	_rtUniformData.samplesPerPixel = 1;
 	_rtUniformData.surfaceColorVariant = 0;
@@ -41,21 +41,21 @@ void OgRayTracingSample::OnInit(Render::OgSwapChain* swapchain)
 	if (_isInitialized)
 		return;
 
-	// ?덉씠?몃젅?댁떛 吏???뺤씤
+	// 레이트레이싱 지원 확인
 	if (!_renderContext->IsRayTracingSupported())
 	{
 		LOGE(OG_ID, "Ray tracing is not supported on this device");
 		return;
 	}
 
-	// ?ㅼ솑泥댁씤???ш린濡?由ъ냼???앹꽦
+	// 스왑체인의 크기로 리소스 생성
 	const uint16 width = _renderContext->GetSwapChainFrameBuffer(swapchain, 0)->width;
 	const uint16 height = _renderContext->GetSwapChainFrameBuffer(swapchain, 0)->height;
 
-	// ?뚮뜑 ?寃??앹꽦
+	// 렌더 타겟 생성
 	createRenderTarget(width, height);
 
-	// 由ъ냼???앹꽦
+	// 리소스 생성
 	createResources(width, height);
 
 	// DragonAttenuation 紐⑤뜽 濡쒕뱶
@@ -67,7 +67,7 @@ void OgRayTracingSample::OnInit(Render::OgSwapChain* swapchain)
 		return;
 	}
 
-	// Acceleration Structure ?앹꽦
+	// Acceleration Structure 생성
 	createAccelerationStructures();
 
 	_isInitialized = true;
@@ -90,12 +90,12 @@ void OgRayTracingSample::OnDestroy()
 
 void OgRayTracingSample::OnUpdate(float deltaTime)
 {
-	// 移대찓???낅뜲?댄듃
+	// 카메라 업데이트
 	if (_useFlyCamera && _camera)
 	{
 		_camera->Update(deltaTime);
 		
-		// 移대찓?쇨? ?吏곸??쇰㈃ ?꾨젅??移댁슫??由ъ뀑
+		// 카메라가 움직였으면 프레임 카운터 리셋
 		glm::mat4 currentView = _camera->GetViewMatrix();
 		if (_previousViewMatrix != currentView)
 		{
@@ -112,10 +112,10 @@ void OgRayTracingSample::OnRender(Render::OgCommandEncoderHandle* encoder, Rende
 	if (!_isInitialized || !_rtPipeline || !_tlas)
 		return;
 
-	// ?꾨젅??移댁슫??利앷?
+	// 프레임 카운터 증가
 	_rtUniformData.frameCount = _frameCount++;
 
-	// ?좊땲??踰꾪띁 ?낅뜲?댄듃
+	// 유니폼 버퍼 업데이트
 	void* mappedData = _renderContext->MapBuffer(_rtUniformBuffer, sizeof(RTUniformData));
 	if (mappedData)
 	{
@@ -123,7 +123,7 @@ void OgRayTracingSample::OnRender(Render::OgCommandEncoderHandle* encoder, Rende
 		_renderContext->UnmapBuffer(_rtUniformBuffer);
 	}
 
-	// ?뚮뜑 ?⑥뒪 ?쒖옉 (?덉씠?몃젅?댁떛 寃곌낵瑜?蹂듭궗?섍린 ?꾪븳 以鍮?
+	// 렌더 패스 시작 (레이트레이싱 결과를 복사하기 위한 준비)
 	float clearColor[]{ 0.0f, 0.0f, 0.0f, 1.0f };
 	
 	OgCommandEncoderHandle::ClearValue colorClear;
@@ -140,11 +140,11 @@ void OgRayTracingSample::OnRender(Render::OgCommandEncoderHandle* encoder, Rende
 
 	encoder->BeginDebugMarker("Ray Tracing Sample", clearColor);
 
-	// ?덉씠?몃젅?댁떛 ?뚯씠?꾨씪??諛붿씤??
+	// 레이트레이싱 파이프라인 바인드
 	encoder->BindRayTracingPipeline(_rtPipeline);
 	encoder->BindResourceSet(_rtResourceSet);
 
-	// ?덉씠?몃젅?댁떛 ?붿뒪?⑥튂 - SBT ?덉씠?꾩썐: [raygen][miss][shadowMiss][hit]
+	// 레이트레이싱 디스패치 - SBT 레이아웃: [raygen][miss][shadowMiss][hit]
 	uint32_t aligned = _sbtHandleSizeAligned;
 
 	Render::OgShaderBindingTable sbt{};
@@ -154,12 +154,12 @@ void OgRayTracingSample::OnRender(Render::OgCommandEncoderHandle* encoder, Rende
 	sbt.raygenSize = aligned;
 
 	sbt.missSBT = _missSBT;
-	sbt.missOffset = 1 * aligned;       // raygen ?ㅼ쓬
+	sbt.missOffset = 1 * aligned;       // raygen 다음
 	sbt.missStride = aligned;
-	sbt.missSize = 2 * aligned;          // miss 2媛?(primary + shadow)
+	sbt.missSize = 2 * aligned;          // miss 2개 (primary + shadow)
 
 	sbt.hitSBT = _hitSBT;
-	sbt.hitOffset = 3 * aligned;         // raygen + 2 miss ?ㅼ쓬
+	sbt.hitOffset = 3 * aligned;         // raygen + 2 miss 다음
 	sbt.hitStride = aligned;
 	sbt.hitSize = aligned;
 
@@ -188,23 +188,23 @@ void OgRayTracingSample::OnResize(uint32 width, uint32 height)
 	if (!_isInitialized)
 		return;
 
-	// ?ш린媛 蹂寃쎈릺硫??뚮뜑 ?寃??ъ깮??
+	// 크기가 변경되면 렌더 타겟 재생성
 	destroyRenderTarget();
 	createRenderTarget(static_cast<uint16>(width), static_cast<uint16>(height));
 
-	// ?꾨줈?앹뀡 ?됰젹 ?낅뜲?댄듃
+	// 프로젝션 행렬 업데이트
 	float aspect = static_cast<float>(width) / static_cast<float>(height);
 	if (_useFlyCamera && _camera)
 	{
 		_camera->SetAspectRatio(aspect);
 	}
 	
-	// ?꾨젅??移댁슫??由ъ뀑
+	// 프레임 카운터 리셋
 	_frameCount = 0;
 	updateUniformBuffer();
 }
 
-// ?낅젰 泥섎━ 硫붿꽌?쒕뱾
+// 입력 처리 메서드들
 void OgRayTracingSample::OnMouseButton(int button, int action, int mods)
 {
 	if (_useFlyCamera && _camera)
@@ -236,7 +236,7 @@ void OgRayTracingSample::OnKeyPress(int key, int action, int mods)
 		_camera->OnKeyPress(key, action, mods);
 	}
 
-	// F ?ㅻ줈 ?뚮씪??移대찓???좉?
+	// F 키로 플라이 카메라 토글
 	if (key == OG_KEY_F && action == OG_PRESS)
 	{
 		_useFlyCamera = !_useFlyCamera;
@@ -244,7 +244,7 @@ void OgRayTracingSample::OnKeyPress(int key, int action, int mods)
 		updateUniformBuffer();
 	}
 
-	// D ?ㅻ줈 ?붾쾭洹??쒓컖???좉?
+	// D 키로 디버그 시각화 토글
 	if (key == OG_KEY_D && action == OG_PRESS)
 	{
 		_enableDebugVisualization = !_enableDebugVisualization;
@@ -254,13 +254,13 @@ void OgRayTracingSample::OnKeyPress(int key, int action, int mods)
 
 void OgRayTracingSample::createResources(uint16 width, uint16 height)
 {
-	// ?곗씠???앹꽦
+	// 셰이더 생성
 	createShaders();
 
-	// ?좊땲??踰꾪띁 ?앹꽦
+	// 유니폼 버퍼 생성
 	createUniformBuffer();
 
-	// 湲곕낯 ?띿뒪泥??앹꽦
+	// 기본 텍스처 생성
 	uint32_t whitePixel = 0xFFFFFFFF;
 	OgTextureInfo whiteTexInfo{};
 	whiteTexInfo.type = OgTextureType::TEX_2D;
@@ -280,13 +280,13 @@ void OgRayTracingSample::createResources(uint16 width, uint16 height)
 	_defaultWhiteTexture = _renderContext->CreateTexture(&whiteData, whiteTexInfo, _renderContext->CreateSampler(samplerInfo));
 	_defaultWhiteTexture->Retain();
 
-	// 湲곕낯 ?몃쭚 ?띿뒪泥?(0.5, 0.5, 1.0, 1.0) - 以묒꽦 ?몃쭚
+	// 기본 노말 텍스처 (0.5, 0.5, 1.0, 1.0) - 중성 노말
 	uint32_t normalPixel = 0xFFFF8080; // RGBA = (128, 128, 255, 255)
 	void* normalData = &normalPixel;
 	_defaultNormalTexture = _renderContext->CreateTexture(&normalData, whiteTexInfo, _renderContext->CreateSampler(samplerInfo));
 	_defaultNormalTexture->Retain();
 
-	// 由ъ냼???덉씠?꾩썐 ?앹꽦
+	// 리소스 레이아웃 생성
 	OgResourceBinding bindings[8];
 	
 	// TLAS
@@ -296,28 +296,28 @@ void OgRayTracingSample::createResources(uint16 width, uint16 height)
 	bindings[0].arrayCount = 0;
 	bindings[0].name = nullptr;
 
-	// 異쒕젰 ?대?吏
+	// 출력 이미지
 	bindings[1].type = OgResourceType::STORAGE_IMAGE;
 	bindings[1].stage = OgShaderType::RAYGEN;
 	bindings[1].binding = 1;
 	bindings[1].arrayCount = 0;
 	bindings[1].name = nullptr;
 
-	// ?좊땲??踰꾪띁
+	// 유니폼 버퍼
 	bindings[2].type = OgResourceType::UNIFORM_BUFFER;
 	bindings[2].stage = static_cast<OgShaderType>(static_cast<uint16>(OgShaderType::RAYGEN) | static_cast<uint16>(OgShaderType::CLOSEST_HIT) | static_cast<uint16>(OgShaderType::MISS));
 	bindings[2].binding = 2;
 	bindings[2].arrayCount = 0;
 	bindings[2].name = nullptr;
 
-	// 踰꾪뀓??踰꾪띁 (?ㅽ넗由ъ? 踰꾪띁濡??ъ슜)
+	// 버텍스 버퍼 (스토리지 버퍼로 사용)
 	bindings[3].type = OgResourceType::STORAGE_BUFFER;
 	bindings[3].stage = OgShaderType::CLOSEST_HIT;
 	bindings[3].binding = 3;
 	bindings[3].arrayCount = 0;
 	bindings[3].name = nullptr;
 
-	// ?몃뜳??踰꾪띁
+	// 인덱스 버퍼
 	bindings[4].type = OgResourceType::STORAGE_BUFFER;
 	bindings[4].stage = OgShaderType::CLOSEST_HIT;
 	bindings[4].binding = 4;
@@ -338,18 +338,18 @@ void OgRayTracingSample::createResources(uint16 width, uint16 height)
 	bindings[6].arrayCount = 0;
 	bindings[6].name = nullptr;
 
-	// ?띿뒪泥?諛곗뿴
+	// 텍스처 배열
 	bindings[7].type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	bindings[7].stage = OgShaderType::CLOSEST_HIT;
 	bindings[7].binding = 7;
-	bindings[7].arrayCount = 16; // 理쒕? 16媛쒖쓽 ?띿뒪泥?
+	bindings[7].arrayCount = 16; // 최대 16개의 텍스처
 	bindings[7].name = nullptr;
 
 	_rtResourceLayout = _renderContext->CreateResourceLayout(bindings, 8);
 	_rtResourceLayout->name = "RayTracingResourceLayout";
 	_rtResourceLayout->Retain();
 
-	// ?덉씠?몃젅?댁떛 ?뚯씠?꾨씪???앹꽦
+	// 레이트레이싱 파이프라인 생성
 	createRayTracingPipeline();
 }
 
@@ -433,7 +433,7 @@ void OgRayTracingSample::destroyResources()
 		_defaultNormalTexture = nullptr;
 	}
 
-	// SBT 踰꾪띁???댁젣
+	// SBT 버퍼들 해제
 	if (_raygenSBT)
 	{
 		_raygenSBT->Release();
@@ -454,7 +454,7 @@ void OgRayTracingSample::destroyResources()
 }
 void OgRayTracingSample::createShaders()
 {
-	// Ray Generation ?곗씠??(Slang)
+	// Ray Generation 셰이더 (Slang)
 	const char* raygenSlang = R"(
 	#version 460
 		#extension GL_EXT_ray_tracing : require
@@ -515,7 +515,7 @@ void OgRayTracingSample::createShaders()
 			return vec3(r * cos(a), r * sin(a), z);
 		}
 
-		// 肄붿궗??媛以?諛섍뎄 ?섑뵆留?(?뷀벂利?諛붿슫??諛⑺뼢)
+		// 코사인 가중 반구 샘플링 (디퓨즈 바운스 방향)
 		vec3 cosineSampleHemisphere(vec3 n)
 		{
 			vec3 d = n + randomUnitVector();
@@ -529,8 +529,22 @@ void OgRayTracingSample::createShaders()
 			return mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), t);
 		}
 
-		// ?쒖떆???몄퐫??Reinhard ?ㅻℓ??+ 媛먮쭏). ????섏씠 媛?ν빐??
-		// ?섎굹???대?吏濡??좏삎 怨듦컙 ?꾩쟻怨??붾㈃ ?쒖떆瑜?寃명븳??
+		const float LIGHT_RADIUS = 0.7;
+
+		// 광원 구체와의 해석적 레이-구 교차 (씬 지오메트리 대신 셰이더에서 판정 → 광원 이동 시 AS 재빌드 불필요)
+		float hitLightSphere(vec3 ro, vec3 rd)
+		{
+			vec3 oc = ro - ubo.lightPos.xyz;
+			float b = dot(oc, rd);
+			float c = dot(oc, oc) - LIGHT_RADIUS * LIGHT_RADIUS;
+			float h = b * b - c;
+			if (h < 0.0) return -1.0;
+			float t = -b - sqrt(h);
+			return t > 0.001 ? t : -1.0;
+		}
+
+		// 표시용 인코딩(Reinhard 톤매핑 + 감마). 역변환이 가능해서
+		// 하나의 이미지로 선형 공간 누적과 화면 표시를 겸한다
 		vec3 encodeDisplay(vec3 c)
 		{
 			c = c / (c + vec3(1.0));
@@ -556,7 +570,7 @@ void OgRayTracingSample::createShaders()
 
 			for (uint s = 0u; s < spp; ++s)
 			{
-				// ?쎌? ??吏??(?덊떚?⑤━?댁떛)
+				// 픽셀 내 지터 (안티앨리어싱)
 				vec2 jitter = vec2(randomFloat(), randomFloat()) - 0.5;
 				vec2 pixelCenter = vec2(launchID) + vec2(0.5) + jitter;
 				vec2 inUV = pixelCenter / vec2(launchSize);
@@ -569,9 +583,11 @@ void OgRayTracingSample::createShaders()
 				vec3 origin = origin4.xyz;
 				vec3 dir = direction4.xyz;
 
-				// === ?⑥뒪 ?몃젅?댁떛 猷⑦봽 ===
+				// === 패스 트레이싱 루프 ===
 				vec3 radiance = vec3(0.0);
 				vec3 throughput = vec3(1.0);
+				// 직전 바운스가 카메라/스페큘러일 때만 광원 발광을 직접 수집 (디퓨즈는 NEE가 담당 → 이중 계산 방지)
+				bool specularPath = true;
 
 				for (uint bounce = 0u; bounce <= ubo.maxBounces; ++bounce)
 				{
@@ -587,9 +603,18 @@ void OgRayTracingSample::createShaders()
 								0
 					);
 
+					// 광원 구체 직접 조우 판정 (표면 히트보다 가까우면 광원이 보인 것)
+					float lightT = hitLightSphere(origin, dir);
+					if (lightT > 0.0 && (payload.hitT < 0.0 || lightT < payload.hitT))
+					{
+						if (specularPath)
+							radiance += throughput * ubo.lightColor.rgb * ubo.lightColor.w;
+						break;
+					}
+
 					if (payload.hitT < 0.0)
 					{
-						// miss: ?섎뒛鍮??섏쭛 ??寃쎈줈 醫낅즺
+						// miss: 하늘빛 수집 후 경로 종료
 						radiance += throughput * skyColor(dir);
 						break;
 					}
@@ -598,7 +623,7 @@ void OgRayTracingSample::createShaders()
 					bool backface = NdotD > 0.0;
 					vec3 faceN = backface ? -payload.normal : payload.normal;
 
-					// ?좊━ ?대?瑜?吏?섏삩 ?멸렇癒쇳듃??Beer-Lambert 媛먯뇿
+					// 유리 내부를 지나온 세그먼트의 Beer-Lambert 감쇠
 					if (backface && payload.transmission > 0.0 && payload.attenuationDistance > 0.0)
 					{
 						vec3 absorb = -log(payload.attenuationColor + 0.001) / payload.attenuationDistance;
@@ -609,7 +634,7 @@ void OgRayTracingSample::createShaders()
 
 					if (payload.transmission > 0.0)
 					{
-						// ?좊━: ?꾨젅???뺣쪧濡?諛섏궗/援댁젅 以??섎굹留??섑뵆留?(寃쎈줈 遺꾧린 ?놁쓬)
+						// 유리: 프레넬 확률로 반사/굴절 중 하나만 샘플링 (경로 분기 없음)
 						if (bounce == ubo.maxBounces)
 							break;
 
@@ -629,14 +654,16 @@ void OgRayTracingSample::createShaders()
 						{
 							dir = refr;
 							origin = payload.position - faceN * 0.001;
-							// glTF ?ㅽ럺: ?ш낵愿묒? baseColor濡??댄듃 (Attenuation ?ъ쭏? ?곗깋?대씪 ?곹뼢 ?놁쓬)
+							// glTF 스펙: 투과광은 baseColor로 틴트 (Attenuation 재질은 흰색이라 영향 없음)
 							throughput *= payload.baseColor;
 						}
+
+						specularPath = true;
 					}
 					else
 					{
-						// 遺덊닾紐??뷀벂利?: 愿묒썝 吏곸젒 ?섑뵆留?NEE)
-						vec3 lightPoint = ubo.lightPos.xyz + randomUnitVector() * 0.7; // 硫닿킅??洹쇱궗 ??遺?쒕윭??洹몃┝??
+						// 불투명(디퓨즈): 광원 직접 샘플링(NEE)
+						vec3 lightPoint = ubo.lightPos.xyz + randomUnitVector() * LIGHT_RADIUS; // 면광원 근사 → 부드러운 그림자
 						vec3 toLight = lightPoint - payload.position;
 						float lightDist = length(toLight);
 						vec3 L = toLight / lightDist;
@@ -647,13 +674,13 @@ void OgRayTracingSample::createShaders()
 							vec3 shadowOrigin = payload.position + faceN * 0.001;
 							uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
 
-							// 洹몃┝???덉씠 1: 遺덊닾紐?臾쇱껜留?(cullMask 0x01) ??媛?ㅼ?硫??꾩쟾 李⑤떒
+							// 그림자 레이 1: 불투명 물체만 (cullMask 0x01) → 가려지면 완전 차단
 							shadowHitValue = vec3(0.0);
 							traceRayEXT(topLevelAS, shadowRayFlags, 0x01, 0, 0, 1,
 										shadowOrigin, 0.001, L, lightDist, 1);
 							vec3 shadowOpaque = shadowHitValue;
 
-							// 洹몃┝???덉씠 2: ?좊━ ?ы븿 (cullMask 0xff) ???좊━?먮쭔 媛?ㅼ?硫?鍮??쇰? ?ш낵
+							// 그림자 레이 2: 유리 포함 (cullMask 0xff) → 유리에만 가려지면 빛 일부 투과
 							shadowHitValue = vec3(0.0);
 							traceRayEXT(topLevelAS, shadowRayFlags, 0xff, 0, 0, 1,
 										shadowOrigin, 0.001, L, lightDist, 1);
@@ -663,16 +690,17 @@ void OgRayTracingSample::createShaders()
 								* ubo.lightColor.rgb * ubo.lightColor.w * NdotL * shadowFactor;
 						}
 
-						// 肄붿궗??諛섍뎄 ?섑뵆留곸쑝濡?寃쎈줈 ?곗옣 (媛꾩젒愿?
+						// 코사인 반구 샘플링으로 경로 연장 (간접광)
 						if (bounce == ubo.maxBounces)
 							break;
 
 						throughput *= payload.baseColor;
 						dir = cosineSampleHemisphere(faceN);
 						origin = payload.position + faceN * 0.001;
+						specularPath = false;
 					}
 
-					// ?ъ떆??猷곕젢: 湲?寃쎈줈瑜??뺣쪧?곸쑝濡?醫낅즺
+					// 러시안 룰렛: 긴 경로를 확률적으로 종료
 					if (bounce > 3u)
 					{
 						float p = clamp(max(throughput.r, max(throughput.g, throughput.b)), 0.05, 0.95);
@@ -687,7 +715,7 @@ void OgRayTracingSample::createShaders()
 
 			color /= float(spp);
 
-			// ?좏삎 怨듦컙 ?꾩쟻: ??κ컪? ?쒖떆???몄퐫?⑹씠誘濡??붿퐫?????됯퇏 ???ъ씤肄붾뵫
+			// 선형 공간 누적: 저장값은 표시용 인코딩이므로 디코딩 → 평균 → 재인코딩
 			if (ubo.frameCount > 0)
 			{
 				vec3 prevLinear = decodeDisplay(imageLoad(image, ivec2(launchID)).rgb);
@@ -700,7 +728,7 @@ void OgRayTracingSample::createShaders()
 	)";
 
 #pragma region missShader
-	// Miss ?곗씠??(GLSL) - ?섎뒛 洹몃씪?곗씠??
+	// Miss 셰이더 (GLSL) - 하늘 그라데이션
 	const char* missGLSL = R"(
 		#version 460
 		#extension GL_EXT_ray_tracing : require
@@ -734,13 +762,13 @@ void OgRayTracingSample::createShaders()
 
 		void main()
 		{
-			// miss = ?섎뒛. ?섎뒛??怨꾩궛? raygen???⑥뒪 ?몃젅?댁떛 猷⑦봽?먯꽌 ?섑뻾
+			// miss = 하늘. 하늘색 계산은 raygen의 패스 트레이싱 루프에서 수행
 			payload.hitT = -1.0;
 		}
 	)";
 #pragma endregion
 
-	// Shadow Miss ?곗씠??- shadow ray媛 ?꾨Т寃껊룄 ??留욎쑝硫?鍮쏆씠 ?꾨떖
+	// Shadow Miss 셰이더 - shadow ray가 아무것도 안 맞으면 빛이 도달
 	const char* shadowMissGLSL = R"(
 		#version 460
 		#extension GL_EXT_ray_tracing : require
@@ -877,7 +905,7 @@ void OgRayTracingSample::createShaders()
 			normal = normalize(mat3(gl_ObjectToWorldEXT) * normal);
 
 			uint matIndex = geomInfo.materialIndex;
-			// ?ъ쭏 蹂???좉?: DragonAttenuation??1(蹂쇰ⅷ 媛먯뇿) ??2(Surface Coloring Only)
+			// 재질 변형 토글: DragonAttenuation의 1(볼륨 감쇠) ↔ 2(Surface Coloring Only)
 			if (ubo.surfaceColorVariant == 1u && matIndex == 1u)
 				matIndex = 2u;
 			Material material = materialBuffer.materials[matIndex];
@@ -888,7 +916,7 @@ void OgRayTracingSample::createShaders()
 				baseColor *= texture(textures[material.baseColorTextureIndex], texCoord);
 			}
 
-			// ?쒕㈃ ?뺣낫留?payload濡?諛섑솚 ???곗씠?⑷낵 寃쎈줈 ?곗옣? raygen???⑥뒪 ?몃젅?댁떛 猷⑦봽?먯꽌 ?섑뻾
+			// 표면 정보만 payload로 반환 — 셰이딩과 경로 연장은 raygen의 패스 트레이싱 루프에서 수행
 			payload.position = position;
 			payload.hitT = gl_HitTEXT;
 			payload.normal = normal;
@@ -903,7 +931,7 @@ void OgRayTracingSample::createShaders()
 	)";
 #pragma endregion
 
-	// ?곗씠??而댄뙆??(GLSL ?ъ슜)
+	// 셰이더 컴파일 (GLSL 사용)
 	_raygenShader = OgShaderCompiler::CreateShaderFromGLSL(
 		_renderContext,
 		raygenSlang,
@@ -960,7 +988,7 @@ void OgRayTracingSample::createShaders()
 	}
 	_closestHitShader->Retain();
 
-	// ?덉씠?몃젅?댁떛 ?꾨줈洹몃옩 ?앹꽦 (4 shaders: raygen, miss, shadow miss, closest hit)
+	// 레이트레이싱 프로그램 생성 (4 shaders: raygen, miss, shadow miss, closest hit)
 	OgShaderHandle* handles[]{ _raygenShader, _missShader, _shadowMissShader, _closestHitShader };
 	_rtProgram = _renderContext->CreateProgram(handles, 4);
 	_rtProgram->name = "RayTracingProgram";
@@ -969,13 +997,13 @@ void OgRayTracingSample::createShaders()
 
 void OgRayTracingSample::createRayTracingPipeline()
 {
-	// ?덉씠?몃젅?댁떛 ?뚯씠?꾨씪???ㅼ젙
+	// 레이트레이싱 파이프라인 설정
 	Render::OgRayTracingPipelineDescriptor rtPipeDesc{};
 	rtPipeDesc.name = "RayTracingPipeline";
 	rtPipeDesc.resourceLayout = _rtResourceLayout;
-	rtPipeDesc.maxRecursionDepth = 2; // ?⑥뒪 ?몃젅?댁떛 猷⑦봽??raygen?먯꽌留?trace (?ш? ?놁쓬)
+	rtPipeDesc.maxRecursionDepth = 2; // 패스 트레이싱 루프는 raygen에서만 trace (재귀 없음)
 
-	// ?곗씠??洹몃９ ?ㅼ젙 (4 groups)
+	// 셰이더 그룹 설정 (4 groups)
 	Render::OgRayTracingShaderGroup groups[4];
 
 	// Group 0: Ray generation
@@ -1009,7 +1037,7 @@ void OgRayTracingSample::createRayTracingPipeline()
 	rtPipeDesc.shaderGroups = groups;
 	rtPipeDesc.shaderGroupCount = 4;
 
-	// ?곗씠???ㅼ젙 (4 shaders)
+	// 셰이더 설정 (4 shaders)
 	Render::OgShaderHandle* shaders[4] = { _raygenShader, _missShader, _shadowMissShader, _closestHitShader };
 	rtPipeDesc.shaders = shaders;
 	rtPipeDesc.shaderCount = 4;
@@ -1023,7 +1051,7 @@ void OgRayTracingSample::createRenderTarget(uint16 width, uint16 height)
 	_renderTargetWidth = width;
 	_renderTargetHeight = height;
 
-	// ?섑뵆???앹꽦
+	// 샘플러 생성
 	OgSamplerInfo samplerInfo{};
 	samplerInfo.type = OgSamplerType::TEX_2D;
 	samplerInfo.addressU = OgSamplerAddressMode::CLAMP_TO_EDGE;
@@ -1034,7 +1062,7 @@ void OgRayTracingSample::createRenderTarget(uint16 width, uint16 height)
 
 	OgSamplerHandle* sampler = _renderContext->CreateSampler(samplerInfo);
 
-	// ?뚮뜑 ?寃??띿뒪泥??앹꽦 (?덉씠?몃젅?댁떛 異쒕젰??
+	// 렌더 타겟 텍스처 생성 (레이트레이싱 출력용)
 	OgTextureInfo texInfo{};
 	texInfo.type = OgTextureType::TEX_2D;
 	texInfo.format = OgPixelFormat::R32G32B32A32_SFLOAT;
@@ -1047,7 +1075,7 @@ void OgRayTracingSample::createRenderTarget(uint16 width, uint16 height)
 	_renderTargetTexture->name = "RayTracingRenderTarget";
 	_renderTargetTexture->Retain();
 
-	// 源딆씠 ?띿뒪泥??앹꽦
+	// 깊이 텍스처 생성
 	OgTextureInfo depthTexInfo{};
 	depthTexInfo.type = OgTextureType::TEX_2D;
 	depthTexInfo.format = OgPixelFormat::D24_UNORM_S8_UINT;
@@ -1060,7 +1088,7 @@ void OgRayTracingSample::createRenderTarget(uint16 width, uint16 height)
 	_depthTexture->name = "RayTracingDepthBuffer";
 	_depthTexture->Retain();
 
-	// ?뚮뜑 ?⑥뒪 ?앹꽦
+	// 렌더 패스 생성
 	OgAttachment rtColor{};
 	rtColor.isDepthStencilAttachment = false;
 	rtColor.format = OgRenderTextureFormat::R32G32B32A32;
@@ -1085,7 +1113,7 @@ void OgRayTracingSample::createRenderTarget(uint16 width, uint16 height)
 	_renderTargetRenderPass->name = "RayTracingRenderTargetPass";
 	_renderTargetRenderPass->Retain();
 
-	// ?꾨젅?꾨쾭???앹꽦
+	// 프레임버퍼 생성
 	OgVector<OgTextureHandle*> rtTextures;
 	rtTextures.Add(_renderTargetTexture);
 
@@ -1130,7 +1158,7 @@ void OgRayTracingSample::destroyRenderTarget()
 
 void OgRayTracingSample::createUniformBuffer()
 {
-	// 珥덇린 蹂???됰젹 ?ㅼ젙
+	// 초기 변환 행렬 설정
 	float aspect = 1.0f;
 	if (_renderTargetHeight > 0)
 	{
@@ -1143,7 +1171,7 @@ void OgRayTracingSample::createUniformBuffer()
 		glm::mat4 view = _camera->GetViewMatrix();
 		glm::mat4 proj = _camera->GetProjectionMatrix();
 		
-		// Vulkan???꾨줈?앹뀡 蹂??
+		// Vulkan용 프로젝션 변환
 		convertProjectionForVulkan(proj);
 		
 		_rtUniformData.viewInverse = glm::inverse(view);
@@ -1156,7 +1184,7 @@ void OgRayTracingSample::createUniformBuffer()
 		glm::mat4 view = glm::lookAt(camPos, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::mat4 proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
 		
-		// Vulkan???꾨줈?앹뀡 蹂??
+		// Vulkan용 프로젝션 변환
 		convertProjectionForVulkan(proj);
 		
 		_rtUniformData.viewInverse = glm::inverse(view);
@@ -1164,11 +1192,11 @@ void OgRayTracingSample::createUniformBuffer()
 		_rtUniformData.cameraPos = glm::vec4(camPos, 1.0f);
 	}
 
-	// ?쇱씠???ㅼ젙
+	// 라이트 설정
 	_rtUniformData.lightPos = glm::vec4(5.0f, 10.0f, 5.0f, 1.0f);
-	_rtUniformData.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 10.0f); // 留덉?留?媛믪? intensity
+	_rtUniformData.lightColor = glm::vec4(1.0f, 1.0f, 1.0f, 10.0f); // 마지막 값은 intensity
 
-	// ?좊땲??踰꾪띁 ?앹꽦
+	// 유니폼 버퍼 생성
 	_rtUniformBuffer = _renderContext->CreateBuffer(
 		&_rtUniformData,
 		sizeof(RTUniformData),
@@ -1185,7 +1213,7 @@ void OgRayTracingSample::updateUniformBuffer()
 		glm::mat4 view = _camera->GetViewMatrix();
 		glm::mat4 proj = _camera->GetProjectionMatrix();
 		
-		// Vulkan???꾨줈?앹뀡 蹂??
+		// Vulkan용 프로젝션 변환
 		convertProjectionForVulkan(proj);
 		
 		_rtUniformData.viewInverse = glm::inverse(view);
@@ -1199,7 +1227,7 @@ void OgRayTracingSample::createAccelerationStructures()
 	if (_geometries.empty())
 		return;
 
-	// ?꾩껜 踰꾪뀓?ㅼ? ?몃뜳?ㅻ? ?섎굹??踰꾪띁濡??⑹튂湲?
+	// 전체 버텍스와 인덱스를 하나의 버퍼로 합치기
 	std::vector<Vertex> allVertices;
 	std::vector<uint32_t> allIndices;
 	std::vector<GPUGeometryInfo> allGeometryInfos;
@@ -1207,7 +1235,7 @@ void OgRayTracingSample::createAccelerationStructures()
 	allVertices.reserve(_totalVertexCount);
 	allIndices.reserve(_totalIndexCount);
 	
-	// BLAS ?앹꽦???꾪븳 geometry ?뺣낫 ?섏쭛
+	// BLAS 생성을 위한 geometry 정보 수집
 	std::vector<Render::OgAccelStructureGeometry> blasGeometries;
 	
 	for (const auto& geom : _geometries)
@@ -1220,12 +1248,12 @@ void OgRayTracingSample::createAccelerationStructures()
 
 		allGeometryInfos.push_back(info);
 
-		// CPU 罹먯떆???곗씠???ъ슜
+		// CPU 캐시된 데이터 사용
 		allVertices.insert(allVertices.end(), geom.cpuVertices.begin(), geom.cpuVertices.end());
 		allIndices.insert(allIndices.end(), geom.cpuIndices.begin(), geom.cpuIndices.end());
 	}
 	
-	// ?듯빀 踰꾪띁 ?앹꽦 (SHADER_DEVICE_ADDRESS ?ы븿 - BLAS 鍮뚮뱶???꾩슂)
+	// 통합 버퍼 생성 (SHADER_DEVICE_ADDRESS 포함 - BLAS 빌드에 필요)
 	_vertexBuffer = _renderContext->CreateBuffer(
 		allVertices.data(),
 		sizeof(Vertex) * allVertices.size(),
@@ -1258,7 +1286,7 @@ void OgRayTracingSample::createAccelerationStructures()
 	);
 	_geometryInfoBuffer->Retain();
 
-	// 硫붿떆 ?⑥쐞濡?BLAS瑜?遺꾨━ ?앹꽦 (?몃뱶 ?몄뒪?댁뒪媛 ?먭린 硫붿떆??BLAS留?李몄“?섎룄濡?
+	// 메시 단위로 BLAS를 분리 생성 (노드 인스턴스가 자기 메시의 BLAS만 참조하도록)
 	std::vector<int> meshBlasIndex(_loadedModel.meshes.size(), -1);
 
 	for (size_t mi = 0; mi < _loadedModel.meshes.size(); ++mi)
@@ -1303,21 +1331,21 @@ void OgRayTracingSample::createAccelerationStructures()
 		LOGD(OG_ID, "BLAS[mesh %zu]: geometries=%zu firstGeometryIndex=%u",
 			mi, blasGeometries.size(), firstGeometryIndex);
 
-		// BLAS ?앹꽦
+		// BLAS 생성
 		Render::OgAccelStructureBuildInfo blasBuildInfo{};
 		blasBuildInfo.type = Render::OgAccelStructureType::BOTTOM_LEVEL;
 		blasBuildInfo.flags = Render::OgRayTracingBuildFlag::PREFER_FAST_TRACE;
 		blasBuildInfo.bottomLevel.geometries = blasGeometries.data();
 		blasBuildInfo.bottomLevel.geometryCount = static_cast<uint32_t>(blasGeometries.size());
 
-		// BLAS瑜??앹꽦?섍퀬 鍮뚮뱶
+		// BLAS를 생성하고 빌드
 		Render::OgAccelStructureHandle* blas = _renderContext->CreateAccelerationStructure(blasBuildInfo);
 		blas->Retain();
 
 		// BLAS 利됱떆 鍮뚮뱶
 		_renderContext->BuildAccelerationStructureImmediate(blas, blasBuildInfo);
 
-		// BLAS instance ???(primitiveOffset = ??硫붿떆??泥?geometry ?몃뜳?? TLAS instanceCustomIndex濡??ъ슜)
+		// BLAS instance 저장 (primitiveOffset = 이 메시의 첫 geometry 인덱스, TLAS instanceCustomIndex로 사용)
 		BLASInstance instance;
 		instance.blas = blas;
 		instance.primitiveOffset = firstGeometryIndex;
@@ -1328,11 +1356,11 @@ void OgRayTracingSample::createAccelerationStructures()
 		_blasInstances.push_back(instance);
 	}
 	
-	// TLAS ?앹꽦???꾪븳 ?몄뒪?댁뒪 ?곗씠??以鍮?
-	// Vulkan 援ы쁽?먯꽌??VkAccelerationStructureInstanceKHR ?ъ슜
-	// ?꾩옱 ?뚯뒪?몃? ?꾪빐 ?⑥닚??
+	// TLAS 생성을 위한 인스턴스 데이터 준비
+	// Vulkan 구현에서는 VkAccelerationStructureInstanceKHR 사용
+	// 현재 테스트를 위해 단순화
 	
-	// Instance 踰꾪띁 ?앹꽦 (?꾩떆)
+	// Instance 버퍼 생성 (임시)
 	struct InstanceData {
 		float transform[3][4];
 		uint32_t instanceCustomIndex : 24;
@@ -1362,7 +1390,7 @@ void OgRayTracingSample::createAccelerationStructures()
 			}
 		}
 
-		// ??硫붿떆???ш낵(?좊━) ?ъ쭏???덉쑝硫?洹몃┝???덉씠(cullMask 0x01)?먯꽌 ?쒖쇅
+		// 이 메시에 투과(유리) 재질이 있으면 그림자 레이(cullMask 0x01)에서 제외
 		bool transmissive = false;
 		for (const auto& geom : _geometries)
 		{
@@ -1375,7 +1403,7 @@ void OgRayTracingSample::createAccelerationStructures()
 			}
 		}
 
-		// ?곗씠?붿뿉??geometryInfo 議고쉶 ??踰좎씠???몃뜳?ㅻ줈 ?ъ슜
+		// 셰이더에서 geometryInfo 조회 시 베이스 인덱스로 사용
 		tlasInst.instanceCustomIndex = meshBlas.primitiveOffset;
 		tlasInst.mask = transmissive ? 0xFE : 0xFF;
 		tlasInst.instanceShaderBindingTableRecordOffset = 0;
@@ -1397,7 +1425,7 @@ void OgRayTracingSample::createAccelerationStructures()
 	);
 	_instanceBuffer->Retain();
 	
-	// TLAS ?앹꽦
+	// TLAS 생성
 	Render::OgAccelStructureBuildInfo tlasBuildInfo{};
 	tlasBuildInfo.type = Render::OgAccelStructureType::TOP_LEVEL;
 	tlasBuildInfo.flags = Render::OgRayTracingBuildFlag::PREFER_FAST_TRACE;
@@ -1410,10 +1438,10 @@ void OgRayTracingSample::createAccelerationStructures()
 	// TLAS 利됱떆 鍮뚮뱶
 	_renderContext->BuildAccelerationStructureImmediate(_tlas, tlasBuildInfo);
 	
-	// Shader Binding Table ?앹꽦
+	// Shader Binding Table 생성
 	createShaderBindingTable();
 	
-	// 由ъ냼?????앹꽦
+	// 리소스 셋 생성
 	uint32 zeroOffset = 0;
 	OgResourceUsage usages[8];
 	
@@ -1423,13 +1451,13 @@ void OgRayTracingSample::createAccelerationStructures()
 	usages[0].binding.binding = 0;
 	usages[0].accelStructure.handle = &_tlas;
 	
-	// 異쒕젰 ?대?吏
+	// 출력 이미지
 	usages[1].binding.type = OgResourceType::STORAGE_IMAGE;
 	usages[1].binding.stage = OgShaderType::RAYGEN;
 	usages[1].binding.binding = 1;
 	usages[1].texture.handle = &_renderTargetTexture;
 	
-	// ?좊땲??踰꾪띁
+	// 유니폼 버퍼
 	usages[2].binding.type = OgResourceType::UNIFORM_BUFFER;
 	usages[2].binding.stage = static_cast<OgShaderType>(static_cast<uint16>(OgShaderType::RAYGEN) | static_cast<uint16>(OgShaderType::CLOSEST_HIT) | static_cast<uint16>(OgShaderType::MISS));
 	usages[2].binding.binding = 2;
@@ -1437,7 +1465,7 @@ void OgRayTracingSample::createAccelerationStructures()
 	usages[2].buffer.offset = &zeroOffset;
 	usages[2].buffer.range = &_rtUniformBuffer->size;
 	
-	// 踰꾪뀓??踰꾪띁
+	// 버텍스 버퍼
 	usages[3].binding.type = OgResourceType::STORAGE_BUFFER;
 	usages[3].binding.stage = OgShaderType::CLOSEST_HIT;
 	usages[3].binding.binding = 3;
@@ -1445,7 +1473,7 @@ void OgRayTracingSample::createAccelerationStructures()
 	usages[3].buffer.offset = &zeroOffset;
 	usages[3].buffer.range = &_vertexBuffer->size;
 	
-	// ?몃뜳??踰꾪띁
+	// 인덱스 버퍼
 	usages[4].binding.type = OgResourceType::STORAGE_BUFFER;
 	usages[4].binding.stage = OgShaderType::CLOSEST_HIT;
 	usages[4].binding.binding = 4;
@@ -1469,19 +1497,19 @@ void OgRayTracingSample::createAccelerationStructures()
 	usages[6].buffer.offset = &zeroOffset;
 	usages[6].buffer.range = &_geometryInfoBuffer->size;
 	
-	// ?띿뒪泥?諛곗뿴
+	// 텍스처 배열
 	std::vector<Render::OgTextureHandle*> texHandles;
 	for (auto* tex : _textureArray)
 	{
 		texHandles.push_back(tex);
 	}
-	// 諛곗뿴??16媛쒓? ?섎룄濡?湲곕낯 ?띿뒪泥섎줈 梨꾩슦湲?
+	// 배열이 16개가 되도록 기본 텍스처로 채우기
 	while (texHandles.size() < 16)
 	{
 		texHandles.push_back(_defaultWhiteTexture);
 	}
 	
-	// ?띿뒪泥?諛곗뿴 - 16媛?紐⑤몢 諛붿씤??
+	// 텍스처 배열 - 16개 모두 바인딩
 	usages[7].binding.type = OgResourceType::COMBINED_IMAGE_SAMPLER;
 	usages[7].binding.stage = OgShaderType::CLOSEST_HIT;
 	usages[7].binding.binding = 7;
@@ -1495,10 +1523,10 @@ void OgRayTracingSample::createAccelerationStructures()
 
 void OgRayTracingSample::createShaderBindingTable()
 {
-	// SBT handle alignment ?뺣낫 媛?몄삤湲?
+	// SBT handle alignment 정보 가져오기
 	_sbtHandleSizeAligned = _renderContext->GetShaderGroupHandleSizeAligned();
 
-	// ?곗씠??洹몃９ ?ㅼ젙 (4 groups: raygen, miss, shadow miss, hit)
+	// 셰이더 그룹 설정 (4 groups: raygen, miss, shadow miss, hit)
 	Render::OgRayTracingShaderGroup groups[4];
 
 	groups[0].type = Render::OgRayTracingShaderGroup::GENERAL;
@@ -1525,10 +1553,10 @@ void OgRayTracingSample::createShaderBindingTable()
 	groups[3].anyHitShader = ~0u;
 	groups[3].intersectionShader = ~0u;
 
-	// ?꾩껜 SBT ?앹꽦 (?섎굹??踰꾪띁??紐⑤뱺 ?몃뱾 ?ы븿)
+	// 전체 SBT 생성 (하나의 버퍼에 모든 핸들 포함)
 	Render::OgBufferHandle* sbtBuffer = _renderContext->CreateShaderBindingTable(_rtPipeline, groups, 4);
 
-	// ?숈씪??踰꾪띁瑜?offset?쇰줈 援щ텇?섏뿬 ?ъ슜
+	// 동일한 버퍼를 offset으로 구분하여 사용
 	_raygenSBT = sbtBuffer;
 	_missSBT = sbtBuffer;
 	_hitSBT = sbtBuffer;
@@ -1540,13 +1568,13 @@ void OgRayTracingSample::createShaderBindingTable()
 
 void OgRayTracingSample::updateTLAS()
 {
-	// TLAS ?낅뜲?댄듃媛 ?꾩슂??寃쎌슦 ?몄텧
-	// ?? ?몄뒪?댁뒪 蹂?섏씠 蹂寃쎈릺?덉쓣 ??
+	// TLAS 업데이트가 필요한 경우 호출
+	// 예: 인스턴스 변환이 변경되었을 때
 }
 
 void OgRayTracingSample::destroyAccelerationStructures()
 {
-	// SBT 踰꾪띁???댁젣
+	// SBT 버퍼들 해제
 	if (_raygenSBT)
 	{
 		_raygenSBT->Release();
@@ -1565,14 +1593,14 @@ void OgRayTracingSample::destroyAccelerationStructures()
 		_hitSBT = nullptr;
 	}
 	
-	// TLAS ?댁젣
+	// TLAS 해제
 	if (_tlas)
 	{
 		_tlas->Release();
 		_tlas = nullptr;
 	}
 	
-	// BLAS ?댁젣
+	// BLAS 해제
 	for (auto& instance : _blasInstances)
 	{
 		if (instance.blas)
@@ -1582,7 +1610,7 @@ void OgRayTracingSample::destroyAccelerationStructures()
 	}
 	_blasInstances.clear();
 	
-	// 踰꾪띁???댁젣
+	// 버퍼들 해제
 	if (_instanceBuffer)
 	{
 		_instanceBuffer->Release();
@@ -1616,10 +1644,10 @@ void OgRayTracingSample::destroyAccelerationStructures()
 
 bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
 {
-	// 湲곗〈 紐⑤뜽 ?곗씠???대━??
+	// 기존 모델 데이터 클리어
 	clearModelData();
 
-	// OgGLTFLoader瑜??ъ슜?댁꽌 紐⑤뜽 濡쒕뱶
+	// OgGLTFLoader를 사용해서 모델 로드
 	if (!_gltfLoader->LoadModel(filePath, _loadedModel))
 	{
 		LOGE(OG_ID, "Failed to load glTF model: %s", filePath.c_str());
@@ -1627,13 +1655,13 @@ bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
 		return false;
 	}
 
-	// 濡쒕뱶??紐⑤뜽???덉씠?몃젅?댁떛?⑹쑝濡?泥섎━
+	// 로드된 모델을 레이트레이싱용으로 처리
 	for (int i = 0; i < static_cast<int>(_loadedModel.meshes.size()); ++i)
 	{
 		processMeshForRayTracing(_loadedModel.meshes[i], i);
 	}
 
-	// Material ?곗씠??以鍮?
+	// Material 데이터 준비
 	_materials.clear();
 	for (const auto& mat : _loadedModel.materials)
 	{
@@ -1643,11 +1671,11 @@ bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
 		matData.metallicFactor = mat.metallicFactor;
 		matData.roughnessFactor = mat.roughnessFactor;
 		matData.transmissionFactor = mat.transmissionFactor;
-		matData.ior = 1.5; // 湲곕낯 ?좊━ IOR (KHR_materials_ior 湲곕낯媛?
+		matData.ior = 1.5; // 기본 유리 IOR (KHR_materials_ior 기본값)
 		matData.attenuationColor = glm::vec4(mat.attenuationColor, 1.0f);
 		matData.attenuationDistance = mat.attenuationDistance;
 		
-		// ?띿뒪泥??몃뜳???ㅼ젙
+		// 텍스처 인덱스 설정
 		matData.baseColorTextureIndex = mat.baseColorTexture ? 
 			static_cast<int32_t>(_textureArray.size()) : -1;
 		if (mat.baseColorTexture)
@@ -1672,7 +1700,7 @@ bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
 		_materials.push_back(matData);
 	}
 
-	// Material 踰꾪띁 ?앹꽦
+	// Material 버퍼 생성
 	if (!_materials.empty())
 	{
 		_materialBuffer = _renderContext->CreateBuffer(
@@ -1684,14 +1712,14 @@ bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
 		_materialBuffer->Retain();
 	}
 
-	// ?몃뱶 泥섎━ (?몄뒪?댁뒪 ?앹꽦)
+	// 노드 처리 (인스턴스 생성)
 	_instances.clear();
 	for (int rootNode : _loadedModel.rootNodes)
 	{
 		processNodeForRayTracing(rootNode, glm::mat4(1.0f));
 	}
 
-	// ?몄뒪?댁뒪媛 ?섎굹???놁쑝硫?湲곕낯 ?몄뒪?댁뒪 ?앹꽦
+	// 인스턴스가 하나도 없으면 기본 인스턴스 생성
 	if (_instances.empty())
 	{
 		InstanceData inst{};
@@ -1707,10 +1735,10 @@ bool OgRayTracingSample::loadGLTFModel(const std::string& filePath)
 
 void OgRayTracingSample::clearModelData()
 {
-	// ?띿뒪泥?諛곗뿴 ?대━??(湲곕낯 ?띿뒪泥섎뒗 ?쒖쇅)
+	// 텍스처 배열 클리어 (기본 텍스처는 제외)
 	_textureArray.clear();
 	
-	// 吏?ㅻ찓?몃━ ?뺣낫 ?대━??
+	// 지오메트리 정보 클리어
 	_geometries.clear();
 	_materials.clear();
 	_instances.clear();
@@ -1718,10 +1746,10 @@ void OgRayTracingSample::clearModelData()
 	_totalVertexCount = 0;
 	_totalIndexCount = 0;
 	
-	// ?꾨젅??移댁슫??由ъ뀑
+	// 프레임 카운터 리셋
 	_frameCount = 0;
 	
-	// OgGLTFLoader瑜??ъ슜?댁꽌 紐⑤뜽 ?곗씠???대━??
+	// OgGLTFLoader를 사용해서 모델 데이터 클리어
 	if (_gltfLoader)
 	{
 		_gltfLoader->ClearModel(_loadedModel);
@@ -1790,7 +1818,7 @@ void OgRayTracingSample::processNodeForRayTracing(int nodeIndex, const glm::mat4
 	const Node& node = _loadedModel.nodes[nodeIndex];
 	glm::mat4 nodeMatrix = parentMatrix * node.matrix;
 
-	// ???몃뱶??硫붿떆媛 ?덉쑝硫??몄뒪?댁뒪 ?앹꽦
+	// 이 노드에 메시가 있으면 인스턴스 생성
 	if (node.meshIndex >= 0 && node.meshIndex < static_cast<int>(_loadedModel.meshes.size()))
 	{
 		InstanceData inst;
@@ -1801,7 +1829,7 @@ void OgRayTracingSample::processNodeForRayTracing(int nodeIndex, const glm::mat4
 		_instances.push_back(inst);
 	}
 
-	// ?먯떇 ?몃뱶??泥섎━
+	// 자식 노드들 처리
 	for (int childIndex : node.children)
 	{
 		processNodeForRayTracing(childIndex, nodeMatrix);
@@ -1810,8 +1838,8 @@ void OgRayTracingSample::processNodeForRayTracing(int nodeIndex, const glm::mat4
 
 void OgRayTracingSample::convertProjectionForVulkan(glm::mat4& projection)
 {
-	// GLM??湲곕낯 ?꾨줈?앹뀡? OpenGL???꾪븳 寃껋씠誘濡?Vulkan?⑹쑝濡?蹂??
-	// 1. Y異??ㅼ쭛湲?(Vulkan? Y異뺤씠 ?꾨옒濡??ν븿)
+	// GLM의 기본 프로젝션은 OpenGL을 위한 것이므로 Vulkan용으로 변환
+	// 1. Y축 뒤집기 (Vulkan은 Y축이 아래로 향함)
 	projection[1][1] *= -1.0f;
 }
 

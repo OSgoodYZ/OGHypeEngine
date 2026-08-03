@@ -1516,6 +1516,23 @@ void OgSampleViewerWindow::renderRayTracingControls(OgRayTracingSample* rayTraci
 			settingsChanged = true;
 		}
 
+		// 빛 방향 (방위각/고도, 거리는 유지)
+		glm::vec3 lightPos = rayTracingSample->GetLightPosition();
+		float lightDist = glm::length(lightPos);
+		float lightAzimuth = glm::degrees(glm::atan(lightPos.z, lightPos.x));
+		float lightElevation = glm::degrees(glm::asin(glm::clamp(lightPos.y / lightDist, -1.0f, 1.0f)));
+		bool lightChanged = false;
+		lightChanged |= ImGui::SliderFloat("Light Azimuth", &lightAzimuth, -180.0f, 180.0f, "%.0f deg");
+		lightChanged |= ImGui::SliderFloat("Light Elevation", &lightElevation, 5.0f, 85.0f, "%.0f deg");
+		if (lightChanged)
+		{
+			float azR = glm::radians(lightAzimuth);
+			float elR = glm::radians(lightElevation);
+			glm::vec3 newPos = lightDist * glm::vec3(glm::cos(elR) * glm::cos(azR), glm::sin(elR), glm::cos(elR) * glm::sin(azR));
+			rayTracingSample->SetLightPosition(newPos);
+			settingsChanged = true;
+		}
+
 		ImGui::Separator();
 
 		// Camera mode

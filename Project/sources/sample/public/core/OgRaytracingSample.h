@@ -114,6 +114,8 @@ public:
     uint32_t GetSamplesPerPixel() const { return _rtUniformData.samplesPerPixel; }
     void SetSurfaceColorVariant(bool enable) { _rtUniformData.surfaceColorVariant = enable ? 1u : 0u; _frameCount = 0; }
     bool GetSurfaceColorVariant() const { return _rtUniformData.surfaceColorVariant != 0; }
+    void SetLightPosition(const glm::vec3& pos) { _rtUniformData.lightPos = glm::vec4(pos, 1.0f); _frameCount = 0; }
+    glm::vec3 GetLightPosition() const { return glm::vec3(_rtUniformData.lightPos); }
     
     // 카메라 인터페이스
     bool IsUsingFlyCamera() const { return _useFlyCamera; }
