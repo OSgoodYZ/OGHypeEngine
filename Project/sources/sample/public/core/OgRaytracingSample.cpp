@@ -477,10 +477,19 @@ void OgRayTracingSample::createShaders()
 		} ubo;
 
 		struct RayPayload {
-			vec3 color;
-			uint depth;
+			vec3 position;
+			float hitT;
+			vec3 normal;
+			float transmission;
+			vec3 baseColor;
+			float ior;
+			vec3 emissive;
+			float attenuationDistance;
+			vec3 attenuationColor;
+			float metallic;
 		};
 		layout(location = 0) rayPayloadEXT RayPayload payload;
+		layout(location = 1) rayPayloadEXT vec3 shadowHitValue;
 
 		uint rngState;
 
@@ -497,53 +506,193 @@ void OgRayTracingSample::createShaders()
 			return float(rngState) / 4294967295.0;
 		}
 
+		vec3 randomUnitVector()
+		{
+			float z = randomFloat() * 2.0 - 1.0;
+			float a = randomFloat() * 6.28318530718;
+			float r = sqrt(max(0.0, 1.0 - z * z));
+			return vec3(r * cos(a), r * sin(a), z);
+		}
+
+		// 코사인 가중 반구 샘플링 (디퓨즈 바운스 방향)
+		vec3 cosineSampleHemisphere(vec3 n)
+		{
+			vec3 d = n + randomUnitVector();
+			float len = length(d);
+			return len < 0.001 ? n : d / len;
+		}
+
+		vec3 skyColor(vec3 dir)
+		{
+			float t = 0.5 * (normalize(dir).y + 1.0);
+			return mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), t);
+		}
+
+		// 표시용 인코딩(Reinhard 톤매핑 + 감마). 역변환이 가능해서
+		// 하나의 이미지로 선형 공간 누적과 화면 표시를 겸한다
+		vec3 encodeDisplay(vec3 c)
+		{
+			c = c / (c + vec3(1.0));
+			return pow(c, vec3(1.0 / 2.2));
+		}
+
+		vec3 decodeDisplay(vec3 d)
+		{
+			vec3 c = pow(d, vec3(2.2));
+			c = min(c, vec3(0.999));
+			return c / (vec3(1.0) - c);
+		}
+
 		void main()
 		{
-			// initPayload
-			payload.color = vec3(0, 0, 0);
-			payload.depth = 0;
 			uvec2 launchID = gl_LaunchIDEXT.xy;
 			uvec2 launchSize = gl_LaunchSizeEXT.xy;
 
-			rngState = ubo.frameCount + launchID.x * 1973 + launchID.y * 9277;
+			rngState = pcg_hash(launchID.y * 9277u + launchID.x * 1973u + ubo.frameCount * 26699u);
 
-			// 프레임마다 픽셀 내 위치를 지터해서 누적 시 안티앨리어싱 (프로그레시브 refinement)
-			vec2 jitter = ubo.frameCount > 0 ? vec2(randomFloat(), randomFloat()) - 0.5 : vec2(0.0);
-			vec2 pixelCenter = vec2(launchID) + vec2(0.5) + jitter;
-			vec2 inUV = pixelCenter / vec2(launchSize);
-			vec2 d = inUV * 2.0 - 1.0;
+			uint spp = max(ubo.samplesPerPixel, 1u);
+			vec3 color = vec3(0.0);
 
-			vec4 origin = ubo.viewInverse * vec4(0, 0, 0, 1);
-			vec4 target = ubo.projInverse * vec4(d.x, d.y, 1, 1);
-			vec4 direction = ubo.viewInverse * vec4(normalize(target.xyz), 0);
-
-			// Trace primary ray
-			traceRayEXT(topLevelAS,
-						gl_RayFlagsOpaqueEXT,
-						0xff,         // cullMask
-						0,            // sbtRecordOffset
-						0,            // sbtRecordStride
-						0,            // missIndex
-						origin.xyz,
-						0.001,
-						direction.xyz,
-						10000.0,
-						0             // payload location
-			);
-
-			// 톤 매핑 + 감마 보정 (최종 1회만 적용)
-			vec3 finalColor = payload.color;
-			finalColor = finalColor / (finalColor + vec3(1.0));
-			finalColor = pow(finalColor, vec3(1.0/2.2));
-
-			if (ubo.frameCount > 0)
+			for (uint s = 0u; s < spp; ++s)
 			{
-				vec3 previousColor = imageLoad(image, ivec2(launchID)).rgb;
-				float weight = 1.0 / float(ubo.frameCount + 1);
-				finalColor = mix(previousColor, finalColor, weight);
+				// 픽셀 내 지터 (안티앨리어싱)
+				vec2 jitter = vec2(randomFloat(), randomFloat()) - 0.5;
+				vec2 pixelCenter = vec2(launchID) + vec2(0.5) + jitter;
+				vec2 inUV = pixelCenter / vec2(launchSize);
+				vec2 d = inUV * 2.0 - 1.0;
+
+				vec4 origin4 = ubo.viewInverse * vec4(0, 0, 0, 1);
+				vec4 target = ubo.projInverse * vec4(d.x, d.y, 1, 1);
+				vec4 direction4 = ubo.viewInverse * vec4(normalize(target.xyz), 0);
+
+				vec3 origin = origin4.xyz;
+				vec3 dir = direction4.xyz;
+
+				// === 패스 트레이싱 루프 ===
+				vec3 radiance = vec3(0.0);
+				vec3 throughput = vec3(1.0);
+
+				for (uint bounce = 0u; bounce <= ubo.maxBounces; ++bounce)
+				{
+					payload.hitT = -1.0;
+					traceRayEXT(topLevelAS,
+								gl_RayFlagsOpaqueEXT,
+								0xff,
+								0, 0, 0,
+								origin,
+								0.001,
+								dir,
+								10000.0,
+								0
+					);
+
+					if (payload.hitT < 0.0)
+					{
+						// miss: 하늘빛 수집 후 경로 종료
+						radiance += throughput * skyColor(dir);
+						break;
+					}
+
+					float NdotD = dot(payload.normal, dir);
+					bool backface = NdotD > 0.0;
+					vec3 faceN = backface ? -payload.normal : payload.normal;
+
+					// 유리 내부를 지나온 세그먼트의 Beer-Lambert 감쇠
+					if (backface && payload.transmission > 0.0 && payload.attenuationDistance > 0.0)
+					{
+						vec3 absorb = -log(payload.attenuationColor + 0.001) / payload.attenuationDistance;
+						throughput *= exp(-absorb * payload.hitT);
+					}
+
+					radiance += throughput * payload.emissive;
+
+					if (payload.transmission > 0.0)
+					{
+						// 유리: 프레넬 확률로 반사/굴절 중 하나만 샘플링 (경로 분기 없음)
+						if (bounce == ubo.maxBounces)
+							break;
+
+						float ior = payload.ior <= 0.0 ? 1.5 : payload.ior;
+						float eta = backface ? ior : (1.0 / ior);
+						vec3 refr = refract(dir, faceN, eta);
+						float f0 = pow((1.0 - ior) / (1.0 + ior), 2.0);
+						float fres = f0 + (1.0 - f0) * pow(clamp(1.0 - abs(NdotD), 0.0, 1.0), 5.0);
+						bool tir = dot(refr, refr) < 0.0001;
+
+						if (tir || randomFloat() < fres)
+						{
+							dir = reflect(dir, faceN);
+							origin = payload.position + faceN * 0.001;
+						}
+						else
+						{
+							dir = refr;
+							origin = payload.position - faceN * 0.001;
+						}
+					}
+					else
+					{
+						// 불투명(디퓨즈): 광원 직접 샘플링(NEE)
+						vec3 lightPoint = ubo.lightPos.xyz + randomUnitVector() * 0.7; // 면광원 근사 → 부드러운 그림자
+						vec3 toLight = lightPoint - payload.position;
+						float lightDist = length(toLight);
+						vec3 L = toLight / lightDist;
+						float NdotL = max(dot(faceN, L), 0.0);
+
+						if (NdotL > 0.0)
+						{
+							vec3 shadowOrigin = payload.position + faceN * 0.001;
+							uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
+
+							// 그림자 레이 1: 불투명 물체만 (cullMask 0x01) → 가려지면 완전 차단
+							shadowHitValue = vec3(0.0);
+							traceRayEXT(topLevelAS, shadowRayFlags, 0x01, 0, 0, 1,
+										shadowOrigin, 0.001, L, lightDist, 1);
+							vec3 shadowOpaque = shadowHitValue;
+
+							// 그림자 레이 2: 유리 포함 (cullMask 0xff) → 유리에만 가려지면 빛 일부 투과
+							shadowHitValue = vec3(0.0);
+							traceRayEXT(topLevelAS, shadowRayFlags, 0xff, 0, 0, 1,
+										shadowOrigin, 0.001, L, lightDist, 1);
+							vec3 shadowFactor = shadowOpaque * mix(vec3(0.4), vec3(1.0), shadowHitValue);
+
+							radiance += throughput * (payload.baseColor / 3.14159265359)
+								* ubo.lightColor.rgb * ubo.lightColor.w * NdotL * shadowFactor;
+						}
+
+						// 코사인 반구 샘플링으로 경로 연장 (간접광)
+						if (bounce == ubo.maxBounces)
+							break;
+
+						throughput *= payload.baseColor;
+						dir = cosineSampleHemisphere(faceN);
+						origin = payload.position + faceN * 0.001;
+					}
+
+					// 러시안 룰렛: 긴 경로를 확률적으로 종료
+					if (bounce > 3u)
+					{
+						float p = clamp(max(throughput.r, max(throughput.g, throughput.b)), 0.05, 0.95);
+						if (randomFloat() > p)
+							break;
+						throughput /= p;
+					}
+				}
+
+				color += radiance;
 			}
 
-			imageStore(image, ivec2(launchID), vec4(finalColor, 1.0));
+			color /= float(spp);
+
+			// 선형 공간 누적: 저장값은 표시용 인코딩이므로 디코딩 → 평균 → 재인코딩
+			if (ubo.frameCount > 0)
+			{
+				vec3 prevLinear = decodeDisplay(imageLoad(image, ivec2(launchID)).rgb);
+				float weight = 1.0 / float(ubo.frameCount + 1);
+				color = mix(prevLinear, color, weight);
+			}
+
+			imageStore(image, ivec2(launchID), vec4(encodeDisplay(color), 1.0));
 		}
 	)";
 
@@ -554,8 +703,16 @@ void OgRayTracingSample::createShaders()
 		#extension GL_EXT_ray_tracing : require
 
 		struct RayPayload {
-			vec3 color;
-			uint depth;
+			vec3 position;
+			float hitT;
+			vec3 normal;
+			float transmission;
+			vec3 baseColor;
+			float ior;
+			vec3 emissive;
+			float attenuationDistance;
+			vec3 attenuationColor;
+			float metallic;
 		};
 		layout(location = 0) rayPayloadInEXT RayPayload payload;
 
@@ -574,10 +731,8 @@ void OgRayTracingSample::createShaders()
 
 		void main()
 		{
-			vec3 direction = normalize(gl_WorldRayDirectionEXT);
-			float t = 0.5 * (direction.y + 1.0);
-			vec3 skyColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), t);
-			payload.color = skyColor;
+			// miss = 하늘. 하늘색 계산은 raygen의 패스 트레이싱 루프에서 수행
+			payload.hitT = -1.0;
 		}
 	)";
 #pragma endregion
@@ -605,11 +760,18 @@ void OgRayTracingSample::createShaders()
 		#extension GL_EXT_nonuniform_qualifier : require
 
 		struct RayPayload {
-			vec3 color;
-			uint depth;
+			vec3 position;
+			float hitT;
+			vec3 normal;
+			float transmission;
+			vec3 baseColor;
+			float ior;
+			vec3 emissive;
+			float attenuationDistance;
+			vec3 attenuationColor;
+			float metallic;
 		};
 		layout(location = 0) rayPayloadInEXT RayPayload payload;
-		layout(location = 1) rayPayloadEXT vec3 shadowHitValue;
 
 		layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
@@ -690,53 +852,6 @@ void OgRayTracingSample::createShaders()
 		vec3 getNormal(Vertex vtx) { return vec3(vtx.nx, vtx.ny, vtx.nz); }
 		vec2 getTexCoord(Vertex vtx) { return vec2(vtx.u, vtx.v); }
 
-		const float PI = 3.14159265359;
-
-		vec3 fresnelSchlick(float cosTheta, vec3 F0)
-		{
-			return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
-		}
-
-		float distributionGGX(vec3 N, vec3 H, float roughness)
-		{
-			float a = roughness * roughness;
-			float a2 = a * a;
-			float NdotH = max(dot(N, H), 0.0);
-			float NdotH2 = NdotH * NdotH;
-
-			float num = a2;
-			float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-			denom = PI * denom * denom;
-
-			return num / max(denom, 0.0001);
-		}
-
-		float geometrySchlickGGX(float NdotV, float roughness)
-		{
-			float r = (roughness + 1.0);
-			float k = (r * r) / 8.0;
-
-			float num = NdotV;
-			float denom = NdotV * (1.0 - k) + k;
-
-			return num / max(denom, 0.0001);
-		}
-
-		float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
-		{
-			float NdotV = max(dot(N, V), 0.0);
-			float NdotL = max(dot(N, L), 0.0);
-			float ggx2 = geometrySchlickGGX(NdotV, roughness);
-			float ggx1 = geometrySchlickGGX(NdotL, roughness);
-
-			return ggx1 * ggx2;
-		}
-
-		float fresnelSchlickScalar(float cosTheta, float f0)
-		{
-			return f0 + (1.0 - f0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
-		}
-
 		void main()
 		{
 			GeometryInfo geomInfo = geometryInfoBuffer.geometryInfos[gl_InstanceCustomIndexEXT + gl_GeometryIndexEXT];
@@ -766,192 +881,17 @@ void OgRayTracingSample::createShaders()
 				baseColor *= texture(textures[material.baseColorTextureIndex], texCoord);
 			}
 
-			// PBR 파라미터
-			float metallic = material.metallicFactor;
-			float roughness = material.roughnessFactor;
-			vec3 emissive = material.emissiveFactor.rgb;
-			float transmission = material.transmissionFactor;
-
-			vec3 V = -normalize(gl_WorldRayDirectionEXT);
-			vec3 rayDir = gl_WorldRayDirectionEXT;
-
-			// Transmission (굴절) 처리
-			// payload.depth로 재귀 깊이 관리 (ubo.maxBounces까지)
-			uint depth = payload.depth;
-			bool canRefract = depth < ubo.maxBounces;
-			if (transmission > 0.0 && !canRefract)
-			{
-				// 굴절 깊이 소진: 불투명 fallback 대신 감쇠된 하늘색으로 종료 (얼룩 경계 방지)
-				float skyT = 0.5 * (normalize(rayDir).y + 1.0);
-				vec3 sky = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), skyT);
-				payload.color = sky * material.attenuationColor.rgb;
-				return;
-			}
-			if (transmission > 0.0 && canRefract)
-			{
-				float ior = material.ior;
-				if (ior <= 0.0) ior = 1.5;
-
-				// inside/outside 판별
-				float NdotV = dot(normal, V);
-				bool isInside = NdotV < 0.0;
-				vec3 faceNormal = isInside ? -normal : normal;
-				float cosI = abs(NdotV);
-
-				// eta = n1/n2
-				float eta = isInside ? ior : (1.0 / ior);
-
-				// 굴절 방향 (Snell's law)
-				vec3 refractDir = refract(rayDir, faceNormal, eta);
-
-				// Fresnel 반사율 (Schlick 근사)
-				float f0 = pow((1.0 - ior) / (1.0 + ior), 2.0);
-				float fresnel = fresnelSchlickScalar(cosI, f0);
-
-				// 전반사 체크
-				bool totalInternalReflection = (length(refractDir) < 0.001);
-
-				vec3 refractedColor = vec3(0.0);
-
-				if (!totalInternalReflection)
-				{
-					// 굴절 레이 트레이싱
-					vec3 refractOrigin = position - faceNormal * 0.001;
-					payload.color = vec3(0.0);
-					payload.depth = depth + 1;
-
-					traceRayEXT(topLevelAS,
-								gl_RayFlagsOpaqueEXT,
-								0xff,
-								0, 0, 0,
-								refractOrigin,
-								0.001,
-								refractDir,
-								10000.0,
-								0
-					);
-					refractedColor = payload.color;
-				}
-
-				// Beer-Lambert 감쇠 (매질 내부를 지날 때)
-				if (isInside && material.attenuationDistance > 0.0)
-				{
-					float dist = gl_HitTEXT;
-					vec3 absorb = -log(material.attenuationColor.rgb + 0.001) / material.attenuationDistance;
-					refractedColor *= exp(-absorb * dist);
-				}
-
-				vec3 reflectDir = reflect(rayDir, faceNormal);
-				vec3 reflectedColor;
-				if (totalInternalReflection)
-				{
-					fresnel = 1.0;
-				}
-
-				// 반사 레이 추적: 전반사는 항상, 표면 반사는 얕은 깊이에서만 (레이 수 폭증 방지)
-				if (totalInternalReflection || depth < 2)
-				{
-					vec3 reflectOrigin = position + faceNormal * 0.001;
-					payload.color = vec3(0.0);
-					payload.depth = depth + 1;
-
-					traceRayEXT(topLevelAS,
-								gl_RayFlagsOpaqueEXT,
-								0xff,
-								0, 0, 0,
-								reflectOrigin,
-								0.001,
-								reflectDir,
-								10000.0,
-								0
-					);
-					reflectedColor = payload.color;
-				}
-				else
-				{
-					// 깊은 재귀에서는 스카이 근사로 대체
-					float skyT = 0.5 * (reflectDir.y + 1.0);
-					reflectedColor = mix(vec3(0.5, 0.7, 1.0), vec3(0.1, 0.2, 0.4), skyT) * 0.5;
-				}
-
-				// Fresnel 혼합
-				vec3 transColor = mix(refractedColor, reflectedColor, fresnel);
-
-				// transmission 비율로 opaque와 혼합
-				vec3 L = normalize(ubo.lightPos.xyz - position);
-				float NdotL = max(dot(faceNormal, L), 0.0);
-				vec3 opaqueColor = baseColor.rgb * ubo.lightColor.rgb * ubo.lightColor.w * NdotL + ubo.globalAmbient.rgb * baseColor.rgb;
-
-				vec3 color = mix(opaqueColor, transColor, transmission) + emissive;
-
-				payload.color = color;
-				return;
-			}
-
-			// === 기존 Opaque PBR 로직 ===
-			vec3 L = normalize(ubo.lightPos.xyz - position);
-			vec3 H = normalize(V + L);
-
-			// PBR BRDF
-			vec3 F0 = vec3(0.04);
-			F0 = mix(F0, baseColor.rgb, metallic);
-
-			vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
-			float NDF = distributionGGX(normal, H, roughness);
-			float G = geometrySmith(normal, V, L, roughness);
-
-			vec3 numerator = NDF * G * F;
-			float denominator = 4.0 * max(dot(normal, V), 0.0) * max(dot(normal, L), 0.0);
-			vec3 specular = numerator / max(denominator, 0.001);
-
-			vec3 kS = F;
-			vec3 kD = vec3(1.0) - kS;
-			kD *= 1.0 - metallic;
-
-			float NdotL = max(dot(normal, L), 0.0);
-			vec3 Lo = (kD * baseColor.rgb / PI + specular) * ubo.lightColor.rgb * ubo.lightColor.w * NdotL;
-
-			vec3 ambient = ubo.globalAmbient.rgb * baseColor.rgb;
-
-			// 그림자 레이
-			float tmin = 0.001;
-			float tmax = length(ubo.lightPos.xyz - position);
-			vec3 shadowRayOrigin = position + normal * 0.001;
-			vec3 shadowRayDirection = normalize(ubo.lightPos.xyz - position);
-
-			uint shadowRayFlags = gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT;
-
-			// 그림자 레이 1: 불투명 물체만 (cullMask 0x01) → 가려지면 완전 차단
-			shadowHitValue = vec3(0.0);
-			traceRayEXT(topLevelAS,
-						shadowRayFlags,
-						0x01,
-						0, 0, 1,
-						shadowRayOrigin,
-						tmin,
-						shadowRayDirection,
-						tmax,
-						1
-			);
-			vec3 shadowOpaque = shadowHitValue;
-
-			// 그림자 레이 2: 유리 포함 전체 (cullMask 0xff) → 유리에만 가려지면 빛 일부 투과
-			shadowHitValue = vec3(0.0);
-			traceRayEXT(topLevelAS,
-						shadowRayFlags,
-						0xff,
-						0, 0, 1,
-						shadowRayOrigin,
-						tmin,
-						shadowRayDirection,
-						tmax,
-						1
-			);
-			vec3 shadowFactor = shadowOpaque * mix(vec3(0.4), vec3(1.0), shadowHitValue);
-
-			vec3 color = ambient + Lo * shadowFactor + emissive;
-
-			payload.color = color;
+			// 표면 정보만 payload로 반환 — 셰이딩과 경로 연장은 raygen의 패스 트레이싱 루프에서 수행
+			payload.position = position;
+			payload.hitT = gl_HitTEXT;
+			payload.normal = normal;
+			payload.transmission = material.transmissionFactor;
+			payload.baseColor = baseColor.rgb;
+			payload.ior = material.ior;
+			payload.emissive = material.emissiveFactor.rgb;
+			payload.attenuationDistance = material.attenuationDistance;
+			payload.attenuationColor = material.attenuationColor.rgb;
+			payload.metallic = material.metallicFactor;
 		}
 	)";
 #pragma endregion
@@ -1026,7 +966,7 @@ void OgRayTracingSample::createRayTracingPipeline()
 	Render::OgRayTracingPipelineDescriptor rtPipeDesc{};
 	rtPipeDesc.name = "RayTracingPipeline";
 	rtPipeDesc.resourceLayout = _rtResourceLayout;
-	rtPipeDesc.maxRecursionDepth = 12; // primary(1) + refraction/TIR 최대 8회 + shadow(1) + 여유
+	rtPipeDesc.maxRecursionDepth = 2; // 패스 트레이싱 루프는 raygen에서만 trace (재귀 없음)
 
 	// 셰이더 그룹 설정 (4 groups)
 	Render::OgRayTracingShaderGroup groups[4];
