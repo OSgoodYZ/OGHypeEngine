@@ -175,6 +175,7 @@ private:
 
     // 레이트레이싱 리소스
     void createAccelerationStructures();
+    void createRTResourceSet();
     void createShaderBindingTable();
     void updateTLAS();
     void destroyAccelerationStructures();

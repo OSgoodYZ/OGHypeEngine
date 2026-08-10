@@ -430,12 +430,30 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
 	updateBuffers(drawData);
 
 	// 렌더 패스 시작
+	// 창이 최소화/리사이즈된 직후 프레임은 ImGui DisplaySize가 아직 스왑체인 프레임버퍼와 다를 수 있다.
+	// (최소화 직후엔 0, 리사이즈 직후엔 프레임버퍼보다 클 수 있음)
+	// 이 프레임은 이미 이미지를 acquire했으므로 건너뛸 수 없고, renderArea는 프레임버퍼 범위 안이어야 하므로 맞춰준다.
+	const bool hasValidDisplaySize = (drawData->DisplaySize.x > 0.0f && drawData->DisplaySize.y > 0.0f);
+
+	uint16 areaWidth = (uint16)drawData->DisplaySize.x;
+	uint16 areaHeight = (uint16)drawData->DisplaySize.y;
+	if (surfaceRes.frameBufferHandle)
+	{
+		const uint16 fbWidth = surfaceRes.frameBufferHandle->width;
+		const uint16 fbHeight = surfaceRes.frameBufferHandle->height;
+
+		if (!hasValidDisplaySize || areaWidth > fbWidth)
+			areaWidth = fbWidth;
+		if (!hasValidDisplaySize || areaHeight > fbHeight)
+			areaHeight = fbHeight;
+	}
+
 	OgCommandEncoderHandle::Area renderArea
 	{
 		0,                              // x
 		0,                              // y
-		(uint16)drawData->DisplaySize.x,  // width
-		(uint16)drawData->DisplaySize.y   // height
+		areaWidth,                      // width
+		areaHeight                      // height
 	};
 
 	// Clear values
@@ -460,7 +478,7 @@ void OgImguiRenderer::RenderGUI(Render::OgCommandEncoderHandle* encoder, const O
 		&depthClear
 	);
 
-	if (drawData && drawData->TotalVtxCount > 0 && drawData->CmdListsCount > 0)
+	if (hasValidDisplaySize && drawData && drawData->TotalVtxCount > 0 && drawData->CmdListsCount > 0)
 	{
 		// 뷰포트 및 시저 설정
 		encoder->SetViewport(0.0f, 0.0f, drawData->DisplaySize.x, drawData->DisplaySize.y);
@@ -994,7 +1012,7 @@ Render::OgResourceSetHandle* OgImguiRenderer::getResourceSet(Render::OgTextureHa
 }
 
 // 추가: 리소스 세트 캐시 정리 메소드
-void OgImguiRenderer::clearResourceSetCache()
+void OgImguiRenderer::ClearResourceSetCache()
 {
 	// 캐시된 모든 리소스 세트 정리
 	for (auto& pair : _guiResourceSetHandleMap)

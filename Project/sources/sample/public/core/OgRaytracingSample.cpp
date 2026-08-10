@@ -192,6 +192,15 @@ void OgRayTracingSample::OnResize(uint32 width, uint32 height)
 	destroyRenderTarget();
 	createRenderTarget(static_cast<uint16>(width), static_cast<uint16>(height));
 
+	// 리소스 셋이 이전 렌더 타겟 이미지를 그대로 참조하고 있으므로 함께 재생성한다.
+	// (재생성하지 않으면 새 크기로 TraceRays할 때 이전 크기의 이미지에 기록해 GPU 크래시)
+	if (_rtResourceSet)
+	{
+		_rtResourceSet->Release();
+		_rtResourceSet = nullptr;
+	}
+	createRTResourceSet();
+
 	// 프로젝션 행렬 업데이트
 	float aspect = static_cast<float>(width) / static_cast<float>(height);
 	if (_useFlyCamera && _camera)
@@ -1441,7 +1450,12 @@ void OgRayTracingSample::createAccelerationStructures()
 	// Shader Binding Table 생성
 	createShaderBindingTable();
 	
-	// 리소스 셋 생성
+	createRTResourceSet();
+}
+
+// 리소스 셋 생성 (렌더 타겟 텍스처를 참조하므로 렌더 타겟 재생성 시에도 다시 호출해야 한다)
+void OgRayTracingSample::createRTResourceSet()
+{
 	uint32 zeroOffset = 0;
 	OgResourceUsage usages[8];
 	

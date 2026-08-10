@@ -104,6 +104,9 @@ void OgPlayWindow::onRender(Render::OgCommandEncoderHandle* encoder)
 void OgPlayWindow::onResize(uint32 width, uint32 height)
 {
 	_renderContext->Suspend(_swapchain);
+
+	// 캐시된 ImGui 리소스 셋이 곧 파괴될 유니폼 버퍼/렌더 타겟 텍스처를 참조하고 있으므로 먼저 비운다
+	_imguiRenderer->ClearResourceSetCache();
 	_imguiRenderer->RemoveSurface(_swapchain);
 
 	// ImGui 디스플레이 크기 업데이트

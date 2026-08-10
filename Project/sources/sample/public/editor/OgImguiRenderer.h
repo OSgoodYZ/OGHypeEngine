@@ -126,13 +126,15 @@ public:
     void SetExternalTexture(Render::OgTextureHandle* texture);
     Render::OgTextureHandle* GetExternalTexture() const { return _externalTexture; }
 
+    // 캐시된 리소스 셋이 참조하는 텍스처/버퍼가 파괴되기 전에 호출해야 한다 (디바이스 유휴 상태에서 호출)
+    void ClearResourceSetCache();
+
 private:
     // Pipeline setup and cleanup
     void setupImGuiPipeline();
     void cleanupImGuiPipeline();
     void updateBuffers(const ImDrawData* drawData);
     Render::OgResourceSetHandle* getResourceSet(Render::OgTextureHandle* texture, Render::OgBufferHandle* uniform);
-    void clearResourceSetCache();
 
     // Helper function for shader compilation
     bool compileGLSLtoSPIRV(const char* shaderCode, Render::OgShaderType shaderType, std::vector<uint32_t>& spirvOut);
